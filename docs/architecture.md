@@ -23,7 +23,7 @@ Tests must run cheaply and fully automated, no external auth — the same reason
 - `wrangler dev` and the test runner point the Hyperdrive binding at that local Postgres via the `CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_<BINDING_NAME>` environment variable (Wrangler's supported override for local Hyperdrive development) — no Neon/network access needed to run tests.
 - Neon is used for staging/production only.
 
-## Directory layout (proposed, not yet built)
+## Directory layout
 
 pnpm workspace (this repo already prefers pnpm over npm):
 - `apps/web` — the Vite React SPA
@@ -52,4 +52,3 @@ Consolidated export (item 7) is a join of `Submission` → `Employee`, `RoundMen
 ## Open items — not yet decided
 
 - **OCR menu extraction — nice-to-have, not required for v1.** Idea: admin uploads a menu photo, a vision model breaks it into structured dish items (name/price) for the admin to review and correct, rather than typing them in by hand. Deferred decisions: which model (a frontier vision LLM via Cloudflare AI Gateway, vs. Workers AI's native vision models — accuracy on messy/handwritten/non-English photos is the open question), and the review/correction UI. Core requirement (manual dish entry, admin-provided image) does not depend on this.
-- **CLAUDE.md's "App" section** (concrete run/test commands) — fill in once a scaffolding task actually creates `package.json` etc., not before.

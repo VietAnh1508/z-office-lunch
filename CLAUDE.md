@@ -4,7 +4,7 @@
 
 An internal tool for running office lunch orders (see `project-idea.md` for the original idea). This repo doubles as a playground for a small AI-driven development workflow: idea → plan → approval → TDD implementation → per-task human review → repeat.
 
-App architecture (tech stack, data model, directory layout) has not been decided yet — that's a separate discussion. This file will grow an "App" section with concrete run/test commands once it has.
+App architecture (tech stack, data model, directory layout) is decided — see `docs/architecture.md`. The scaffold described there (task `001`) is built; see the App section below for run/test commands.
 
 We're building the AI workflow harness (this file, the commands, the task template) and the app at the same time, and expect the harness to keep changing as we learn what actually works. Treat gaps or friction in the harness itself as fair game to fix, not just app code.
 
@@ -32,6 +32,17 @@ Execution is strictly sequential — one task at a time — by design, so there'
 ### Pre-authorization
 
 `/implement-task` makes exactly two commits per task as normal operation — one failing-test commit (`test:` prefix), one passing-implementation commit (`feat:`/`fix:` prefix). Do not stop to ask for confirmation on those two commits specifically; that's the point of the workflow. Anything outside that (amending, force-pushing, touching other tasks) still needs confirmation as usual.
+
+## App
+
+pnpm workspace: `apps/web` (Vite React SPA), `apps/api` (Hono Worker), `packages/db` (Drizzle schema/migrations). See `docs/architecture.md` for the full rationale, and root `package.json` `scripts` for the full command list.
+
+`pnpm dev` (`scripts/dev.sh`) is the one command for local dev: starts colima if no container runtime is reachable, brings up Postgres (`docker compose up -d --wait`), creates `apps/api/.env` from the example if missing, builds the SPA, then runs `wrangler dev` on `http://localhost:8787`. Safe to run from a fully cold machine.
+
+Non-obvious bits the scripts themselves don't tell you:
+- `dev:api` and `test:e2e` don't go through `scripts/dev.sh`, so they skip its setup — Postgres must already be up (`db:up`, which needs a container runtime already running) and `apps/api/.env` must already exist (copy from `.env.example`) before using them directly.
+- Without `apps/api/.env`, `wrangler dev` hard-fails on startup rather than silently hitting the wrong database — that's Wrangler's own Hyperdrive local-override check, not a bug.
+- Cloudflare resource bindings (Hyperdrive id, R2 bucket name) in `apps/api/wrangler.jsonc` are placeholders (`REPLACE_ME` / `replace-me`) until real Neon/R2 resources are provisioned for staging/production. Local dev doesn't need them — it uses the `.env` override above instead.
 
 ## Fresh-session bootstrap
 
