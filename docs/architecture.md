@@ -34,8 +34,22 @@ CSV export is generated client-side in the SPA (data volume per round is small; 
 - Escape fields properly (food/drink "note" is free text and can contain commas, quotes, or newlines) — don't naively `.join(',')`.
 - Prepend a UTF-8 BOM (`﻿`) to the CSV blob, or Excel on Windows garbles non-ASCII characters (e.g. Vietnamese names) even though the file is valid UTF-8.
 
+## Data model
+
+Entities, reusable across rounds unless noted otherwise:
+
+| Entity | Fields | Notes |
+|---|---|---|
+| `Restaurant` | `id`, `name`, `contact_info`, `menu_source_note` | `menu_source_note` is free text — link or note on where the menu image/link came from. |
+| `MenuItem` | `id`, `restaurant_id` (FK), `type` (`food`\|`drink`), `name`, `price` (nullable), `image_r2_key` (nullable), `active` (bool, default true) | Belongs permanently to a restaurant and is reused across rounds — matches R2 images being "stored for reuse across rounds, not just per-submission." Retire via `active` instead of deleting, so old submissions keep resolving. `price` is admin-only — never rendered on the employee-facing form or in the consolidated export (project-idea.md line 13). |
+| `Employee` | `id`, `full_name`, `active` (bool) | Admin-maintained list employees pick from; `active` soft-deletes people who leave without breaking old submissions. |
+| `Round` | `id`, `label`, `food_restaurant_id` (FK, required), `drink_restaurant_id` (FK, nullable), `deadline`, `status` (`draft`\|`open`\|`closed`), `created_at` | Drink is optional per round (project-idea.md item 1). Only one round is expected to be `open` at a time — enforced at the app layer, not a DB constraint (a Postgres partial unique index on `status = 'open'` is a cheap upgrade later if needed). |
+| `RoundMenuItem` | `id`, `round_id` (FK), `menu_item_id` (FK), unique on `(round_id, menu_item_id)` | The subset of a restaurant's items the admin curated in for this specific round (project-idea.md item 2: "admin selects dishes in the menu manually"). |
+| `Submission` | `id`, `round_id` (FK), `employee_id` (FK), `food_round_menu_item_id` (FK → `RoundMenuItem`), `food_note` (nullable), `drink_round_menu_item_id` (FK → `RoundMenuItem`, nullable), `drink_note` (nullable), `created_at`, `updated_at`, unique on `(round_id, employee_id)` | One row per employee per round — resubmitting (item 6) updates the row in place rather than appending history. |
+
+Consolidated export (item 7) is a join of `Submission` → `Employee`, `RoundMenuItem` → `MenuItem` (food and drink), filtered by round — directly produces the "list of names and dish/drink" CSV, with `price` excluded.
+
 ## Open items — not yet decided
 
-- **Data model.** Entities implied by `project-idea.md`: lunch rounds, menu items, employees (or just names), submissions. Not designed yet. R2 image storage strengthens the case for restaurant/menu being a reusable entity (not fields on a round) — dishes can optionally reference a stored image, shown to employees when ordering.
 - **OCR menu extraction — nice-to-have, not required for v1.** Idea: admin uploads a menu photo, a vision model breaks it into structured dish items (name/price) for the admin to review and correct, rather than typing them in by hand. Deferred decisions: which model (a frontier vision LLM via Cloudflare AI Gateway, vs. Workers AI's native vision models — accuracy on messy/handwritten/non-English photos is the open question), and the review/correction UI. Core requirement (manual dish entry, admin-provided image) does not depend on this.
 - **CLAUDE.md's "App" section** (concrete run/test commands) — fill in once a scaffolding task actually creates `package.json` etc., not before.
