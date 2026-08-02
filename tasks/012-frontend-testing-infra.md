@@ -1,7 +1,7 @@
 ---
 id: 012
 title: Frontend component-testing infrastructure (jsdom + RTL + MSW)
-status: in_review
+status: done
 depends_on: []
 parallelizable_with: []
 tdd: required
