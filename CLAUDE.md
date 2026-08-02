@@ -23,15 +23,21 @@ We're building the AI workflow harness (this file, the commands, the task templa
 ## The loop
 
 1. `/plan-task <idea>` — explores the codebase, asks clarifying questions, designs an approach, and (after you approve via the normal plan-mode flow) writes one or more task files into `tasks/` with `status: approved`. Does not implement anything.
-2. `/implement-task [id]` — implements exactly one approved task, TDD-style (a failing test committed first, then the implementation), then stops and hands it to `feature-dev:code-reviewer` for a pass. Never proceeds to a second task on its own.
-3. You review the diff. If it's good, flip that task's `status:` to `done` (a one-line edit to its frontmatter). If not, ask for changes and re-run `/implement-task` on the same id.
+2. `/implement-task [id]` — checks out a fresh feature branch (`task/<id>-<slug>`) off `main`, implements exactly one approved task on it TDD-style (a failing test committed first, then the implementation), hands it to `feature-dev:code-reviewer` for a pass, then pushes the branch and opens a PR to `main`. Never proceeds to a second task on its own.
+3. You review the PR diff on GitHub. If it's good, merge the PR, then flip that task's `status:` to `done` with a small direct commit on `main` (a one-line edit to its frontmatter). If not, leave review comments on the PR and re-run `/implement-task` on the same id — it picks the existing branch back up rather than starting a new one.
 4. Repeat from step 1 for the next idea, or step 2 for the next already-approved task.
 
-Execution is strictly sequential — one task at a time — by design, so there's always exactly one thing to review at a time.
+Execution is strictly sequential — one task at a time — by design, so there's always exactly one open PR to review at a time.
 
 ### Pre-authorization
 
-`/implement-task` makes exactly two commits per task as normal operation — one failing-test commit (`test:` prefix), one passing-implementation commit (`feat:`/`fix:` prefix). Do not stop to ask for confirmation on those two commits specifically; that's the point of the workflow. Anything outside that (amending, force-pushing, touching other tasks) still needs confirmation as usual.
+`/implement-task` does the following as normal per-task operation, with no confirmation needed for any of it:
+- creating and checking out the feature branch off `main`
+- three commits per task: one failing-test commit (`test:` prefix), one passing-implementation commit (`feat:`/`fix:` prefix), and one bookkeeping commit (`chore:` prefix) that records the task's status/review-notes updates
+- pushing that branch to `origin`
+- opening the PR to `main` via `gh pr create`
+
+Anything outside that (amending, force-pushing, merging the PR itself, touching other tasks) still needs confirmation as usual.
 
 ## App
 
