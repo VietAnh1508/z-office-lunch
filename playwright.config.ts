@@ -2,8 +2,9 @@ import { defineConfig } from "@playwright/test";
 
 export default defineConfig({
   testDir: "./e2e",
+  globalSetup: "./e2e/global-setup.ts",
   webServer: {
-    command: "pnpm --filter web build && pnpm --filter api dev",
+    command: "pnpm --filter web build && pnpm --filter api dev:e2e",
     url: "http://localhost:8787/api/health",
     reuseExistingServer: !process.env.CI,
     timeout: 60_000,

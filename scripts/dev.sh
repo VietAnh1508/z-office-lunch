@@ -17,6 +17,9 @@ fi
 echo "==> Starting local Postgres..."
 docker compose up -d --wait
 
+echo "==> Applying database migrations..."
+pnpm db:migrate
+
 if [ ! -f apps/api/.env ]; then
   echo "==> Creating apps/api/.env from .env.example..."
   cp apps/api/.env.example apps/api/.env

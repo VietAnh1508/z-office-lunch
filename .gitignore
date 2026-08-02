@@ -4,6 +4,7 @@ dist/
 .env
 .env.*
 !.env.example
+!apps/api/.env.test
 *.log
 .DS_Store
 playwright-report/
