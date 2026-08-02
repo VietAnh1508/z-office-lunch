@@ -1,0 +1,39 @@
+import { restaurants } from "db";
+import { Hono } from "hono";
+import type { Bindings } from "../bindings";
+import { getDb } from "../lib/get-db";
+
+export const restaurantsRoute = new Hono<{ Bindings: Bindings }>();
+
+restaurantsRoute.post("/", async (c) => {
+  const body = await c.req.json().catch(() => ({}));
+  const name = typeof body.name === "string" ? body.name.trim() : "";
+  if (!name) {
+    return c.json({ error: "name is required" }, 400);
+  }
+
+  const db = getDb(c);
+  try {
+    const [row] = await db
+      .insert(restaurants)
+      .values({
+        name,
+        contactInfo: typeof body.contactInfo === "string" ? body.contactInfo : null,
+        menuSourceNote: typeof body.menuSourceNote === "string" ? body.menuSourceNote : null,
+      })
+      .returning();
+    return c.json(row, 201);
+  } finally {
+    await db.$client.end();
+  }
+});
+
+restaurantsRoute.get("/", async (c) => {
+  const db = getDb(c);
+  try {
+    const rows = await db.select().from(restaurants).orderBy(restaurants.id);
+    return c.json(rows);
+  } finally {
+    await db.$client.end();
+  }
+});

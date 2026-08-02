@@ -1,13 +1,11 @@
 import { Hono } from "hono";
 import { Client } from "pg";
-
-type Bindings = {
-  ASSETS: Fetcher;
-  HYPERDRIVE: Hyperdrive;
-  MENU_IMAGES: R2Bucket;
-};
+import type { Bindings } from "./bindings";
+import { restaurantsRoute } from "./routes/restaurants";
 
 const app = new Hono<{ Bindings: Bindings }>();
+
+app.route("/api/restaurants", restaurantsRoute);
 
 app.get("/api/health", async (c) => {
   const client = new Client({ connectionString: c.env.HYPERDRIVE.connectionString });
