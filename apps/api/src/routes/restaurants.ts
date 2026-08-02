@@ -23,6 +23,9 @@ restaurantsRoute.post("/", async (c) => {
       })
       .returning();
     return c.json(row, 201);
+  } catch (e) {
+    console.error(JSON.stringify({ message: "failed to create restaurant", error: String(e) }));
+    return c.json({ error: "internal error" }, 500);
   } finally {
     await db.$client.end();
   }
@@ -33,6 +36,9 @@ restaurantsRoute.get("/", async (c) => {
   try {
     const rows = await db.select().from(restaurants).orderBy(restaurants.id);
     return c.json(rows);
+  } catch (e) {
+    console.error(JSON.stringify({ message: "failed to list restaurants", error: String(e) }));
+    return c.json({ error: "internal error" }, 500);
   } finally {
     await db.$client.end();
   }
