@@ -33,7 +33,7 @@ Implement exactly **one** task, TDD-style, on its own feature branch, then stop.
    ```
    Also pre-authorized — no confirmation needed.
 
-8. **Update the task file, then review.** Fill in the Implementation Log with both commit shas and the `test_command` output summary. Set `status: in_review`. Launch a `feature-dev:code-reviewer` agent (the same subagent `/feature-dev` uses in its Phase 6 — do NOT use the `/code-review` slash command, which is GitHub-PR-only and has no path for a local diff) over the working diff between the red and green commits. Append its findings verbatim to the task file's Review Notes section.
+8. **Update the task file, then review.** Fill in the Implementation Log with both commit shas and the `test_command` output summary. Set `status: in_review`. Run `git diff <red-sha> <green-sha>` yourself and capture the output — the `feature-dev:code-reviewer` agent's tool grant has no `Bash`, so it cannot run `git diff` itself despite its own instructions assuming `git diff` access; without this the agent falls back to reading whole files and can't tell task-authored changes from pre-existing code. Launch a `feature-dev:code-reviewer` agent (the same subagent `/feature-dev` uses in its Phase 6 — do NOT use the `/code-review` slash command, which is GitHub-PR-only, posts to a PR that doesn't exist yet at this point in the flow, and is far more token-heavy than needed here) with that diff text pasted directly into its prompt. Append its findings verbatim to the task file's Review Notes section.
 
 9. **Commit task record.** Stage the task file (now `status: in_review` with the filled-in Implementation Log and Review Notes) and commit with message prefix `chore:`, e.g. `chore: record task 002 review`. Also pre-authorized.
 
