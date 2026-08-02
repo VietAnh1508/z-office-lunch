@@ -1,45 +1,30 @@
-import { type SubmitEvent, useEffect, useState } from "react";
+import { type SubmitEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { api, ApiError } from "@/lib/api";
-
-type Restaurant = {
-  id: number;
-  name: string;
-  contactInfo: string | null;
-  menuSourceNote: string | null;
-};
+import { ApiError } from "@/lib/api";
+import { useCreateRestaurant, useRestaurants } from "./useRestaurants";
 
 export function Restaurants() {
-  const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
+  const { data: restaurants, isPending, isError } = useRestaurants();
+  const createRestaurant = useCreateRestaurant();
+
   const [name, setName] = useState("");
   const [contactInfo, setContactInfo] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-
-  useEffect(() => {
-    api.get<Restaurant[]>("/restaurants").then(setRestaurants).catch(() => {
-      setError("Could not load restaurants.");
-    });
-  }, []);
 
   async function handleSubmit(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
-    setSubmitting(true);
     try {
-      const created = await api.post<Restaurant>("/restaurants", {
+      await createRestaurant.mutateAsync({
         name,
         contactInfo: contactInfo || undefined,
       });
-      setRestaurants((prev) => [...prev, created]);
       setName("");
       setContactInfo("");
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Could not create restaurant.");
-    } finally {
-      setSubmitting(false);
     }
   }
 
@@ -63,7 +48,7 @@ export function Restaurants() {
               onChange={(e) => setContactInfo(e.target.value)}
             />
             {error && <p className="text-sm text-destructive">{error}</p>}
-            <Button type="submit" disabled={submitting}>
+            <Button type="submit" disabled={createRestaurant.isPending}>
               Add restaurant
             </Button>
           </form>
@@ -75,7 +60,11 @@ export function Restaurants() {
           <CardTitle>Restaurants</CardTitle>
         </CardHeader>
         <CardContent>
-          {restaurants.length === 0 ? (
+          {isPending ? (
+            <p className="text-sm text-muted-foreground">Loading restaurants…</p>
+          ) : isError ? (
+            <p className="text-sm text-destructive">Could not load restaurants.</p>
+          ) : restaurants.length === 0 ? (
             <p className="text-sm text-muted-foreground">No restaurants yet.</p>
           ) : (
             <ul className="flex flex-col gap-2">
