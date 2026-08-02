@@ -1,7 +1,7 @@
 ---
 id: 012
 title: Frontend component-testing infrastructure (jsdom + RTL + MSW)
-status: approved
+status: in_review
 depends_on: []
 parallelizable_with: []
 tdd: required
@@ -41,11 +41,23 @@ created: 2026-08-02
 
 ## Implementation Log
 
-(Filled in by /implement-task.)
-
-- red commit: <sha> — `<test_command>` -> N failing
-- green commit: <sha> — `<test_command>` -> all passing
+- red commit: a55f6db — `pnpm test` -> 1 failing (`api-smoke.test.ts`, `TypeError: Failed to parse URL from /api/smoke` under the unmodified Node-only root config, proving relative-URL `fetch()` has no base without jsdom)
+- green commit: 78b1104 — `pnpm test` -> all passing (5 test files, 7 tests)
+- fix commit: fb2f38b — `apps/web/vitest.config.ts` wasn't included in any `tsc` project (review finding below), added to `apps/web/tsconfig.node.json`'s `include`
+- Full `test_command` (`pnpm -r typecheck && pnpm --filter web build && pnpm test`) green after the fix commit
+- Separately confirmed `vitest run --project web` passes with `docker compose stop` (Postgres down)
 
 ## Review Notes
 
-(Output of the feature-dev:code-reviewer agent, appended by /implement-task.)
+Reviewed by `feature-dev:code-reviewer` against the diff `a55f6db..78b1104` (excluding `pnpm-lock.yaml`).
+
+**Important (confidence 85, fixed in fb2f38b):** `apps/web/vitest.config.ts` wasn't covered by any TypeScript project/`include`, unlike the repo's existing convention of listing standalone config files by name (root `tsconfig.json` already does this for its own `vitest.config.ts`/`playwright.config.ts`). `apps/web/tsconfig.node.json` listed `vite.config.ts` but not the new `vitest.config.ts`, so `pnpm -r typecheck`/`pnpm --filter web build` passing said nothing about this file's correctness — type errors in it would only ever surface at Vitest runtime. Fixed by adding `"vitest.config.ts"` to `apps/web/tsconfig.node.json`'s `include`.
+
+Checked and confirmed fine (no findings):
+- `fileParallelism: false` correctly stays at the root `test` level (sibling to `projects`), not per-project — verified against installed `vitest@4.1.10` types that `fileParallelism` is excluded from per-project `ResolvedConfig` and is consumed once globally to compute `maxWorkers`, so Postgres test-isolation behavior is preserved post-split.
+- Test-file partitioning across the two projects doesn't drop or double-match any file: `apps/api/**/*.test.ts` and `packages/**/*.test.ts` only match the `node` project; `apps/web/src/test/*.test.{ts,tsx}` only match the `web` project; `e2e/*.spec.ts` (Playwright) is outside both, as intended.
+- `/smoke` → `/api/smoke` resolution via `api.ts`'s `BASE_PATH` matches the MSW handler exactly.
+- The `@` alias resolves correctly in the `web` project via `mergeConfig(viteConfig, ...)`.
+- `globalSetup` (Postgres) is scoped to the `node` project only; `setupFiles` (MSW + RTL cleanup) is scoped to the `web` project only — no cross-contamination.
+- `jest-dom` matcher types are covered by `tsconfig.app.json`'s `include: ["src"]` (different from the `vitest.config.ts` gap, since `setup.ts` lives under `src/`).
+- No issues found in MSW handler wiring, the jsdom `url` choice, or the `pnpm-workspace.yaml` `allowBuilds` addition for `msw`.
