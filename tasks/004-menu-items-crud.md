@@ -28,6 +28,7 @@ Admin can add food/drink items to a restaurant and retire ones no longer offered
 2. TDD units: created item defaults `active: true`; `?active=true` excludes inactive; item creation under a missing restaurant is 404; `PATCH` flips `active` and is reflected in a subsequent `GET`.
 3. UI: `apps/web/src/routes/admin/RestaurantDetail.tsx` — item list (with active toggle), add-item form (type select, name, optional price).
 4. Reuse `lib/api.ts` from task 003; no new frontend infra needed.
+5. Use `useRequiredField` (task 011, `apps/web/src/hooks/useRequiredField.ts`) for the add-item form's required `name` field instead of the native `required` attribute — see `.claude/rules/form-validation.md`.
 
 ## Implementation Log
 

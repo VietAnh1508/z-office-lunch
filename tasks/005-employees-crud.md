@@ -26,6 +26,7 @@ Admin maintains the employee list the submission form's name-picker (task 009) d
 1. `apps/api/src/routes/employees.ts`, mounted at `/api/employees`.
 2. TDD units: valid POST persists; POST missing `fullName` is 400; `?active=true` excludes deactivated; deactivated employee still fetchable by id (`GET /api/employees/:id`).
 3. UI: `apps/web/src/routes/admin/Employees.tsx`, same list/create/toggle shape as the restaurant screen — reuse shadcn components already generated in task 003/004, no new UI primitives expected.
+4. Use `useRequiredField` (task 011, `apps/web/src/hooks/useRequiredField.ts`) for the add-employee form's required `fullName` field instead of the native `required` attribute — see `.claude/rules/form-validation.md`.
 
 ## Implementation Log
 
