@@ -15,15 +15,15 @@ created: 2026-08-02
 
 ## Acceptance Criteria
 
-- [ ] `apps/web/src/test/api-smoke.test.ts` calls the existing `apps/web/src/lib/api.ts`'s `api.get` against a relative URL and passes under the new jsdom project + MSW mock (this is the load-bearing proof that relative-URL `fetch()` through jsdom, intercepted by MSW, via the real `api.ts` wrapper, actually works end to end)
-- [ ] `apps/web/src/test/smoke.test.tsx` (trivial RTL render) passes, proving jsdom + React Testing Library wiring
-- [ ] `apps/web/vitest.config.ts` (new): a Vitest project config, `mergeConfig`'d over `apps/web/vite.config.ts` (inherits the `@` alias and React plugin), `environment: "jsdom"`, with explicit `environmentOptions: { jsdom: { url: "http://localhost:3000" } }`
-- [ ] Root `vitest.config.ts` split into `test.projects`: `"apps/web/vitest.config.ts"` plus an inline Node project scoped to `include: ["packages/**/*.test.ts", "apps/api/**/*.test.ts"]` (explicit, not the old catch-all `apps/**/*.test.ts`, which would double-match a `.test.ts` file under `apps/web`)
-- [ ] `globalSetup` (the Postgres bootstrap in `packages/db/src/vitest-global-setup.ts`) moved into the Node project only
-- [ ] `apps/web/src/test/mocks/handlers.ts`, `apps/web/src/test/mocks/server.ts`, `apps/web/src/test/setup.ts` — MSW-node + RTL setup; `server.listen({ onUnhandledRequest: "error" })` so an unmocked request fails loudly; `afterEach` resets handlers and calls RTL's `cleanup()`
-- [ ] `pnpm test` runs both existing Node-environment tests (api/db) and the new jsdom-environment tests from one root command, all green
-- [ ] `vitest run --project web` succeeds with Postgres/Docker not running
-- [ ] `pnpm -r typecheck` and `pnpm --filter web build` unaffected
+- [x] `apps/web/src/test/api-smoke.test.ts` calls the existing `apps/web/src/lib/api.ts`'s `api.get` against a relative URL and passes under the new jsdom project + MSW mock (this is the load-bearing proof that relative-URL `fetch()` through jsdom, intercepted by MSW, via the real `api.ts` wrapper, actually works end to end)
+- [x] `apps/web/src/test/smoke.test.tsx` (trivial RTL render) passes, proving jsdom + React Testing Library wiring
+- [x] `apps/web/vitest.config.ts` (new): a Vitest project config, `mergeConfig`'d over `apps/web/vite.config.ts` (inherits the `@` alias and React plugin), `environment: "jsdom"`, with explicit `environmentOptions: { jsdom: { url: "http://localhost:3000" } }`
+- [x] Root `vitest.config.ts` split into `test.projects`: `"apps/web/vitest.config.ts"` plus an inline Node project scoped to `include: ["packages/**/*.test.ts", "apps/api/**/*.test.ts"]` (explicit, not the old catch-all `apps/**/*.test.ts`, which would double-match a `.test.ts` file under `apps/web`)
+- [x] `globalSetup` (the Postgres bootstrap in `packages/db/src/vitest-global-setup.ts`) moved into the Node project only
+- [x] `apps/web/src/test/mocks/handlers.ts`, `apps/web/src/test/mocks/server.ts`, `apps/web/src/test/setup.ts` — MSW-node + RTL setup; `server.listen({ onUnhandledRequest: "error" })` so an unmocked request fails loudly; `afterEach` resets handlers and calls RTL's `cleanup()`
+- [x] `pnpm test` runs both existing Node-environment tests (api/db) and the new jsdom-environment tests from one root command, all green
+- [x] `vitest run --project web` succeeds with Postgres/Docker not running
+- [x] `pnpm -r typecheck` and `pnpm --filter web build` unaffected
 
 ## Plan
 
