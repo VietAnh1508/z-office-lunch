@@ -2,7 +2,7 @@
 id: 004
 title: Menu items under a restaurant (create, list, deactivate)
 status: approved
-depends_on: [003]
+depends_on: [003, 013]
 parallelizable_with: [005]
 tdd: required
 test_command: "pnpm -r typecheck && pnpm --filter web build && pnpm test"

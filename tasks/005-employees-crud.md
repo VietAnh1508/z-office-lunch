@@ -2,7 +2,7 @@
 id: 005
 title: Employees CRUD (create, list, deactivate)
 status: approved
-depends_on: [002]
+depends_on: [002, 013]
 parallelizable_with: [004]
 tdd: required
 test_command: "pnpm -r typecheck && pnpm --filter web build && pnpm test"

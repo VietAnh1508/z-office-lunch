@@ -16,7 +16,7 @@ We're building the AI workflow harness (this file, the commands, the task templa
 
 ## Where things live
 
-- `tasks/` — one markdown file per unit of work. Frontmatter `status` field is the source of truth for what's done, in progress, or waiting on review. Nothing else tracks status — don't add a separate progress log, it will drift out of sync with these files.
+- `tasks/` — one markdown file per unit of work. Frontmatter `status` field is the source of truth for what's done, in progress, or waiting on review. Nothing else tracks status — don't add a separate progress log, it will drift out of sync with these files. Run `pnpm tasks:status` (`scripts/task-status.mjs`) to compute what's in-flight or ready from `depends_on` instead of scanning frontmatter by eye.
 - `docs/architecture.md` — app data model and stack rationale, once decided. Written once, updated only when the architecture actually changes, not per task.
 - `.claude/commands/plan-task.md`, `.claude/commands/implement-task.md` — the two custom commands that drive the loop below.
 - `.claude/rules/` — path-scoped conventions (frontmatter `paths` glob) that surface only when working in a matching subtree, e.g. `api-error-handling.md` for `apps/api/**/*.ts`. Prefer this over a nested `CLAUDE.md` for a single, narrow convention; use a nested `CLAUDE.md` once an area needs broader context.
@@ -58,5 +58,5 @@ If you're picking this project up with no prior context, read things in this ord
 
 1. This file.
 2. `git log --oneline -20` — recent history.
-3. `ls tasks/` and check each file's `status` frontmatter — anything not `done` is where things left off.
+3. `pnpm tasks:status` (reads `tasks/*.md` frontmatter directly, so it can't drift) — shows the in-flight task if one exists, otherwise which approved tasks are unblocked. Fall back to `ls tasks/` and reading frontmatter by hand only if you need detail beyond what it reports.
 4. `docs/architecture.md`, if you need the app's data model or stack rationale.
