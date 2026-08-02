@@ -1,7 +1,7 @@
 ---
 id: 003
 title: Restaurants CRUD (create + list) with first admin screen
-status: in_review
+status: done
 depends_on: [002]
 parallelizable_with: []
 tdd: required
