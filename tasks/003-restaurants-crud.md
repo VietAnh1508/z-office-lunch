@@ -37,6 +37,7 @@ First real vertical slice: admin can register a restaurant (the entity everythin
 - Manual smoke test: started `wrangler dev` locally against the migrated dev Postgres, exercised `/admin` in a real browser — creating a restaurant (including non-ASCII input, e.g. "Bún Chả Hà Nội") updates the list immediately with no page reload; submitting with an empty name is blocked by the input's `required` attribute client-side, and the server-side 400 was separately confirmed via `curl`.
 - Deviation from plan: `react-router` installed at `^8.3.0` (latest), not v7 as the task text specified — v8 kept the same declarative-mode API (`BrowserRouter`/`Routes`/`Route` from the `react-router` package) that v7 already had, so no behavior differs; confirmed via Context7 docs before installing.
 - Also added `packages/db`'s `exports` map (`"./testing"` subpath) so `apps/api` can import the task-002 test harness (`TEST_DATABASE_URL`, `truncateAll`) — the first cross-package consumer of it.
+- Follow-up (post-review): addressed the "Important" finding below — added a `catch` to both `restaurants.ts` handlers (structured JSON `500` + logged, matching `/api/health`). Red commit `6ae4e7e` (test: GET returns structured JSON on DB failure, 1 failing), green commit `84bf30a` (fix, all passing). Documented the resulting pattern as a path-scoped rule at `.claude/rules/api-error-handling.md` (`paths: apps/api/**/*.ts`) so it surfaces automatically for future route work.
 
 ## Review Notes
 
