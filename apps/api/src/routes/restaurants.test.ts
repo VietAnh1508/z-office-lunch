@@ -14,6 +14,12 @@ const testEnv = {
   MENU_IMAGES: {} as unknown,
 } as unknown as Bindings;
 
+const unreachableEnv = {
+  ASSETS: {} as unknown,
+  HYPERDRIVE: { connectionString: "postgres://postgres:postgres@localhost:1/nonexistent" } as unknown,
+  MENU_IMAGES: {} as unknown,
+} as unknown as Bindings;
+
 describe("restaurants routes", () => {
   beforeEach(async () => {
     await truncateAll(db);
@@ -58,5 +64,13 @@ describe("restaurants routes", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]?.name).toBe("Pho 24");
     expect(rows[0]?.contactInfo).toBe("090-123-4567");
+  });
+
+  it("GET returns a structured 500 when the database is unreachable", async () => {
+    const res = await app.request("/api/restaurants", {}, unreachableEnv);
+
+    expect(res.status).toBe(500);
+    const body = (await res.json()) as { error?: string };
+    expect(body.error).toBeTruthy();
   });
 });
