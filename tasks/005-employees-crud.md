@@ -1,0 +1,39 @@
+---
+id: 005
+title: Employees CRUD (create, list, deactivate)
+status: approved
+depends_on: [002]
+parallelizable_with: [004]
+tdd: required
+test_command: "pnpm -r typecheck && pnpm --filter web build && pnpm test"
+created: 2026-08-02
+---
+
+## Goal
+
+Admin maintains the employee list the submission form's name-picker (task 009) draws from. Independent of restaurants/menu items — only needs the test harness from task 002.
+
+## Acceptance Criteria
+
+- [ ] `POST /api/employees` (`fullName` required) — defaults `active: true`
+- [ ] `GET /api/employees?active=true` filters to active; omitting the param returns all
+- [ ] `PATCH /api/employees/:id` toggles `active`
+- [ ] A deactivated employee is excluded from `?active=true` lists but still resolvable by id (needed later so historical submissions keep resolving a name even after someone leaves)
+- [ ] `/admin/employees` screen: list + add form + active/inactive toggle
+
+## Plan
+
+1. `apps/api/src/routes/employees.ts`, mounted at `/api/employees`.
+2. TDD units: valid POST persists; POST missing `fullName` is 400; `?active=true` excludes deactivated; deactivated employee still fetchable by id (`GET /api/employees/:id`).
+3. UI: `apps/web/src/routes/admin/Employees.tsx`, same list/create/toggle shape as the restaurant screen — reuse shadcn components already generated in task 003/004, no new UI primitives expected.
+
+## Implementation Log
+
+(Filled in by /implement-task.)
+
+- red commit: <sha> — `pnpm -r typecheck && pnpm --filter web build && pnpm test` -> N failing
+- green commit: <sha> — `pnpm -r typecheck && pnpm --filter web build && pnpm test` -> all passing
+
+## Review Notes
+
+(Output of the feature-dev:code-reviewer agent, appended by /implement-task.)
