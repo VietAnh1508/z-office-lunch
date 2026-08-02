@@ -1,6 +1,7 @@
 import { restaurants } from "db";
 import { Hono } from "hono";
 import type { Bindings } from "../bindings";
+import { ERROR_MESSAGES } from "../lib/errors";
 import { getDb } from "../lib/get-db";
 
 export const restaurantsRoute = new Hono<{ Bindings: Bindings }>();
@@ -9,7 +10,7 @@ restaurantsRoute.post("/", async (c) => {
   const body = await c.req.json().catch(() => ({}));
   const name = typeof body.name === "string" ? body.name.trim() : "";
   if (!name) {
-    return c.json({ error: "name is required" }, 400);
+    return c.json({ error: ERROR_MESSAGES.nameRequired }, 400);
   }
 
   const db = getDb(c);
@@ -25,7 +26,7 @@ restaurantsRoute.post("/", async (c) => {
     return c.json(row, 201);
   } catch (e) {
     console.error(JSON.stringify({ message: "failed to create restaurant", error: String(e) }));
-    return c.json({ error: "internal error" }, 500);
+    return c.json({ error: ERROR_MESSAGES.internal }, 500);
   } finally {
     await db.$client.end();
   }
@@ -38,7 +39,7 @@ restaurantsRoute.get("/", async (c) => {
     return c.json(rows);
   } catch (e) {
     console.error(JSON.stringify({ message: "failed to list restaurants", error: String(e) }));
-    return c.json({ error: "internal error" }, 500);
+    return c.json({ error: ERROR_MESSAGES.internal }, 500);
   } finally {
     await db.$client.end();
   }
