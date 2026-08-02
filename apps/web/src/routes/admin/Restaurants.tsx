@@ -62,21 +62,28 @@ export function Restaurants() {
         <CardContent>
           {isPending ? (
             <p className="text-sm text-muted-foreground">Loading restaurants…</p>
-          ) : isError ? (
+          ) : isError && !restaurants ? (
             <p className="text-sm text-destructive">Could not load restaurants.</p>
-          ) : restaurants.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No restaurants yet.</p>
           ) : (
-            <ul className="flex flex-col gap-2">
-              {restaurants.map((restaurant) => (
-                <li key={restaurant.id} className="text-sm">
-                  {restaurant.name}
-                  {restaurant.contactInfo && (
-                    <span className="text-muted-foreground"> — {restaurant.contactInfo}</span>
-                  )}
-                </li>
-              ))}
-            </ul>
+            <>
+              {isError && (
+                <p className="mb-2 text-sm text-destructive">Could not refresh restaurants.</p>
+              )}
+              {restaurants.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No restaurants yet.</p>
+              ) : (
+                <ul className="flex flex-col gap-2">
+                  {restaurants.map((restaurant) => (
+                    <li key={restaurant.id} className="text-sm">
+                      {restaurant.name}
+                      {restaurant.contactInfo && (
+                        <span className="text-muted-foreground"> — {restaurant.contactInfo}</span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
           )}
         </CardContent>
       </Card>

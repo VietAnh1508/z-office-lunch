@@ -53,4 +53,40 @@ describe("Restaurants", () => {
       expect(screen.getByText("Sushi Spot")).toBeInTheDocument();
     });
   });
+
+  it("keeps showing the previously loaded list if a refetch fails", async () => {
+    const user = userEvent.setup();
+    let getCallCount = 0;
+
+    server.use(
+      http.get("/api/restaurants", () => {
+        getCallCount += 1;
+        if (getCallCount === 1) {
+          return HttpResponse.json([
+            { id: 1, name: "Pizza Place", contactInfo: null, menuSourceNote: null },
+          ]);
+        }
+        return HttpResponse.json({ error: "internal error" }, { status: 500 });
+      }),
+      http.post("/api/restaurants", () =>
+        HttpResponse.json(
+          { id: 2, name: "Sushi Spot", contactInfo: null, menuSourceNote: null },
+          { status: 201 },
+        ),
+      ),
+    );
+
+    renderWithProviders(<Restaurants />);
+
+    await screen.findByText("Pizza Place");
+
+    await user.type(screen.getByPlaceholderText("Name"), "Sushi Spot");
+    await user.click(screen.getByRole("button", { name: "Add restaurant" }));
+
+    await waitFor(() => {
+      expect(getCallCount).toBeGreaterThan(1);
+    });
+
+    expect(screen.getByText("Pizza Place")).toBeInTheDocument();
+  });
 });
