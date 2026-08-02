@@ -1,7 +1,7 @@
 ---
 id: 013
 title: TanStack Query integration + Restaurants retrofit
-status: in_review
+status: done
 depends_on: [012]
 parallelizable_with: []
 tdd: required
