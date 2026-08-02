@@ -12,10 +12,15 @@ services:
       - postgres-data:/var/lib/postgresql/data
       - ./scripts/postgres-init:/docker-entrypoint-initdb.d
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      # -h forces a real TCP check. Without it, pg_isready connects over the
+      # unix socket by default and can report healthy against the init-time
+      # temporary server Postgres runs docker-entrypoint-initdb.d scripts
+      # against — before TCP on 5432 is actually accepting connections.
+      test: ["CMD-SHELL", "pg_isready -U postgres -d office_lunch -h 127.0.0.1"]
       interval: 2s
       timeout: 2s
       retries: 15
+      start_period: 30s
 
 volumes:
   postgres-data:

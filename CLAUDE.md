@@ -40,7 +40,8 @@ pnpm workspace: `apps/web` (Vite React SPA), `apps/api` (Hono Worker), `packages
 `pnpm dev` (`scripts/dev.sh`) is the one command for local dev: starts colima if no container runtime is reachable, brings up Postgres (`docker compose up -d --wait`), creates `apps/api/.env` from the example if missing, builds the SPA, then runs `wrangler dev` on `http://localhost:8787`. Safe to run from a fully cold machine.
 
 Non-obvious bits the scripts themselves don't tell you:
-- `dev:api` and `test:e2e` don't go through `scripts/dev.sh`, so they skip its setup — Postgres must already be up (`db:up`, which needs a container runtime already running) and `apps/api/.env` must already exist (copy from `.env.example`) before using them directly.
+- `dev:api`, `test`, and `test:e2e` don't go through `scripts/dev.sh`, so they skip its setup — Postgres must already be up (`db:up`, which needs a container runtime already running) before using them directly. `dev:api` and `test:e2e` also need `apps/api/.env` to already exist (copy from `.env.example`).
+- Plain `pnpm test` (Vitest) hard-requires Postgres too, not just `test:e2e` — its `globalSetup` (`packages/db/src/vitest-global-setup.ts`) connects to create/migrate the `office_lunch_test` database before any test file runs.
 - Without `apps/api/.env`, `wrangler dev` hard-fails on startup rather than silently hitting the wrong database — that's Wrangler's own Hyperdrive local-override check, not a bug.
 - Cloudflare resource bindings (Hyperdrive id, R2 bucket name) in `apps/api/wrangler.jsonc` are placeholders (`REPLACE_ME` / `replace-me`) until real Neon/R2 resources are provisioned for staging/production. Local dev doesn't need them — it uses the `.env` override above instead.
 
