@@ -23,7 +23,6 @@ export function RestaurantDetail() {
   const toggleActive = useToggleMenuItemActive(restaurantId);
 
   const name = useRequiredField("Name is required.");
-  const [type, setType] = useState<"food" | "drink">("food");
   const [price, setPrice] = useState("");
   const [error, setError] = useState<string | null>(null);
 
@@ -33,12 +32,10 @@ export function RestaurantDetail() {
     if (!name.validate()) return;
     try {
       await createMenuItem.mutateAsync({
-        type,
         name: name.value,
         price: price || undefined,
       });
       name.reset();
-      setType("food");
       setPrice("");
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Could not create menu item.");
@@ -60,6 +57,7 @@ export function RestaurantDetail() {
           ← Restaurants
         </Link>
         <h1 className="text-2xl font-semibold">{restaurant.name}</h1>
+        <span className="text-muted-foreground"> ({restaurant.type})</span>
       </div>
 
       <Card>
@@ -68,18 +66,6 @@ export function RestaurantDetail() {
         </CardHeader>
         <CardContent>
           <form className="flex flex-col gap-3" onSubmit={handleSubmit} noValidate>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="menu-item-type">Type</Label>
-              <select
-                id="menu-item-type"
-                className="h-8 rounded-md border border-border bg-background px-2.5 text-sm"
-                value={type}
-                onChange={(e) => setType(e.target.value as "food" | "drink")}
-              >
-                <option value="food">Food</option>
-                <option value="drink">Drink</option>
-              </select>
-            </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="menu-item-name">
                 Name <span className="text-destructive">*</span>
@@ -116,7 +102,6 @@ export function RestaurantDetail() {
                 <li key={item.id} className="flex items-center justify-between gap-2 text-sm">
                   <span className={!item.active ? "text-muted-foreground line-through" : undefined}>
                     {item.name}
-                    <span className="text-muted-foreground"> ({item.type})</span>
                     {item.price && (
                       <span className="text-muted-foreground"> — {formatPrice(item.price)}</span>
                     )}

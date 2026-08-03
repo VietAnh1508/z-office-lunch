@@ -4,12 +4,14 @@ import { api } from "@/lib/api";
 export type Restaurant = {
   id: number;
   name: string;
+  type: "food" | "drink";
   contactInfo: string | null;
   menuSourceNote: string | null;
 };
 
 type CreateRestaurantInput = {
   name: string;
+  type: "food" | "drink";
   contactInfo?: string;
 };
 

@@ -8,6 +8,13 @@
       "when": 1785604992257,
       "tag": "0000_flashy_paper_doll",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1785855600000,
+      "tag": "0001_move_type_to_restaurant",
+      "breakpoints": true
     }
   ]
 }

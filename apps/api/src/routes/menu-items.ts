@@ -25,13 +25,9 @@ export const menuItemsRoute = new Hono<{ Bindings: Bindings }>();
 menuItemsRoute.post("/:id/menu-items", async (c) => {
   const restaurantId = Number(c.req.param("id"));
   const body = await c.req.json().catch(() => ({}));
-  const type = body.type;
   const name = typeof body.name === "string" ? body.name.trim() : "";
   const parsedPrice = parsePrice(body.price);
 
-  if (type !== "food" && type !== "drink") {
-    return c.json({ error: ERROR_MESSAGES.typeInvalid }, 400);
-  }
   if (!name) {
     return c.json({ error: ERROR_MESSAGES.nameRequired }, 400);
   }
@@ -54,7 +50,7 @@ menuItemsRoute.post("/:id/menu-items", async (c) => {
 
     const [row] = await db
       .insert(menuItems)
-      .values({ restaurantId, type, name, price: parsedPrice.price })
+      .values({ restaurantId, name, price: parsedPrice.price })
       .returning();
     return c.json(row, 201);
   } catch (e) {

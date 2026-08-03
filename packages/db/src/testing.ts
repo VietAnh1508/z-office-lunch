@@ -45,7 +45,7 @@ export async function seedRestaurant(
 ) {
   const [row] = await db
     .insert(schema.restaurants)
-    .values({ name: "Test Restaurant", ...overrides })
+    .values({ name: "Test Restaurant", type: "food", ...overrides })
     .returning();
   return row;
 }
@@ -56,7 +56,7 @@ export async function seedMenuItem(
 ) {
   const [row] = await db
     .insert(schema.menuItems)
-    .values({ type: "food", name: "Test Item", ...overrides })
+    .values({ name: "Test Item", ...overrides })
     .returning();
   return row;
 }
