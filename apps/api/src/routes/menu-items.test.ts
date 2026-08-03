@@ -112,4 +112,65 @@ describe("menu items routes", () => {
 
     expect(res.status).toBe(404);
   });
+
+  it("POST stores a numeric JSON price and rejects a non-numeric one", async () => {
+    const restaurant = await seedRestaurant(db);
+
+    const numericRes = await app.request(
+      `/api/restaurants/${restaurant!.id}/menu-items`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "food", name: "Banh Mi", price: 5.5 }),
+      },
+      testEnv,
+    );
+    expect(numericRes.status).toBe(201);
+    const created = (await numericRes.json()) as MenuItem;
+    expect(created.price).toBe("5.5");
+
+    const invalidRes = await app.request(
+      `/api/restaurants/${restaurant!.id}/menu-items`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "food", name: "Pho", price: "not-a-number" }),
+      },
+      testEnv,
+    );
+    expect(invalidRes.status).toBe(400);
+  });
+
+  it("POST under a non-numeric restaurant id returns 404 without a server error", async () => {
+    const res = await app.request(
+      "/api/restaurants/not-a-number/menu-items",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "food", name: "Banh Mi" }),
+      },
+      testEnv,
+    );
+
+    expect(res.status).toBe(404);
+  });
+
+  it("GET with a non-numeric restaurant id returns an empty list without a server error", async () => {
+    const res = await app.request("/api/restaurants/not-a-number/menu-items", {}, testEnv);
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual([]);
+  });
+
+  it("PATCH with a non-numeric item id returns 404 without a server error", async () => {
+    const restaurant = await seedRestaurant(db);
+
+    const res = await app.request(
+      `/api/restaurants/${restaurant!.id}/menu-items/not-a-number`,
+      { method: "PATCH" },
+      testEnv,
+    );
+
+    expect(res.status).toBe(404);
+  });
 });
