@@ -22,6 +22,15 @@ describe("AdminLayout", () => {
     expect(screen.getByRole("heading", { name: "Admin" })).toBeInTheDocument();
   });
 
+  it("renders the section links inside a nav landmark", () => {
+    renderApp("/admin");
+
+    const nav = screen.getByRole("navigation");
+    expect(nav).toContainElement(screen.getByRole("link", { name: "Restaurants" }));
+    expect(nav).toContainElement(screen.getByRole("link", { name: "Employees" }));
+    expect(nav).toContainElement(screen.getByRole("link", { name: "Rounds" }));
+  });
+
   it("navigates to each admin section via the nav links", async () => {
     const user = userEvent.setup();
     server.use(http.get("/api/restaurants", () => HttpResponse.json([])));
@@ -29,7 +38,7 @@ describe("AdminLayout", () => {
     renderApp("/admin");
 
     await user.click(screen.getByRole("link", { name: "Restaurants" }));
-    expect(screen.getByRole("heading", { name: "Add restaurant" })).toBeInTheDocument();
+    expect(await screen.findByText("No restaurants yet.")).toBeInTheDocument();
 
     await user.click(screen.getByRole("link", { name: "Employees" }));
     expect(screen.getByRole("heading", { name: "Employees" })).toBeInTheDocument();

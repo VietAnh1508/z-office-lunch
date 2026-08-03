@@ -5,7 +5,7 @@ test("clicking through the admin nav reaches each section", async ({ page }) => 
   await expect(page.getByRole("heading", { name: "Admin" })).toBeVisible();
 
   await page.getByRole("link", { name: "Restaurants" }).click();
-  await expect(page.getByRole("heading", { name: "Add restaurant" })).toBeVisible();
+  await expect(page.getByText("No restaurants yet.")).toBeVisible();
 
   await page.getByRole("link", { name: "Employees" }).click();
   await expect(page.getByRole("heading", { name: "Employees" })).toBeVisible();
