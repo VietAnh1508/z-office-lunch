@@ -15,12 +15,12 @@ Give the admin UI a navigable shell — a nav bar linking Restaurants/Employees/
 
 ## Acceptance Criteria
 
-- [ ] `/admin` renders an `AdminLayout` with a `<nav>` linking Restaurants, Employees, Rounds; the currently active section is marked via `NavLink`'s built-in `aria-current="page"`
-- [ ] `/admin` index route (nothing more specific) renders a placeholder "Admin" overview heading
-- [ ] `/admin/restaurants` renders the existing `Restaurants.tsx` screen unchanged (moved from directly under `/admin`), reachable via the nav
-- [ ] `/admin/employees` and `/admin/rounds` render trivial placeholder pages (a heading matching the nav label + short "coming soon"-style text), reachable via the nav
-- [ ] `e2e/admin-restaurants.spec.ts` updated to `page.goto("/admin/restaurants")` (its target moved)
-- [ ] Plan sections of tasks 004, 005, 006, 010 each get a one-line note that their placeholder route/file already exists as of task 014 and their job is to replace its body, not create it fresh
+- [x] `/admin` renders an `AdminLayout` with a `<nav>` linking Restaurants, Employees, Rounds; the currently active section is marked via `NavLink`'s built-in `aria-current="page"`
+- [x] `/admin` index route (nothing more specific) renders a placeholder "Admin" overview heading
+- [x] `/admin/restaurants` renders the existing `Restaurants.tsx` screen unchanged (moved from directly under `/admin`), reachable via the nav
+- [x] `/admin/employees` and `/admin/rounds` render trivial placeholder pages (a heading matching the nav label + short "coming soon"-style text), reachable via the nav
+- [x] `e2e/admin-restaurants.spec.ts` updated to `page.goto("/admin/restaurants")` (its target moved)
+- [x] Plan sections of tasks 004, 005, 006, 010 each get a one-line note that their placeholder route/file already exists as of task 014 and their job is to replace its body, not create it fresh
 
 ## Plan
 
