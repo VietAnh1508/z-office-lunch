@@ -15,11 +15,11 @@ The "Add restaurant" form (task 003) relies on the native HTML `required` attrib
 
 ## Acceptance Criteria
 
-- [ ] `apps/web/src/hooks/useRequiredField.ts`: a hook that owns a required text field's `value`/`error` state and exposes `onChange` (clears error on edit), `validate()` (sets an error if blank after trim, returns a boolean), `reset()`, and `inputProps` (`value`, `onChange`, `aria-invalid`) — takes the error message as a required argument, no default
-- [ ] `apps/web/src/routes/admin/Restaurants.tsx`: Name field uses `useRequiredField("Name is required.")` instead of `useState` + the native `required` attribute; the `<form>` gets `noValidate`; `handleSubmit` calls `validate()` before posting and bails out if it fails; the error renders as `<p className="text-sm text-destructive">` directly under the Name input; `contactInfo` is untouched
-- [ ] The existing top-level `{error && <p>}` (API/network failures) is unchanged and stays disjoint from the new field-level error
-- [ ] `.claude/rules/form-validation.md` (path-scoped to `apps/web/src/**/*.tsx`): documents using `useRequiredField` + `noValidate` + inline error-under-field for any required text input, and that the top-level error state stays reserved for API/network failures
-- [ ] `e2e/admin-restaurants.spec.ts`: on `/admin`, confirms the Name input has no `required` attribute and `validity.valid` is `true` while empty; clicking submit with an empty Name shows "Name is required." under the field, sets `aria-invalid="true"`, and fires no `POST /api/restaurants`; typing into the field clears both the error text and `aria-invalid`
+- [x] `apps/web/src/hooks/useRequiredField.ts`: a hook that owns a required text field's `value`/`error` state and exposes `onChange` (clears error on edit), `validate()` (sets an error if blank after trim, returns a boolean), `reset()`, and `inputProps` (`value`, `onChange`, `aria-invalid`) — takes the error message as a required argument, no default
+- [x] `apps/web/src/routes/admin/Restaurants.tsx`: Name field uses `useRequiredField("Name is required.")` instead of `useState` + the native `required` attribute; the `<form>` gets `noValidate`; `handleSubmit` calls `validate()` before posting and bails out if it fails; the error renders as `<p className="text-sm text-destructive">` directly under the Name input; `contactInfo` is untouched
+- [x] The existing top-level `{error && <p>}` (API/network failures) is unchanged and stays disjoint from the new field-level error
+- [x] `.claude/rules/form-validation.md` (path-scoped to `apps/web/src/**/*.tsx`): documents using `useRequiredField` + `noValidate` + inline error-under-field for any required text input, and that the top-level error state stays reserved for API/network failures
+- [x] `e2e/admin-restaurants.spec.ts`: on `/admin`, confirms the Name input has no `required` attribute and `validity.valid` is `true` while empty; clicking submit with an empty Name shows "Name is required." under the field, sets `aria-invalid="true"`, and fires no `POST /api/restaurants`; typing into the field clears both the error text and `aria-invalid`
 
 ## Plan
 
