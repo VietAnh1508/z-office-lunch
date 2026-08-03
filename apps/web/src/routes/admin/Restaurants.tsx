@@ -5,7 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useRequiredField } from "@/hooks/useRequiredField";
-import { ApiError } from "@/lib/api";
 import { useCreateRestaurant, useRestaurants } from "./useRestaurants";
 
 export function Restaurants() {
@@ -15,24 +14,20 @@ export function Restaurants() {
   const name = useRequiredField("Name is required.");
   const [type, setType] = useState<"food" | "drink">("food");
   const [contactInfo, setContactInfo] = useState("");
-  const [error, setError] = useState<string | null>(null);
 
-  async function handleSubmit(e: SubmitEvent<HTMLFormElement>) {
+  function handleSubmit(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
-    setError(null);
     if (!name.validate()) return;
-    try {
-      await createRestaurant.mutateAsync({
-        name: name.value,
-        type,
-        contactInfo: contactInfo || undefined,
-      });
-      name.reset();
-      setType("food");
-      setContactInfo("");
-    } catch (e) {
-      setError(e instanceof ApiError ? e.message : "Could not create restaurant.");
-    }
+    createRestaurant.mutate(
+      { name: name.value, type, contactInfo: contactInfo || undefined },
+      {
+        onSuccess: () => {
+          name.reset();
+          setType("food");
+          setContactInfo("");
+        },
+      },
+    );
   }
 
   return (
@@ -70,7 +65,6 @@ export function Restaurants() {
                 onChange={(e) => setContactInfo(e.target.value)}
               />
             </div>
-            {error && <p className="text-sm text-destructive">{error}</p>}
             <Button type="submit" disabled={createRestaurant.isPending}>
               Add restaurant
             </Button>

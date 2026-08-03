@@ -75,9 +75,7 @@ describe("Restaurants", () => {
 
     server.use(
       http.get("/api/restaurants", () => HttpResponse.json([])),
-      http.post("/api/restaurants", () =>
-        HttpResponse.json({ error: "internal error" }, { status: 500 }),
-      ),
+      http.post("/api/restaurants", () => HttpResponse.error()),
     );
 
     renderRestaurants();
