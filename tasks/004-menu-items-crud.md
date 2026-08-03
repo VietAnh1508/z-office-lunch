@@ -24,6 +24,7 @@ Admin can add food/drink items to a restaurant and retire ones no longer offered
 
 ## Plan
 
+0. `/admin/restaurants` and its route already exist as of task 014 (`apps/web/src/routes/admin/Restaurants.tsx`, wired in `App.tsx`) — this task's job is a new `/admin/restaurants/:id` route/file, not the existing list screen.
 1. Extend `apps/api/src/routes/restaurants.ts` (or a sibling `menu-items.ts` mounted under the same path) with the three routes above.
 2. TDD units: created item defaults `active: true`; `?active=true` excludes inactive; item creation under a missing restaurant is 404; `PATCH` flips `active` and is reflected in a subsequent `GET`.
 3. UI: `apps/web/src/routes/admin/RestaurantDetail.tsx` — item list (with active toggle), add-item form (type select, name, optional price).

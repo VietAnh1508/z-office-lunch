@@ -22,6 +22,7 @@ Closes the loop: admin sees who's submitted what for a round and can export it a
 
 ## Plan
 
+0. The admin nav/routing shell (`AdminLayout`, `/admin/rounds`) already exists as of task 014 — this task only extends the round-detail screen (added in task 007) with a submissions table and export button, it doesn't need new top-level admin routing.
 1. Add `GET /api/rounds/:id/submissions` to `apps/api/src/routes/rounds.ts` — a join across `Submission` → `Employee`, `RoundMenuItem` → `MenuItem` (food and drink), explicit column selection (never `price`).
 2. TDD unit: response shape has resolved names, never a `price` field, never raw `*RoundMenuItemId` FKs.
 3. `apps/web/src/lib/csv.ts` — `toCsv(rows)` pure function; TDD unit exercises the escaping + BOM cases directly, no DB/network involved.

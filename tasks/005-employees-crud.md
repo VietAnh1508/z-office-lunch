@@ -23,6 +23,7 @@ Admin maintains the employee list the submission form's name-picker (task 009) d
 
 ## Plan
 
+0. `/admin/employees` and its placeholder file (`apps/web/src/routes/admin/Employees.tsx`) already exist as of task 014 — this task replaces the placeholder's body, it doesn't create the route or file fresh.
 1. `apps/api/src/routes/employees.ts`, mounted at `/api/employees`.
 2. TDD units: valid POST persists; POST missing `fullName` is 400; `?active=true` excludes deactivated; deactivated employee still fetchable by id (`GET /api/employees/:id`).
 3. UI: `apps/web/src/routes/admin/Employees.tsx`, same list/create/toggle shape as the restaurant screen — reuse shadcn components already generated in task 003/004, no new UI primitives expected.
