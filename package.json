@@ -8,6 +8,7 @@
   "packageManager": "pnpm@11.9.0",
   "scripts": {
     "dev": "bash scripts/dev.sh",
+    "dev:hot": "bash scripts/dev-hot.sh",
     "dev:web": "pnpm --filter web dev",
     "dev:api": "pnpm --filter api dev",
     "build": "pnpm --filter web build",
@@ -24,6 +25,7 @@
   "devDependencies": {
     "@playwright/test": "^1.62.1",
     "@types/node": "^24.13.3",
+    "concurrently": "^10.0.4",
     "typescript": "~6.0.3",
     "vitest": "^4.1.10"
   }
