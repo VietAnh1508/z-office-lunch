@@ -1,7 +1,7 @@
 ---
 id: 017
 title: Retrofit menu item create + toggle-active onto toast feedback
-status: approved
+status: in_review
 depends_on: [016]
 parallelizable_with: []
 tdd: required
@@ -63,19 +63,27 @@ Apply the toast-feedback convention established in task 016 to the two remaining
 
 ## Implementation Log
 
-(Filled in by /implement-task.)
-
-- red commit: <sha> — `<test_command>` -> N failing
-- green commit: <sha> — `<test_command>` -> all passing
+- red commit: `ef8e98d` — `pnpm -r typecheck && pnpm --filter web build && pnpm test && pnpm exec playwright test` -> 4 failing (the 4 new/extended toast assertions in `RestaurantDetail.test.tsx`; all other tests and typecheck/build passed)
+- green commit: `c319627` — `pnpm -r typecheck && pnpm --filter web build && pnpm test && pnpm exec playwright test` -> all passing (50/50 unit tests, 7/7 e2e tests, typecheck and build clean)
+- review-fix commit: `e98db81` — `pnpm -r typecheck && pnpm --filter web build && pnpm test && pnpm exec playwright test` -> all passing (52/52 unit tests, 7/7 e2e tests) — addresses the two "Important" review findings plus the e2e-wait simplification, see Review Notes below
 
 ## Plan Deviations
 
-(Filled in by /implement-task, honestly, before requesting review — write "None." if genuinely nothing applies, don't skip this section silently.)
-
-- Where did the actual implementation differ from the Plan above, and why?
-- Any wrong assumption, dead end, or approach abandoned partway through?
-- Anything the user had to correct or redirect mid-task?
+- The Plan's error tests said "mock a 500 on POST/PATCH ... assert `Could not create/update menu item.`" — I first wrote those as `HttpResponse.json({ error: "internal error" }, { status: 500 })`, matching the create-restaurant *known-error* test in task 016. That's wrong for this assertion: a 500 with a JSON `{ error }` body parses into an `ApiError` whose `.message` is `"internal error"`, so `toastApiError` renders `"internal error"`, not the fallback string. The fallback string only appears when the request isn't a well-formed `ApiError` at all (e.g. a network failure). Fixed by switching both new tests to `HttpResponse.error()`, matching the existing *network-error* fallback test pattern in `Restaurants.test.tsx` — this was caught during the green phase (tests still failed after wiring the toasts) and required editing the two red-commit tests before they'd pass, so those edits landed in the green commit alongside the implementation instead of the red commit.
+- The Plan's e2e step called for waiting for the "Menu item added" toast to become hidden before clicking "Deactivate", to avoid toast overlap. The code-reviewer agent flagged this as unnecessary (no shared/colliding toast text between the two mutations in this spec, and it hard-couples the test to Sonner's unpinned default duration) — removed per that finding; see Review Notes.
+- Everything else (hook wiring, `RestaurantDetail.tsx` retrofit) matched the Plan as written.
+- Nothing required user correction or redirect mid-task.
 
 ## Review Notes
 
-(Output of the feature-dev:code-reviewer agent, appended by /implement-task.)
+Reviewed by `feature-dev:code-reviewer` against `.claude/rules/mutation-feedback.md` and `.claude/rules/form-validation.md`, cross-checked with the API route and the prior task's (016) test patterns.
+
+Confirmed correct (no action needed):
+- `useToggleMenuItemActive`'s `onSuccess: (item) => ...` reads `item.active` from the mutation response, which is the API's post-update state (`apps/api/src/routes/menu-items.ts` returns the updated row) — the toast announces the correct new state, not the pre-click one.
+- No dead code left in `RestaurantDetail.tsx` after removing the `error` state and `ApiError` import.
+- `useCreateMenuItem`/`useToggleMenuItemActive` onSuccess/onError shape mirrors the established `useCreateRestaurant` convention; toast messages stay static; call site uses `mutate(input, { onSuccess: ... })` not `mutateAsync`/try-catch.
+
+Findings (both addressed in commit `e98db81`):
+- **Important** — Missing test for the `ApiError`-message branch of `toastApiError` for both new call sites: only the network-error fallback branch was covered; task 016 established a separate known-error-message test (`Restaurants.test.tsx`) that this task hadn't mirrored. Fixed: added a known-error (409/404 with JSON `{ error }` body) test for both `useCreateMenuItem` and `useToggleMenuItemActive`.
+- **Important** — Form reset after successful create was untested: `name.reset()`/`setPrice("")` moved into `mutate`'s `onSuccess` callback but nothing asserted the inputs actually clear. Fixed: added `toHaveValue("")` assertions for both Name and Price after a successful submit.
+- **Minor** — `e2e/admin-restaurant-detail.spec.ts`'s `toBeHidden()` wait for the "Menu item added" toast didn't guard against anything real (no text collision with "Menu item deactivated") and hard-coupled to Sonner's default duration. Fixed: removed.

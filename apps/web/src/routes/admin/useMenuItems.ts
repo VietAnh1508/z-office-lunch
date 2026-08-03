@@ -1,5 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { api } from "@/lib/api";
+import { toastApiError } from "@/lib/toast";
 
 export type MenuItem = {
   id: number;
@@ -34,7 +36,9 @@ export function useCreateMenuItem(restaurantId: number) {
       api.post<MenuItem>(`/restaurants/${restaurantId}/menu-items`, input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: menuItemKeys.list(restaurantId) });
+      toast.success("Menu item added");
     },
+    onError: (error) => toastApiError(error, "Could not create menu item."),
   });
 }
 
@@ -44,8 +48,10 @@ export function useToggleMenuItemActive(restaurantId: number) {
   return useMutation({
     mutationFn: (itemId: number) =>
       api.patch<MenuItem>(`/restaurants/${restaurantId}/menu-items/${itemId}`),
-    onSuccess: () => {
+    onSuccess: (item) => {
       queryClient.invalidateQueries({ queryKey: menuItemKeys.list(restaurantId) });
+      toast.success(item.active ? "Menu item activated" : "Menu item deactivated");
     },
+    onError: (error) => toastApiError(error, "Could not update menu item."),
   });
 }
