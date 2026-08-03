@@ -102,9 +102,7 @@ describe("RestaurantDetail", () => {
         ]),
       ),
       http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
-      http.post("/api/restaurants/1/menu-items", () =>
-        HttpResponse.json({ error: "internal error" }, { status: 500 }),
-      ),
+      http.post("/api/restaurants/1/menu-items", () => HttpResponse.error()),
     );
 
     renderDetail("1");
@@ -162,9 +160,7 @@ describe("RestaurantDetail", () => {
         ]),
       ),
       http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([item])),
-      http.patch("/api/restaurants/1/menu-items/10", () =>
-        HttpResponse.json({ error: "internal error" }, { status: 500 }),
-      ),
+      http.patch("/api/restaurants/1/menu-items/10", () => HttpResponse.error()),
     );
 
     renderDetail("1");

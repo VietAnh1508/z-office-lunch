@@ -6,7 +6,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useRequiredField } from "@/hooks/useRequiredField";
-import { ApiError } from "@/lib/api";
 import { formatPrice } from "@/lib/format-price";
 import { useRestaurants } from "./useRestaurants";
 import { useCreateMenuItem, useMenuItems, useToggleMenuItemActive } from "./useMenuItems";
@@ -24,22 +23,19 @@ export function RestaurantDetail() {
 
   const name = useRequiredField("Name is required.");
   const [price, setPrice] = useState("");
-  const [error, setError] = useState<string | null>(null);
 
-  async function handleSubmit(e: SubmitEvent<HTMLFormElement>) {
+  function handleSubmit(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
-    setError(null);
     if (!name.validate()) return;
-    try {
-      await createMenuItem.mutateAsync({
-        name: name.value,
-        price: price || undefined,
-      });
-      name.reset();
-      setPrice("");
-    } catch (e) {
-      setError(e instanceof ApiError ? e.message : "Could not create menu item.");
-    }
+    createMenuItem.mutate(
+      { name: name.value, price: price || undefined },
+      {
+        onSuccess: () => {
+          name.reset();
+          setPrice("");
+        },
+      },
+    );
   }
 
   if (restaurantPending) {
@@ -79,7 +75,6 @@ export function RestaurantDetail() {
               <Label htmlFor="menu-item-price">Price</Label>
               <Input id="menu-item-price" value={price} onChange={(e) => setPrice(e.target.value)} />
             </div>
-            {error && <p className="text-sm text-destructive">{error}</p>}
             <Button type="submit" disabled={createMenuItem.isPending}>
               Add menu item
             </Button>
