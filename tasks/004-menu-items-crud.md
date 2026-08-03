@@ -1,7 +1,7 @@
 ---
 id: 004
 title: Menu items under a restaurant (create, list, deactivate)
-status: in_review
+status: done
 depends_on: [003, 013]
 parallelizable_with: [005]
 tdd: required
