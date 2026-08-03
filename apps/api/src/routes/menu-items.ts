@@ -5,6 +5,21 @@ import type { Bindings } from "../bindings";
 import { ERROR_MESSAGES } from "../lib/errors";
 import { getDb } from "../lib/get-db";
 
+function parsePrice(raw: unknown): { ok: true; price: string | null } | { ok: false } {
+  if (raw === undefined || raw === null || raw === "") {
+    return { ok: true, price: null };
+  }
+  if (typeof raw === "number") {
+    return Number.isFinite(raw) && raw >= 0 ? { ok: true, price: String(raw) } : { ok: false };
+  }
+  if (typeof raw !== "string") {
+    return { ok: false };
+  }
+  const trimmed = raw.trim();
+  const num = Number(trimmed);
+  return Number.isFinite(num) && num >= 0 ? { ok: true, price: trimmed } : { ok: false };
+}
+
 export const menuItemsRoute = new Hono<{ Bindings: Bindings }>();
 
 menuItemsRoute.post("/:id/menu-items", async (c) => {
@@ -12,13 +27,19 @@ menuItemsRoute.post("/:id/menu-items", async (c) => {
   const body = await c.req.json().catch(() => ({}));
   const type = body.type;
   const name = typeof body.name === "string" ? body.name.trim() : "";
-  const price = typeof body.price === "string" && body.price.trim() !== "" ? body.price : null;
+  const parsedPrice = parsePrice(body.price);
 
   if (type !== "food" && type !== "drink") {
     return c.json({ error: ERROR_MESSAGES.typeInvalid }, 400);
   }
   if (!name) {
     return c.json({ error: ERROR_MESSAGES.nameRequired }, 400);
+  }
+  if (!parsedPrice.ok) {
+    return c.json({ error: ERROR_MESSAGES.priceInvalid }, 400);
+  }
+  if (!Number.isInteger(restaurantId)) {
+    return c.json({ error: ERROR_MESSAGES.restaurantNotFound }, 404);
   }
 
   const db = getDb(c);
@@ -33,7 +54,7 @@ menuItemsRoute.post("/:id/menu-items", async (c) => {
 
     const [row] = await db
       .insert(menuItems)
-      .values({ restaurantId, type, name, price })
+      .values({ restaurantId, type, name, price: parsedPrice.price })
       .returning();
     return c.json(row, 201);
   } catch (e) {
@@ -47,6 +68,10 @@ menuItemsRoute.post("/:id/menu-items", async (c) => {
 menuItemsRoute.get("/:id/menu-items", async (c) => {
   const restaurantId = Number(c.req.param("id"));
   const activeOnly = c.req.query("active") === "true";
+
+  if (!Number.isInteger(restaurantId)) {
+    return c.json([]);
+  }
 
   const db = getDb(c);
   try {
@@ -67,6 +92,10 @@ menuItemsRoute.get("/:id/menu-items", async (c) => {
 menuItemsRoute.patch("/:id/menu-items/:itemId", async (c) => {
   const restaurantId = Number(c.req.param("id"));
   const itemId = Number(c.req.param("itemId"));
+
+  if (!Number.isInteger(restaurantId) || !Number.isInteger(itemId)) {
+    return c.json({ error: ERROR_MESSAGES.menuItemNotFound }, 404);
+  }
 
   const db = getDb(c);
   try {
