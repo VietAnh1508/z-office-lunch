@@ -11,6 +11,7 @@
     "dev:hot": "bash scripts/dev-hot.sh",
     "dev:web": "pnpm --filter web dev",
     "dev:api": "pnpm --filter api dev",
+    "dev:stop": "bash scripts/dev-stop.sh",
     "build": "pnpm --filter web build",
     "typecheck": "tsc --noEmit && pnpm -r typecheck",
     "test": "vitest run",
