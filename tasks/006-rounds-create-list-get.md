@@ -22,6 +22,7 @@ Admin creates a round tying together a required food restaurant, an optional dri
 
 ## Plan
 
+0. `/admin/rounds` and its placeholder file (`apps/web/src/routes/admin/Rounds.tsx`) already exist as of task 014 — this task replaces the placeholder's body, it doesn't create the route or file fresh.
 1. `apps/api/src/routes/rounds.ts`, mounted at `/api/rounds`.
 2. TDD units: valid POST creates a `draft` round; missing/invalid `foodRestaurantId` rejected; `drinkRestaurantId` optional; `GET` list/detail return created rounds.
 3. UI: `apps/web/src/routes/admin/Rounds.tsx` (list + create form with restaurant `<select>`s and a deadline datetime input).

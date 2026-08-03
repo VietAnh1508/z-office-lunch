@@ -10,7 +10,7 @@ test("Add restaurant form validates the Name field without native HTML5 validati
     }
   });
 
-  await page.goto("/admin");
+  await page.goto("/admin/restaurants");
 
   const nameInput = page.getByLabel("Name");
   await expect(nameInput).not.toHaveAttribute("required");
