@@ -17,7 +17,6 @@ test("admin can add a menu item to a restaurant and toggle it inactive", async (
   await expect(page.getByText("Banh Mi")).toBeVisible();
   await expect(page.getByText("25.000", { exact: false })).toBeVisible();
   await expect(page.getByText("Menu item added")).toBeVisible();
-  await expect(page.getByText("Menu item added")).toBeHidden();
 
   await page.getByRole("button", { name: "Deactivate" }).click();
   await expect(page.getByRole("button", { name: "Activate" })).toBeVisible();

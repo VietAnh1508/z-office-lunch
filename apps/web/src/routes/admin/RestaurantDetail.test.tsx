@@ -84,15 +84,18 @@ describe("RestaurantDetail", () => {
     await screen.findByText("No menu items yet.");
 
     await user.type(screen.getByLabelText("Name", { exact: false }), "Banh Mi");
+    await user.type(screen.getByLabelText("Price", { exact: false }), "25000");
     await user.click(screen.getByRole("button", { name: "Add menu item" }));
 
     await waitFor(() => {
       expect(screen.getByText("Banh Mi")).toBeInTheDocument();
     });
     expect(await screen.findByText("Menu item added")).toBeInTheDocument();
+    expect(screen.getByLabelText("Name", { exact: false })).toHaveValue("");
+    expect(screen.getByLabelText("Price", { exact: false })).toHaveValue("");
   });
 
-  it("shows a fallback error toast when creating a menu item fails", async () => {
+  it("shows a fallback error toast when creating a menu item fails with a network error", async () => {
     const user = userEvent.setup();
 
     server.use(
@@ -113,6 +116,31 @@ describe("RestaurantDetail", () => {
     await user.click(screen.getByRole("button", { name: "Add menu item" }));
 
     expect(await screen.findByText("Could not create menu item.")).toBeInTheDocument();
+  });
+
+  it("shows the API's error message as a toast when creating a menu item fails with a known error", async () => {
+    const user = userEvent.setup();
+
+    server.use(
+      http.get("/api/restaurants", () =>
+        HttpResponse.json([
+          { id: 1, name: "Pho 24", type: "food", contactInfo: null, menuSourceNote: null },
+        ]),
+      ),
+      http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
+      http.post("/api/restaurants/1/menu-items", () =>
+        HttpResponse.json({ error: "Name already exists" }, { status: 409 }),
+      ),
+    );
+
+    renderDetail("1");
+
+    await screen.findByText("No menu items yet.");
+
+    await user.type(screen.getByLabelText("Name", { exact: false }), "Banh Mi");
+    await user.click(screen.getByRole("button", { name: "Add menu item" }));
+
+    expect(await screen.findByText("Name already exists")).toBeInTheDocument();
   });
 
   it("toggles a menu item's active state", async () => {
@@ -149,7 +177,7 @@ describe("RestaurantDetail", () => {
     expect(await screen.findByText("Menu item activated")).toBeInTheDocument();
   });
 
-  it("shows a fallback error toast when toggling a menu item's active state fails", async () => {
+  it("shows a fallback error toast when toggling a menu item's active state fails with a network error", async () => {
     const user = userEvent.setup();
     const item = { id: 10, restaurantId: 1, name: "Pho Bo", price: null, active: true };
 
@@ -170,5 +198,30 @@ describe("RestaurantDetail", () => {
     await user.click(screen.getByRole("button", { name: "Deactivate" }));
 
     expect(await screen.findByText("Could not update menu item.")).toBeInTheDocument();
+  });
+
+  it("shows the API's error message as a toast when toggling a menu item's active state fails with a known error", async () => {
+    const user = userEvent.setup();
+    const item = { id: 10, restaurantId: 1, name: "Pho Bo", price: null, active: true };
+
+    server.use(
+      http.get("/api/restaurants", () =>
+        HttpResponse.json([
+          { id: 1, name: "Pho 24", type: "food", contactInfo: null, menuSourceNote: null },
+        ]),
+      ),
+      http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([item])),
+      http.patch("/api/restaurants/1/menu-items/10", () =>
+        HttpResponse.json({ error: "Menu item not found" }, { status: 404 }),
+      ),
+    );
+
+    renderDetail("1");
+
+    await screen.findByText("Pho Bo");
+
+    await user.click(screen.getByRole("button", { name: "Deactivate" }));
+
+    expect(await screen.findByText("Menu item not found")).toBeInTheDocument();
   });
 });
