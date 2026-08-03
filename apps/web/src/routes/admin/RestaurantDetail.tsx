@@ -56,8 +56,10 @@ export function RestaurantDetail() {
         <Link to="/admin/restaurants" className="text-sm text-muted-foreground underline">
           ← Restaurants
         </Link>
-        <h1 className="text-2xl font-semibold">{restaurant.name}</h1>
-        <span className="text-muted-foreground"> ({restaurant.type})</span>
+        <div className="flex items-baseline gap-1">
+          <h1 className="text-2xl font-semibold">{restaurant.name}</h1>
+          <span className="text-muted-foreground">({restaurant.type})</span>
+        </div>
       </div>
 
       <Card>
