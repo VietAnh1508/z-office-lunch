@@ -46,7 +46,7 @@ describe("Restaurants", () => {
 
     await screen.findByText("Pizza Place");
 
-    await user.type(screen.getByPlaceholderText("Name"), "Sushi Spot");
+    await user.type(screen.getByLabelText("Name", { exact: false }), "Sushi Spot");
     await user.click(screen.getByRole("button", { name: "Add restaurant" }));
 
     await waitFor(() => {
@@ -80,7 +80,7 @@ describe("Restaurants", () => {
 
     await screen.findByText("Pizza Place");
 
-    await user.type(screen.getByPlaceholderText("Name"), "Sushi Spot");
+    await user.type(screen.getByLabelText("Name", { exact: false }), "Sushi Spot");
     await user.click(screen.getByRole("button", { name: "Add restaurant" }));
 
     await waitFor(() => {
@@ -88,5 +88,36 @@ describe("Restaurants", () => {
     });
 
     expect(screen.getByText("Pizza Place")).toBeInTheDocument();
+  });
+
+  it("shows an inline error and does not submit when Name is empty", async () => {
+    const user = userEvent.setup();
+    let postCount = 0;
+
+    server.use(
+      http.get("/api/restaurants", () => HttpResponse.json([])),
+      http.post("/api/restaurants", () => {
+        postCount += 1;
+        return HttpResponse.json(
+          { id: 1, name: "Sushi Spot", contactInfo: null, menuSourceNote: null },
+          { status: 201 },
+        );
+      }),
+    );
+
+    renderWithProviders(<Restaurants />);
+
+    await screen.findByText("No restaurants yet.");
+
+    await user.click(screen.getByRole("button", { name: "Add restaurant" }));
+
+    expect(await screen.findByText("Name is required.")).toBeInTheDocument();
+    expect(screen.getByLabelText("Name", { exact: false })).toHaveAttribute("aria-invalid", "true");
+    expect(postCount).toBe(0);
+
+    await user.type(screen.getByLabelText("Name", { exact: false }), "Sushi Spot");
+
+    expect(screen.queryByText("Name is required.")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Name", { exact: false })).toHaveAttribute("aria-invalid", "false");
   });
 });

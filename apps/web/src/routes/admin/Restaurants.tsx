@@ -2,6 +2,8 @@ import { type SubmitEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useRequiredField } from "@/hooks/useRequiredField";
 import { ApiError } from "@/lib/api";
 import { useCreateRestaurant, useRestaurants } from "./useRestaurants";
 
@@ -9,19 +11,20 @@ export function Restaurants() {
   const { data: restaurants, isPending, isError } = useRestaurants();
   const createRestaurant = useCreateRestaurant();
 
-  const [name, setName] = useState("");
+  const name = useRequiredField("Name is required.");
   const [contactInfo, setContactInfo] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
+    if (!name.validate()) return;
     try {
       await createRestaurant.mutateAsync({
-        name,
+        name: name.value,
         contactInfo: contactInfo || undefined,
       });
-      setName("");
+      name.reset();
       setContactInfo("");
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Could not create restaurant.");
@@ -35,18 +38,22 @@ export function Restaurants() {
           <CardTitle>Add restaurant</CardTitle>
         </CardHeader>
         <CardContent>
-          <form className="flex flex-col gap-3" onSubmit={handleSubmit}>
-            <Input
-              placeholder="Name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-            />
-            <Input
-              placeholder="Contact info (optional)"
-              value={contactInfo}
-              onChange={(e) => setContactInfo(e.target.value)}
-            />
+          <form className="flex flex-col gap-3" onSubmit={handleSubmit} noValidate>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="restaurant-name">
+                Name <span className="text-destructive">*</span>
+              </Label>
+              <Input id="restaurant-name" {...name.inputProps} />
+              {name.error && <p className="text-sm text-destructive">{name.error}</p>}
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="restaurant-contact-info">Contact info</Label>
+              <Input
+                id="restaurant-contact-info"
+                value={contactInfo}
+                onChange={(e) => setContactInfo(e.target.value)}
+              />
+            </div>
             {error && <p className="text-sm text-destructive">{error}</p>}
             <Button type="submit" disabled={createRestaurant.isPending}>
               Add restaurant
