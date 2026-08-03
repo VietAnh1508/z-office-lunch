@@ -2,6 +2,7 @@ import { type SubmitEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { useRequiredField } from "@/hooks/useRequiredField";
 import { ApiError } from "@/lib/api";
 import { useCreateRestaurant, useRestaurants } from "./useRestaurants";
 
@@ -9,19 +10,20 @@ export function Restaurants() {
   const { data: restaurants, isPending, isError } = useRestaurants();
   const createRestaurant = useCreateRestaurant();
 
-  const [name, setName] = useState("");
+  const name = useRequiredField("Name is required.");
   const [contactInfo, setContactInfo] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
+    if (!name.validate()) return;
     try {
       await createRestaurant.mutateAsync({
-        name,
+        name: name.value,
         contactInfo: contactInfo || undefined,
       });
-      setName("");
+      name.reset();
       setContactInfo("");
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Could not create restaurant.");
@@ -35,13 +37,9 @@ export function Restaurants() {
           <CardTitle>Add restaurant</CardTitle>
         </CardHeader>
         <CardContent>
-          <form className="flex flex-col gap-3" onSubmit={handleSubmit}>
-            <Input
-              placeholder="Name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-            />
+          <form className="flex flex-col gap-3" onSubmit={handleSubmit} noValidate>
+            <Input placeholder="Name" {...name.inputProps} />
+            {name.error && <p className="text-sm text-destructive">{name.error}</p>}
             <Input
               placeholder="Contact info (optional)"
               value={contactInfo}
