@@ -89,6 +89,32 @@ describe("RestaurantDetail", () => {
     await waitFor(() => {
       expect(screen.getByText("Banh Mi")).toBeInTheDocument();
     });
+    expect(await screen.findByText("Menu item added")).toBeInTheDocument();
+  });
+
+  it("shows a fallback error toast when creating a menu item fails", async () => {
+    const user = userEvent.setup();
+
+    server.use(
+      http.get("/api/restaurants", () =>
+        HttpResponse.json([
+          { id: 1, name: "Pho 24", type: "food", contactInfo: null, menuSourceNote: null },
+        ]),
+      ),
+      http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
+      http.post("/api/restaurants/1/menu-items", () =>
+        HttpResponse.json({ error: "internal error" }, { status: 500 }),
+      ),
+    );
+
+    renderDetail("1");
+
+    await screen.findByText("No menu items yet.");
+
+    await user.type(screen.getByLabelText("Name", { exact: false }), "Banh Mi");
+    await user.click(screen.getByRole("button", { name: "Add menu item" }));
+
+    expect(await screen.findByText("Could not create menu item.")).toBeInTheDocument();
   });
 
   it("toggles a menu item's active state", async () => {
@@ -117,5 +143,36 @@ describe("RestaurantDetail", () => {
 
     expect(await screen.findByRole("button", { name: "Activate" })).toBeInTheDocument();
     expect(screen.getByText("Pho Bo")).toHaveClass("line-through");
+    expect(await screen.findByText("Menu item deactivated")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Activate" }));
+
+    expect(await screen.findByRole("button", { name: "Deactivate" })).toBeInTheDocument();
+    expect(await screen.findByText("Menu item activated")).toBeInTheDocument();
+  });
+
+  it("shows a fallback error toast when toggling a menu item's active state fails", async () => {
+    const user = userEvent.setup();
+    const item = { id: 10, restaurantId: 1, name: "Pho Bo", price: null, active: true };
+
+    server.use(
+      http.get("/api/restaurants", () =>
+        HttpResponse.json([
+          { id: 1, name: "Pho 24", type: "food", contactInfo: null, menuSourceNote: null },
+        ]),
+      ),
+      http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([item])),
+      http.patch("/api/restaurants/1/menu-items/10", () =>
+        HttpResponse.json({ error: "internal error" }, { status: 500 }),
+      ),
+    );
+
+    renderDetail("1");
+
+    await screen.findByText("Pho Bo");
+
+    await user.click(screen.getByRole("button", { name: "Deactivate" }));
+
+    expect(await screen.findByText("Could not update menu item.")).toBeInTheDocument();
   });
 });
