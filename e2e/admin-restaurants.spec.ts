@@ -14,9 +14,7 @@ test("Add restaurant form validates the Name field without native HTML5 validati
 
   const nameInput = page.getByPlaceholder("Name");
   await expect(nameInput).not.toHaveAttribute("required");
-  expect(
-    await nameInput.evaluate((el) => (el as { validity: { valid: boolean } }).validity.valid),
-  ).toBe(true);
+  expect(await nameInput.evaluate((el: HTMLInputElement) => el.validity.valid)).toBe(true);
 
   await page.getByRole("button", { name: "Add restaurant" }).click();
 
