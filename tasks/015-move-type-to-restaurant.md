@@ -1,7 +1,7 @@
 ---
 id: 015
 title: Move type field from MenuItem to Restaurant
-status: in_review
+status: done
 depends_on: [004]
 parallelizable_with: []
 tdd: required
