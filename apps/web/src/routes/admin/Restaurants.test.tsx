@@ -67,6 +67,34 @@ describe("Restaurants", () => {
     await waitFor(() => {
       expect(screen.getByText("Sushi Spot")).toBeInTheDocument();
     });
+    expect(await screen.findByText("Restaurant added")).toBeInTheDocument();
+  });
+
+  it("shows an error toast when creating a restaurant fails", async () => {
+    const user = userEvent.setup();
+
+    server.use(
+      http.get("/api/restaurants", () => HttpResponse.json([])),
+      http.post("/api/restaurants", () =>
+        HttpResponse.json({ error: "internal error" }, { status: 500 }),
+      ),
+    );
+
+    renderRestaurants();
+
+    await screen.findByText("No restaurants yet.");
+
+    await user.type(screen.getByLabelText("Name", { exact: false }), "Sushi Spot");
+    await user.click(screen.getByRole("button", { name: "Add restaurant" }));
+
+    expect(await screen.findByText("Could not create restaurant.")).toBeInTheDocument();
+  });
+
+  it("does not leak a toast from one test into the next", async () => {
+    renderRestaurants();
+
+    expect(screen.queryByText("Restaurant added")).not.toBeInTheDocument();
+    expect(screen.queryByText("Could not create restaurant.")).not.toBeInTheDocument();
   });
 
   it("adds a restaurant with type drink selected", async () => {
