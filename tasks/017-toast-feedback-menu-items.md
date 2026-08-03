@@ -1,7 +1,7 @@
 ---
 id: 017
 title: Retrofit menu item create + toggle-active onto toast feedback
-status: in_review
+status: done
 depends_on: [016]
 parallelizable_with: []
 tdd: required
