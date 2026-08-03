@@ -27,3 +27,15 @@ test("Add restaurant form validates the Name field without native HTML5 validati
   await expect(page.getByText("Name is required.")).not.toBeVisible();
   await expect(nameInput).toHaveAttribute("aria-invalid", "false");
 });
+
+test("admin can create a drink restaurant and see its type label", async ({ page }) => {
+  await page.goto("/admin/restaurants");
+
+  const restaurantName = `Drink Restaurant ${Date.now()}`;
+  await page.getByLabel("Name", { exact: false }).fill(restaurantName);
+  await page.getByLabel("Type", { exact: false }).selectOption("drink");
+  await page.getByRole("button", { name: "Add restaurant" }).click();
+
+  const row = page.getByText(restaurantName).locator("..");
+  await expect(row.getByText("(drink)")).toBeVisible();
+});

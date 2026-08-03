@@ -21,11 +21,13 @@ describe("RestaurantDetail", () => {
   it("lists menu items for the restaurant, including the price", async () => {
     server.use(
       http.get("/api/restaurants", () =>
-        HttpResponse.json([{ id: 1, name: "Pho 24", contactInfo: null, menuSourceNote: null }]),
+        HttpResponse.json([
+          { id: 1, name: "Pho 24", type: "food", contactInfo: null, menuSourceNote: null },
+        ]),
       ),
       http.get("/api/restaurants/1/menu-items", () =>
         HttpResponse.json([
-          { id: 10, restaurantId: 1, type: "food", name: "Pho Bo", price: "11000", active: true },
+          { id: 10, restaurantId: 1, name: "Pho Bo", price: "11000", active: true },
         ]),
       ),
     );
@@ -33,6 +35,7 @@ describe("RestaurantDetail", () => {
     renderDetail("1");
 
     expect(await screen.findByRole("heading", { name: "Pho 24" })).toBeInTheDocument();
+    expect(screen.getByText("(food)")).toBeInTheDocument();
     expect(screen.getByText("Pho Bo")).toBeInTheDocument();
     expect(screen.getByText("11.000", { exact: false })).toBeInTheDocument();
   });
@@ -50,7 +53,6 @@ describe("RestaurantDetail", () => {
     let items: Array<{
       id: number;
       restaurantId: number;
-      type: string;
       name: string;
       price: string | null;
       active: boolean;
@@ -58,15 +60,16 @@ describe("RestaurantDetail", () => {
 
     server.use(
       http.get("/api/restaurants", () =>
-        HttpResponse.json([{ id: 1, name: "Pho 24", contactInfo: null, menuSourceNote: null }]),
+        HttpResponse.json([
+          { id: 1, name: "Pho 24", type: "food", contactInfo: null, menuSourceNote: null },
+        ]),
       ),
       http.get("/api/restaurants/1/menu-items", () => HttpResponse.json(items)),
       http.post("/api/restaurants/1/menu-items", async ({ request }) => {
-        const body = (await request.json()) as { type: string; name: string; price?: string };
+        const body = (await request.json()) as { name: string; price?: string };
         const created = {
           id: 1,
           restaurantId: 1,
-          type: body.type,
           name: body.name,
           price: body.price ?? null,
           active: true,
@@ -90,11 +93,13 @@ describe("RestaurantDetail", () => {
 
   it("toggles a menu item's active state", async () => {
     const user = userEvent.setup();
-    let item = { id: 10, restaurantId: 1, type: "food", name: "Pho Bo", price: null, active: true };
+    let item = { id: 10, restaurantId: 1, name: "Pho Bo", price: null, active: true };
 
     server.use(
       http.get("/api/restaurants", () =>
-        HttpResponse.json([{ id: 1, name: "Pho 24", contactInfo: null, menuSourceNote: null }]),
+        HttpResponse.json([
+          { id: 1, name: "Pho 24", type: "food", contactInfo: null, menuSourceNote: null },
+        ]),
       ),
       http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([item])),
       http.patch("/api/restaurants/1/menu-items/10", () => {

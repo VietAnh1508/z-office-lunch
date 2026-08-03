@@ -4,14 +4,12 @@ import { api } from "@/lib/api";
 export type MenuItem = {
   id: number;
   restaurantId: number;
-  type: "food" | "drink";
   name: string;
   price: string | null;
   active: boolean;
 };
 
 type CreateMenuItemInput = {
-  type: "food" | "drink";
   name: string;
   price?: string;
 };

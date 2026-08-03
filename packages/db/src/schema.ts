@@ -10,12 +10,13 @@ import {
   unique,
 } from "drizzle-orm/pg-core";
 
-export const menuItemType = pgEnum("menu_item_type", ["food", "drink"]);
+export const restaurantType = pgEnum("restaurant_type", ["food", "drink"]);
 export const roundStatus = pgEnum("round_status", ["draft", "open", "closed"]);
 
 export const restaurants = pgTable("restaurants", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
+  type: restaurantType("type").notNull(),
   contactInfo: text("contact_info"),
   menuSourceNote: text("menu_source_note"),
 });
@@ -25,7 +26,6 @@ export const menuItems = pgTable("menu_items", {
   restaurantId: integer("restaurant_id")
     .notNull()
     .references(() => restaurants.id),
-  type: menuItemType("type").notNull(),
   name: text("name").notNull(),
   price: numeric("price"),
   imageR2Key: text("image_r2_key"),

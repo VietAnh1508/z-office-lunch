@@ -13,6 +13,7 @@ export function Restaurants() {
   const createRestaurant = useCreateRestaurant();
 
   const name = useRequiredField("Name is required.");
+  const [type, setType] = useState<"food" | "drink">("food");
   const [contactInfo, setContactInfo] = useState("");
   const [error, setError] = useState<string | null>(null);
 
@@ -23,9 +24,11 @@ export function Restaurants() {
     try {
       await createRestaurant.mutateAsync({
         name: name.value,
+        type,
         contactInfo: contactInfo || undefined,
       });
       name.reset();
+      setType("food");
       setContactInfo("");
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Could not create restaurant.");
@@ -46,6 +49,18 @@ export function Restaurants() {
               </Label>
               <Input id="restaurant-name" {...name.inputProps} />
               {name.error && <p className="text-sm text-destructive">{name.error}</p>}
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="restaurant-type">Type</Label>
+              <select
+                id="restaurant-type"
+                className="h-8 rounded-md border border-border bg-background px-2.5 text-sm"
+                value={type}
+                onChange={(e) => setType(e.target.value as "food" | "drink")}
+              >
+                <option value="food">Food</option>
+                <option value="drink">Drink</option>
+              </select>
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="restaurant-contact-info">Contact info</Label>
@@ -86,6 +101,7 @@ export function Restaurants() {
                       <Link to={`/admin/restaurants/${restaurant.id}`} className="underline">
                         {restaurant.name}
                       </Link>
+                      <span className="text-muted-foreground"> ({restaurant.type})</span>
                       {restaurant.contactInfo && (
                         <span className="text-muted-foreground"> — {restaurant.contactInfo}</span>
                       )}
