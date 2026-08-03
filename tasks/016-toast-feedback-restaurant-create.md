@@ -1,7 +1,7 @@
 ---
 id: 016
 title: Add Sonner toast + wire success/error feedback into restaurant create
-status: in_review
+status: done
 depends_on: []
 parallelizable_with: []
 tdd: required
