@@ -31,7 +31,7 @@ describe("menu items routes", () => {
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: "food", name: "Banh Mi" }),
+        body: JSON.stringify({ name: "Banh Mi" }),
       },
       testEnv,
     );
@@ -39,7 +39,6 @@ describe("menu items routes", () => {
     expect(res.status).toBe(201);
     const created = (await res.json()) as MenuItem;
     expect(created.name).toBe("Banh Mi");
-    expect(created.type).toBe("food");
     expect(created.active).toBe(true);
   });
 
@@ -49,7 +48,7 @@ describe("menu items routes", () => {
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: "food", name: "Banh Mi" }),
+        body: JSON.stringify({ name: "Banh Mi" }),
       },
       testEnv,
     );
@@ -60,8 +59,8 @@ describe("menu items routes", () => {
   it("GET without ?active filters returns all items; ?active=true excludes inactive ones", async () => {
     const restaurant = await seedRestaurant(db);
     await db.insert(menuItems).values([
-      { restaurantId: restaurant!.id, type: "food", name: "Active Item", active: true },
-      { restaurantId: restaurant!.id, type: "drink", name: "Inactive Item", active: false },
+      { restaurantId: restaurant!.id, name: "Active Item", active: true },
+      { restaurantId: restaurant!.id, name: "Inactive Item", active: false },
     ]);
 
     const allRes = await app.request(`/api/restaurants/${restaurant!.id}/menu-items`, {}, testEnv);
@@ -84,7 +83,7 @@ describe("menu items routes", () => {
     const restaurant = await seedRestaurant(db);
     const [item] = await db
       .insert(menuItems)
-      .values({ restaurantId: restaurant!.id, type: "food", name: "Banh Mi", active: true })
+      .values({ restaurantId: restaurant!.id, name: "Banh Mi", active: true })
       .returning();
 
     const patchRes = await app.request(
@@ -121,7 +120,7 @@ describe("menu items routes", () => {
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: "food", name: "Banh Mi", price: 5.5 }),
+        body: JSON.stringify({ name: "Banh Mi", price: 5.5 }),
       },
       testEnv,
     );
@@ -134,7 +133,7 @@ describe("menu items routes", () => {
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: "food", name: "Pho", price: "not-a-number" }),
+        body: JSON.stringify({ name: "Pho", price: "not-a-number" }),
       },
       testEnv,
     );
@@ -147,7 +146,7 @@ describe("menu items routes", () => {
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: "food", name: "Banh Mi" }),
+        body: JSON.stringify({ name: "Banh Mi" }),
       },
       testEnv,
     );

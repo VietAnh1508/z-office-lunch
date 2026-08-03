@@ -20,7 +20,7 @@ describe("Restaurants", () => {
     server.use(
       http.get("/api/restaurants", () =>
         HttpResponse.json([
-          { id: 1, name: "Pizza Place", contactInfo: "555-1234", menuSourceNote: null },
+          { id: 1, name: "Pizza Place", type: "food", contactInfo: "555-1234", menuSourceNote: null },
         ]),
       ),
     );
@@ -28,21 +28,27 @@ describe("Restaurants", () => {
     renderRestaurants();
 
     expect(await screen.findByText("Pizza Place")).toBeInTheDocument();
+    expect(screen.getByText("(food)")).toBeInTheDocument();
   });
 
   it("adds a restaurant via the create form without a page reload", async () => {
     const user = userEvent.setup();
-    let restaurants: Array<{ id: number; name: string; contactInfo: string | null; menuSourceNote: null }> = [
-      { id: 1, name: "Pizza Place", contactInfo: "555-1234", menuSourceNote: null },
-    ];
+    let restaurants: Array<{
+      id: number;
+      name: string;
+      type: string;
+      contactInfo: string | null;
+      menuSourceNote: null;
+    }> = [{ id: 1, name: "Pizza Place", type: "food", contactInfo: "555-1234", menuSourceNote: null }];
 
     server.use(
       http.get("/api/restaurants", () => HttpResponse.json(restaurants)),
       http.post("/api/restaurants", async ({ request }) => {
-        const body = (await request.json()) as { name: string; contactInfo?: string };
+        const body = (await request.json()) as { name: string; type: string; contactInfo?: string };
         const created = {
           id: 2,
           name: body.name,
+          type: body.type,
           contactInfo: body.contactInfo ?? null,
           menuSourceNote: null,
         };
@@ -63,6 +69,51 @@ describe("Restaurants", () => {
     });
   });
 
+  it("adds a restaurant with type drink selected", async () => {
+    const user = userEvent.setup();
+    let restaurants: Array<{
+      id: number;
+      name: string;
+      type: string;
+      contactInfo: string | null;
+      menuSourceNote: null;
+    }> = [];
+    let capturedBody: { name: string; type: string; contactInfo?: string } | null = null;
+
+    server.use(
+      http.get("/api/restaurants", () => HttpResponse.json(restaurants)),
+      http.post("/api/restaurants", async ({ request }) => {
+        const body = (await request.json()) as { name: string; type: string; contactInfo?: string };
+        capturedBody = body;
+        const created = {
+          id: 1,
+          name: body.name,
+          type: body.type,
+          contactInfo: body.contactInfo ?? null,
+          menuSourceNote: null,
+        };
+        restaurants = [...restaurants, created];
+        return HttpResponse.json(created, { status: 201 });
+      }),
+    );
+
+    renderRestaurants();
+
+    await screen.findByText("No restaurants yet.");
+
+    await user.type(screen.getByLabelText("Name", { exact: false }), "Tra Da Corner");
+    await user.selectOptions(screen.getByLabelText("Type", { exact: false }), "drink");
+    await user.click(screen.getByRole("button", { name: "Add restaurant" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Tra Da Corner")).toBeInTheDocument();
+    });
+    expect(capturedBody).toEqual(
+      expect.objectContaining({ name: "Tra Da Corner", type: "drink" }),
+    );
+    expect(screen.getByText("(drink)")).toBeInTheDocument();
+  });
+
   it("keeps showing the previously loaded list if a refetch fails", async () => {
     const user = userEvent.setup();
     let getCallCount = 0;
@@ -72,14 +123,14 @@ describe("Restaurants", () => {
         getCallCount += 1;
         if (getCallCount === 1) {
           return HttpResponse.json([
-            { id: 1, name: "Pizza Place", contactInfo: null, menuSourceNote: null },
+            { id: 1, name: "Pizza Place", type: "food", contactInfo: null, menuSourceNote: null },
           ]);
         }
         return HttpResponse.json({ error: "internal error" }, { status: 500 });
       }),
       http.post("/api/restaurants", () =>
         HttpResponse.json(
-          { id: 2, name: "Sushi Spot", contactInfo: null, menuSourceNote: null },
+          { id: 2, name: "Sushi Spot", type: "food", contactInfo: null, menuSourceNote: null },
           { status: 201 },
         ),
       ),
@@ -108,7 +159,7 @@ describe("Restaurants", () => {
       http.post("/api/restaurants", () => {
         postCount += 1;
         return HttpResponse.json(
-          { id: 1, name: "Sushi Spot", contactInfo: null, menuSourceNote: null },
+          { id: 1, name: "Sushi Spot", type: "food", contactInfo: null, menuSourceNote: null },
           { status: 201 },
         );
       }),
