@@ -1,4 +1,5 @@
 import { type SubmitEvent, useState } from "react";
+import { Link } from "react-router";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -82,7 +83,9 @@ export function Restaurants() {
                 <ul className="flex flex-col gap-2">
                   {restaurants.map((restaurant) => (
                     <li key={restaurant.id} className="text-sm">
-                      {restaurant.name}
+                      <Link to={`/admin/restaurants/${restaurant.id}`} className="underline">
+                        {restaurant.name}
+                      </Link>
                       {restaurant.contactInfo && (
                         <span className="text-muted-foreground"> — {restaurant.contactInfo}</span>
                       )}

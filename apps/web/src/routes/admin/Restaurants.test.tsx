@@ -1,10 +1,19 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { HttpResponse, http } from "msw";
+import { MemoryRouter } from "react-router";
 import { describe, expect, it } from "vitest";
 import { renderWithProviders } from "@/test/render";
 import { server } from "@/test/mocks/server";
 import { Restaurants } from "./Restaurants";
+
+function renderRestaurants() {
+  return renderWithProviders(
+    <MemoryRouter>
+      <Restaurants />
+    </MemoryRouter>,
+  );
+}
 
 describe("Restaurants", () => {
   it("renders restaurants from the API", async () => {
@@ -16,7 +25,7 @@ describe("Restaurants", () => {
       ),
     );
 
-    renderWithProviders(<Restaurants />);
+    renderRestaurants();
 
     expect(await screen.findByText("Pizza Place")).toBeInTheDocument();
   });
@@ -42,7 +51,7 @@ describe("Restaurants", () => {
       }),
     );
 
-    renderWithProviders(<Restaurants />);
+    renderRestaurants();
 
     await screen.findByText("Pizza Place");
 
@@ -76,7 +85,7 @@ describe("Restaurants", () => {
       ),
     );
 
-    renderWithProviders(<Restaurants />);
+    renderRestaurants();
 
     await screen.findByText("Pizza Place");
 
@@ -105,7 +114,7 @@ describe("Restaurants", () => {
       }),
     );
 
-    renderWithProviders(<Restaurants />);
+    renderRestaurants();
 
     await screen.findByText("No restaurants yet.");
 
