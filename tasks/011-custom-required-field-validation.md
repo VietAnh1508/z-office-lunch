@@ -1,7 +1,7 @@
 ---
 id: 011
 title: Replace native HTML5 required-field validation with custom inline UI
-status: in_review
+status: done
 depends_on: [003]
 parallelizable_with: []
 tdd: required
