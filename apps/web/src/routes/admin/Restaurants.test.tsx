@@ -46,7 +46,7 @@ describe("Restaurants", () => {
 
     await screen.findByText("Pizza Place");
 
-    await user.type(screen.getByPlaceholderText("Name"), "Sushi Spot");
+    await user.type(screen.getByLabelText("Name", { exact: false }), "Sushi Spot");
     await user.click(screen.getByRole("button", { name: "Add restaurant" }));
 
     await waitFor(() => {
@@ -80,7 +80,7 @@ describe("Restaurants", () => {
 
     await screen.findByText("Pizza Place");
 
-    await user.type(screen.getByPlaceholderText("Name"), "Sushi Spot");
+    await user.type(screen.getByLabelText("Name", { exact: false }), "Sushi Spot");
     await user.click(screen.getByRole("button", { name: "Add restaurant" }));
 
     await waitFor(() => {
@@ -112,12 +112,12 @@ describe("Restaurants", () => {
     await user.click(screen.getByRole("button", { name: "Add restaurant" }));
 
     expect(await screen.findByText("Name is required.")).toBeInTheDocument();
-    expect(screen.getByPlaceholderText("Name")).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByLabelText("Name", { exact: false })).toHaveAttribute("aria-invalid", "true");
     expect(postCount).toBe(0);
 
-    await user.type(screen.getByPlaceholderText("Name"), "Sushi Spot");
+    await user.type(screen.getByLabelText("Name", { exact: false }), "Sushi Spot");
 
     expect(screen.queryByText("Name is required.")).not.toBeInTheDocument();
-    expect(screen.getByPlaceholderText("Name")).toHaveAttribute("aria-invalid", "false");
+    expect(screen.getByLabelText("Name", { exact: false })).toHaveAttribute("aria-invalid", "false");
   });
 });

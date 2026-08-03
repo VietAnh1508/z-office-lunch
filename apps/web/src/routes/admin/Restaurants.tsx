@@ -2,6 +2,7 @@ import { type SubmitEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useRequiredField } from "@/hooks/useRequiredField";
 import { ApiError } from "@/lib/api";
 import { useCreateRestaurant, useRestaurants } from "./useRestaurants";
@@ -38,13 +39,21 @@ export function Restaurants() {
         </CardHeader>
         <CardContent>
           <form className="flex flex-col gap-3" onSubmit={handleSubmit} noValidate>
-            <Input placeholder="Name" {...name.inputProps} />
-            {name.error && <p className="text-sm text-destructive">{name.error}</p>}
-            <Input
-              placeholder="Contact info (optional)"
-              value={contactInfo}
-              onChange={(e) => setContactInfo(e.target.value)}
-            />
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="restaurant-name">
+                Name <span className="text-destructive">*</span>
+              </Label>
+              <Input id="restaurant-name" {...name.inputProps} />
+              {name.error && <p className="text-sm text-destructive">{name.error}</p>}
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="restaurant-contact-info">Contact info</Label>
+              <Input
+                id="restaurant-contact-info"
+                value={contactInfo}
+                onChange={(e) => setContactInfo(e.target.value)}
+              />
+            </div>
             {error && <p className="text-sm text-destructive">{error}</p>}
             <Button type="submit" disabled={createRestaurant.isPending}>
               Add restaurant
