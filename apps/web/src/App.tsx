@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { AdminLayout } from "@/routes/admin/AdminLayout";
 import { AdminOverview } from "@/routes/admin/AdminOverview";
 import { Employees } from "@/routes/admin/Employees";
+import { RestaurantDetail } from "@/routes/admin/RestaurantDetail";
 import { Restaurants } from "@/routes/admin/Restaurants";
 import { Rounds } from "@/routes/admin/Rounds";
 
@@ -21,6 +22,7 @@ function App() {
       <Route path="admin" element={<AdminLayout />}>
         <Route index element={<AdminOverview />} />
         <Route path="restaurants" element={<Restaurants />} />
+        <Route path="restaurants/:id" element={<RestaurantDetail />} />
         <Route path="employees" element={<Employees />} />
         <Route path="rounds" element={<Rounds />} />
       </Route>
