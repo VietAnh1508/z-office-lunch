@@ -1,5 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { api } from "@/lib/api";
+import { toastApiError } from "@/lib/toast";
 
 export type Restaurant = {
   id: number;
@@ -34,6 +36,8 @@ export function useCreateRestaurant() {
     mutationFn: (input: CreateRestaurantInput) => api.post<Restaurant>("/restaurants", input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: restaurantKeys.list() });
+      toast.success("Restaurant added");
     },
+    onError: (error) => toastApiError(error, "Could not create restaurant."),
   });
 }

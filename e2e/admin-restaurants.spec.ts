@@ -36,6 +36,8 @@ test("admin can create a drink restaurant and see its type label", async ({ page
   await page.getByLabel("Type", { exact: false }).selectOption("drink");
   await page.getByRole("button", { name: "Add restaurant" }).click();
 
+  await expect(page.getByText("Restaurant added")).toBeVisible();
+
   const row = page.getByText(restaurantName).locator("..");
   await expect(row.getByText("(drink)")).toBeVisible();
 });

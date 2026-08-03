@@ -28,6 +28,6 @@ return (
 
 - The `<form>` gets `noValidate` so the browser never shows its own validation bubble — the inline `<p className="text-sm text-destructive">` under the field is the only validation UI the user sees.
 - `handleSubmit` calls `validate()` before doing anything else and bails out if it returns `false` — never posts with a known-invalid field.
-- A field-level error (`name.error`) renders directly under that field. It stays separate from any top-level `error` state, which is reserved for API/network failures (a failed request, a 500, a dropped connection) — never repurpose the top-level error for a validation message a field owns itself.
+- A field-level error (`name.error`) renders directly under that field. It stays separate from API/network failures (a failed request, a 500, a dropped connection) on submit — those now surface as a toast, see `.claude/rules/mutation-feedback.md` — never repurpose a toast for a validation message a field owns itself.
 
 Established in `apps/web/src/routes/admin/Restaurants.tsx`'s Name field — see `tasks/011-custom-required-field-validation.md`.

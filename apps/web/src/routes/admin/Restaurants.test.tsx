@@ -67,6 +67,53 @@ describe("Restaurants", () => {
     await waitFor(() => {
       expect(screen.getByText("Sushi Spot")).toBeInTheDocument();
     });
+    expect(await screen.findByText("Restaurant added")).toBeInTheDocument();
+  });
+
+  it("shows the API's error message as a toast when creating a restaurant fails with a known error", async () => {
+    const user = userEvent.setup();
+
+    server.use(
+      http.get("/api/restaurants", () => HttpResponse.json([])),
+      http.post("/api/restaurants", () =>
+        HttpResponse.json({ error: "Name already exists" }, { status: 409 }),
+      ),
+    );
+
+    renderRestaurants();
+
+    await screen.findByText("No restaurants yet.");
+
+    await user.type(screen.getByLabelText("Name", { exact: false }), "Sushi Spot");
+    await user.click(screen.getByRole("button", { name: "Add restaurant" }));
+
+    expect(await screen.findByText("Name already exists")).toBeInTheDocument();
+  });
+
+  it("shows a fallback error toast when creating a restaurant fails with a network error", async () => {
+    const user = userEvent.setup();
+
+    server.use(
+      http.get("/api/restaurants", () => HttpResponse.json([])),
+      http.post("/api/restaurants", () => HttpResponse.error()),
+    );
+
+    renderRestaurants();
+
+    await screen.findByText("No restaurants yet.");
+
+    await user.type(screen.getByLabelText("Name", { exact: false }), "Sushi Spot");
+    await user.click(screen.getByRole("button", { name: "Add restaurant" }));
+
+    expect(await screen.findByText("Could not create restaurant.")).toBeInTheDocument();
+  });
+
+  it("does not leak a toast from one test into the next", async () => {
+    renderRestaurants();
+
+    expect(screen.queryByText("Restaurant added")).not.toBeInTheDocument();
+    expect(screen.queryByText("Name already exists")).not.toBeInTheDocument();
+    expect(screen.queryByText("Could not create restaurant.")).not.toBeInTheDocument();
   });
 
   it("adds a restaurant with type drink selected", async () => {
