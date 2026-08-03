@@ -25,7 +25,7 @@ describe("RestaurantDetail", () => {
       ),
       http.get("/api/restaurants/1/menu-items", () =>
         HttpResponse.json([
-          { id: 10, restaurantId: 1, type: "food", name: "Pho Bo", price: "5.50", active: true },
+          { id: 10, restaurantId: 1, type: "food", name: "Pho Bo", price: "11000", active: true },
         ]),
       ),
     );
@@ -34,7 +34,7 @@ describe("RestaurantDetail", () => {
 
     expect(await screen.findByRole("heading", { name: "Pho 24" })).toBeInTheDocument();
     expect(screen.getByText("Pho Bo")).toBeInTheDocument();
-    expect(screen.getByText("5.50", { exact: false })).toBeInTheDocument();
+    expect(screen.getByText("11.000", { exact: false })).toBeInTheDocument();
   });
 
   it("shows a not-found message for an unknown restaurant id", async () => {
@@ -106,8 +106,11 @@ describe("RestaurantDetail", () => {
     renderDetail("1");
 
     await screen.findByText("Pho Bo");
+    expect(screen.getByText("Pho Bo")).not.toHaveClass("line-through");
+
     await user.click(screen.getByRole("button", { name: "Deactivate" }));
 
     expect(await screen.findByRole("button", { name: "Activate" })).toBeInTheDocument();
+    expect(screen.getByText("Pho Bo")).toHaveClass("line-through");
   });
 });
