@@ -1,3 +1,4 @@
+import { CircleCheck, CircleX } from "lucide-react";
 import { type SubmitEvent, useState } from "react";
 import { Link, useParams } from "react-router";
 import { Button } from "@/components/ui/button";
@@ -6,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useRequiredField } from "@/hooks/useRequiredField";
 import { ApiError } from "@/lib/api";
+import { formatPrice } from "@/lib/format-price";
 import { useRestaurants } from "./useRestaurants";
 import { useCreateMenuItem, useMenuItems, useToggleMenuItemActive } from "./useMenuItems";
 
@@ -112,20 +114,27 @@ export function RestaurantDetail() {
             <ul className="flex flex-col gap-2">
               {menuItems.map((item) => (
                 <li key={item.id} className="flex items-center justify-between gap-2 text-sm">
-                  <span>
+                  <span className={!item.active ? "text-muted-foreground line-through" : undefined}>
                     {item.name}
                     <span className="text-muted-foreground"> ({item.type})</span>
-                    {item.price && <span className="text-muted-foreground"> — {item.price}</span>}
-                    {!item.active && <span className="text-muted-foreground"> — inactive</span>}
+                    {item.price && (
+                      <span className="text-muted-foreground"> — {formatPrice(item.price)}</span>
+                    )}
                   </span>
                   <Button
                     type="button"
-                    variant="outline"
-                    size="sm"
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label={item.active ? "Deactivate" : "Activate"}
                     onClick={() => toggleActive.mutate(item.id)}
                     disabled={toggleActive.isPending}
+                    className={
+                      item.active
+                        ? "text-emerald-600 hover:opacity-80 dark:text-emerald-400"
+                        : "text-muted-foreground hover:opacity-80"
+                    }
                   >
-                    {item.active ? "Deactivate" : "Activate"}
+                    {item.active ? <CircleCheck /> : <CircleX />}
                   </Button>
                 </li>
               ))}
