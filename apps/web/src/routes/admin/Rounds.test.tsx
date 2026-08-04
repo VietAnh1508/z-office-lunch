@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { HttpResponse, http } from "msw";
 import { MemoryRouter } from "react-router";
@@ -160,5 +160,152 @@ describe("Rounds", () => {
     await user.click(screen.getByRole("button", { name: "Add round" }));
 
     expect(await screen.findByText("Could not create round.")).toBeInTheDocument();
+  });
+
+  it("shows a delete action only for the draft round", async () => {
+    server.use(
+      http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+      http.get("/api/rounds", () =>
+        HttpResponse.json([
+          {
+            id: 1,
+            label: "Week 1",
+            foodRestaurantId: 1,
+            drinkRestaurantId: null,
+            deadline: "2026-08-10T12:00:00.000Z",
+            status: "draft",
+            createdAt: "2026-08-01T00:00:00.000Z",
+          },
+          {
+            id: 2,
+            label: "Week 2",
+            foodRestaurantId: 1,
+            drinkRestaurantId: null,
+            deadline: "2026-08-11T12:00:00.000Z",
+            status: "open",
+            createdAt: "2026-08-01T00:00:00.000Z",
+          },
+        ]),
+      ),
+    );
+
+    renderRounds();
+
+    const draftRow = (await screen.findByText("Week 1")).closest("li");
+    const openRow = (await screen.findByText("Week 2")).closest("li");
+    expect(draftRow).not.toBeNull();
+    expect(openRow).not.toBeNull();
+
+    expect(within(draftRow!).getByRole("button", { name: "Delete" })).toBeInTheDocument();
+    expect(within(openRow!).queryByRole("button", { name: "Delete" })).not.toBeInTheDocument();
+  });
+
+  it("deletes a draft round via the confirmation dialog", async () => {
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+    let rounds = [
+      {
+        id: 1,
+        label: "Week 1",
+        foodRestaurantId: 1,
+        drinkRestaurantId: null,
+        deadline: "2026-08-10T12:00:00.000Z",
+        status: "draft",
+        createdAt: "2026-08-01T00:00:00.000Z",
+      },
+    ];
+
+    server.use(
+      http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+      http.get("/api/rounds", () => HttpResponse.json(rounds)),
+      http.delete("/api/rounds/1", () => {
+        const [deleted] = rounds;
+        rounds = [];
+        return HttpResponse.json(deleted);
+      }),
+    );
+
+    renderRounds();
+
+    await screen.findByText("Week 1");
+    await user.click(screen.getByRole("button", { name: "Delete" }));
+    await screen.findByText("Delete this round?");
+    await user.click(screen.getByRole("button", { name: "Delete round" }));
+
+    await waitFor(() => {
+      expect(screen.queryByText("Week 1")).not.toBeInTheDocument();
+    });
+    expect(await screen.findByText("Round deleted")).toBeInTheDocument();
+  });
+
+  it("does not delete the round when the confirmation is cancelled", async () => {
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+    let deleteCount = 0;
+
+    server.use(
+      http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+      http.get("/api/rounds", () =>
+        HttpResponse.json([
+          {
+            id: 1,
+            label: "Week 1",
+            foodRestaurantId: 1,
+            drinkRestaurantId: null,
+            deadline: "2026-08-10T12:00:00.000Z",
+            status: "draft",
+            createdAt: "2026-08-01T00:00:00.000Z",
+          },
+        ]),
+      ),
+      http.delete("/api/rounds/1", () => {
+        deleteCount += 1;
+        return HttpResponse.json({});
+      }),
+    );
+
+    renderRounds();
+
+    await screen.findByText("Week 1");
+    await user.click(screen.getByRole("button", { name: "Delete" }));
+    await screen.findByText("Delete this round?");
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+
+    await waitFor(() => {
+      expect(screen.queryByText("Delete this round?")).not.toBeInTheDocument();
+    });
+    expect(screen.getByText("Week 1")).toBeInTheDocument();
+    expect(deleteCount).toBe(0);
+  });
+
+  it("shows the API's error message as a toast when deleting a round fails", async () => {
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+    server.use(
+      http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+      http.get("/api/rounds", () =>
+        HttpResponse.json([
+          {
+            id: 1,
+            label: "Week 1",
+            foodRestaurantId: 1,
+            drinkRestaurantId: null,
+            deadline: "2026-08-10T12:00:00.000Z",
+            status: "draft",
+            createdAt: "2026-08-01T00:00:00.000Z",
+          },
+        ]),
+      ),
+      http.delete("/api/rounds/1", () =>
+        HttpResponse.json({ error: "round is not draft" }, { status: 400 }),
+      ),
+    );
+
+    renderRounds();
+
+    await screen.findByText("Week 1");
+    await user.click(screen.getByRole("button", { name: "Delete" }));
+    await screen.findByText("Delete this round?");
+    await user.click(screen.getByRole("button", { name: "Delete round" }));
+
+    expect(await screen.findByText("round is not draft")).toBeInTheDocument();
   });
 });

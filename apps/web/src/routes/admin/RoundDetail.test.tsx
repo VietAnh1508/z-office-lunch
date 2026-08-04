@@ -30,6 +30,7 @@ function renderDetail(id: string) {
     <MemoryRouter initialEntries={[`/admin/rounds/${id}`]}>
       <Routes>
         <Route path="/admin/rounds/:id" element={<RoundDetail />} />
+        <Route path="/admin/rounds" element={<p>Rounds list page</p>} />
       </Routes>
     </MemoryRouter>,
   );
@@ -236,5 +237,40 @@ describe("RoundDetail", () => {
 
     expect(await screen.findByText("Tra Da")).toBeInTheDocument();
     expect(screen.getByText("Drink items", { exact: false })).toBeInTheDocument();
+  });
+
+  it("shows a Delete button only for a draft round", async () => {
+    server.use(
+      http.get("/api/rounds/1", () => HttpResponse.json(draftRound({ status: "open" }))),
+      http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+      http.get("/api/rounds/1/menu-items", () => HttpResponse.json([])),
+      http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
+    );
+
+    renderDetail("1");
+
+    await screen.findByRole("button", { name: "Close" });
+    expect(screen.queryByRole("button", { name: "Delete" })).not.toBeInTheDocument();
+  });
+
+  it("deletes a draft round via the confirmation dialog and navigates back to the list", async () => {
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+    server.use(
+      http.get("/api/rounds/1", () => HttpResponse.json(draftRound())),
+      http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+      http.get("/api/rounds/1/menu-items", () => HttpResponse.json([])),
+      http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
+      http.delete("/api/rounds/1", () => HttpResponse.json(draftRound())),
+    );
+
+    renderDetail("1");
+
+    await user.click(await screen.findByRole("button", { name: "Delete" }));
+    await screen.findByText("Delete this round?");
+    await user.click(screen.getByRole("button", { name: "Delete round" }));
+
+    expect(await screen.findByText("Rounds list page")).toBeInTheDocument();
+    expect(await screen.findByText("Round deleted")).toBeInTheDocument();
   });
 });

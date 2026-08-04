@@ -1,3 +1,4 @@
+import { eq } from "drizzle-orm";
 import { createDb, roundMenuItems, rounds } from "db";
 import {
   TEST_DATABASE_URL,
@@ -530,6 +531,70 @@ describe("rounds routes", () => {
         },
         testEnv,
       );
+
+      expect(res.status).toBe(404);
+    });
+  });
+
+  describe("round deletion", () => {
+    it("DELETE removes a draft round", async () => {
+      const food = await seedRestaurant(db, { type: "food" });
+      const round = await seedRound(db, { foodRestaurantId: food!.id });
+
+      const res = await app.request(`/api/rounds/${round!.id}`, { method: "DELETE" }, testEnv);
+
+      expect(res.status).toBe(200);
+      const deleted = (await res.json()) as Round;
+      expect(deleted.id).toBe(round!.id);
+
+      const listRes = await app.request("/api/rounds", {}, testEnv);
+      const list = (await listRes.json()) as Round[];
+      expect(list).toHaveLength(0);
+    });
+
+    it("DELETE removes curated menu items for the round along with it", async () => {
+      const food = await seedRestaurant(db, { type: "food" });
+      const foodItem = await seedMenuItem(db, { restaurantId: food!.id });
+      const round = await seedRound(db, { foodRestaurantId: food!.id });
+      await seedRoundMenuItem(db, { roundId: round!.id, menuItemId: foodItem!.id });
+
+      const res = await app.request(`/api/rounds/${round!.id}`, { method: "DELETE" }, testEnv);
+
+      expect(res.status).toBe(200);
+
+      const [orphan] = await db
+        .select()
+        .from(roundMenuItems)
+        .where(eq(roundMenuItems.roundId, round!.id));
+      expect(orphan).toBeUndefined();
+    });
+
+    it("DELETE an open round returns 400", async () => {
+      const food = await seedRestaurant(db, { type: "food" });
+      const round = await seedRound(db, { foodRestaurantId: food!.id, status: "open" });
+
+      const res = await app.request(`/api/rounds/${round!.id}`, { method: "DELETE" }, testEnv);
+
+      expect(res.status).toBe(400);
+    });
+
+    it("DELETE a closed round returns 400", async () => {
+      const food = await seedRestaurant(db, { type: "food" });
+      const round = await seedRound(db, { foodRestaurantId: food!.id, status: "closed" });
+
+      const res = await app.request(`/api/rounds/${round!.id}`, { method: "DELETE" }, testEnv);
+
+      expect(res.status).toBe(400);
+    });
+
+    it("DELETE for a nonexistent round returns 404", async () => {
+      const res = await app.request("/api/rounds/999999", { method: "DELETE" }, testEnv);
+
+      expect(res.status).toBe(404);
+    });
+
+    it("DELETE with a non-integer id returns 404", async () => {
+      const res = await app.request("/api/rounds/abc", { method: "DELETE" }, testEnv);
 
       expect(res.status).toBe(404);
     });
