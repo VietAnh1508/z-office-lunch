@@ -1,18 +1,12 @@
 import { createDb, employees } from "db";
 import { TEST_DATABASE_URL, seedEmployee, truncateAll } from "db/testing";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import type { Bindings } from "../bindings";
 import app from "../index";
+import { testEnv } from "../test/env";
 
 type Employee = typeof employees.$inferSelect;
 
 const db = createDb(TEST_DATABASE_URL);
-
-const testEnv = {
-  ASSETS: {} as unknown,
-  HYPERDRIVE: { connectionString: TEST_DATABASE_URL } as unknown,
-  MENU_IMAGES: {} as unknown,
-} as unknown as Bindings;
 
 describe("employees routes", () => {
   beforeEach(async () => {
