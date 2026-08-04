@@ -4,12 +4,14 @@ import type { Bindings } from "./bindings";
 import { employeesRoute } from "./routes/employees";
 import { menuItemsRoute } from "./routes/menu-items";
 import { restaurantsRoute } from "./routes/restaurants";
+import { roundsRoute } from "./routes/rounds";
 
 const app = new Hono<{ Bindings: Bindings }>();
 
 app.route("/api/restaurants", restaurantsRoute);
 app.route("/api/restaurants", menuItemsRoute);
 app.route("/api/employees", employeesRoute);
+app.route("/api/rounds", roundsRoute);
 
 app.get("/api/health", async (c) => {
   const client = new Client({ connectionString: c.env.HYPERDRIVE.connectionString });
