@@ -5,4 +5,6 @@ export const ERROR_MESSAGES = {
   priceInvalid: "price must be a valid non-negative number",
   restaurantNotFound: "restaurant not found",
   menuItemNotFound: "menu item not found",
+  fullNameRequired: "fullName is required",
+  employeeNotFound: "employee not found",
 } as const;
