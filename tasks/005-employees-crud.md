@@ -1,7 +1,7 @@
 ---
 id: 005
 title: Employees CRUD (create, list, deactivate)
-status: in_review
+status: done
 depends_on: [002, 013]
 parallelizable_with: [004]
 tdd: required
