@@ -23,12 +23,20 @@ type CreateRoundInput = {
 export const roundKeys = {
   all: ["rounds"] as const,
   list: () => [...roundKeys.all, "list"] as const,
+  detail: (roundId: number) => [...roundKeys.all, "detail", roundId] as const,
 };
 
 export function useRounds() {
   return useQuery({
     queryKey: roundKeys.list(),
     queryFn: () => api.get<Round[]>("/rounds"),
+  });
+}
+
+export function useRound(roundId: number) {
+  return useQuery({
+    queryKey: roundKeys.detail(roundId),
+    queryFn: () => api.get<Round>(`/rounds/${roundId}`),
   });
 }
 
@@ -42,5 +50,19 @@ export function useCreateRound() {
       toast.success("Round added");
     },
     onError: (error) => toastApiError(error, "Could not create round."),
+  });
+}
+
+export function useUpdateRoundStatus(roundId: number) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (status: "open" | "closed") =>
+      api.patch<Round>(`/rounds/${roundId}/status`, { status }),
+    onSuccess: (round) => {
+      queryClient.invalidateQueries({ queryKey: roundKeys.all });
+      toast.success(round.status === "open" ? "Round opened" : "Round closed");
+    },
+    onError: (error) => toastApiError(error, "Could not update round status."),
   });
 }
