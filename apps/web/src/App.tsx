@@ -5,6 +5,7 @@ import { AdminOverview } from "@/routes/admin/AdminOverview";
 import { Employees } from "@/routes/admin/Employees";
 import { RestaurantDetail } from "@/routes/admin/RestaurantDetail";
 import { Restaurants } from "@/routes/admin/Restaurants";
+import { RoundDetail } from "@/routes/admin/RoundDetail";
 import { Rounds } from "@/routes/admin/Rounds";
 
 function Home() {
@@ -25,6 +26,7 @@ function App() {
         <Route path="restaurants/:id" element={<RestaurantDetail />} />
         <Route path="employees" element={<Employees />} />
         <Route path="rounds" element={<Rounds />} />
+        <Route path="rounds/:id" element={<RoundDetail />} />
       </Route>
     </Routes>
   );

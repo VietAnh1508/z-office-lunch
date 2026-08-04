@@ -18,13 +18,18 @@ type CreateMenuItemInput = {
 
 export const menuItemKeys = {
   all: (restaurantId: number) => ["restaurants", restaurantId, "menu-items"] as const,
-  list: (restaurantId: number) => [...menuItemKeys.all(restaurantId), "list"] as const,
+  list: (restaurantId: number, activeOnly = false) =>
+    [...menuItemKeys.all(restaurantId), "list", activeOnly] as const,
 };
 
-export function useMenuItems(restaurantId: number) {
+export function useMenuItems(restaurantId: number, activeOnly = false) {
   return useQuery({
-    queryKey: menuItemKeys.list(restaurantId),
-    queryFn: () => api.get<MenuItem[]>(`/restaurants/${restaurantId}/menu-items`),
+    queryKey: menuItemKeys.list(restaurantId, activeOnly),
+    queryFn: () =>
+      api.get<MenuItem[]>(
+        `/restaurants/${restaurantId}/menu-items${activeOnly ? "?active=true" : ""}`,
+      ),
+    enabled: restaurantId > 0,
   });
 }
 
@@ -35,7 +40,7 @@ export function useCreateMenuItem(restaurantId: number) {
     mutationFn: (input: CreateMenuItemInput) =>
       api.post<MenuItem>(`/restaurants/${restaurantId}/menu-items`, input),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: menuItemKeys.list(restaurantId) });
+      queryClient.invalidateQueries({ queryKey: menuItemKeys.all(restaurantId) });
       toast.success("Menu item added");
     },
     onError: (error) => toastApiError(error, "Could not create menu item."),
@@ -49,7 +54,7 @@ export function useToggleMenuItemActive(restaurantId: number) {
     mutationFn: (itemId: number) =>
       api.patch<MenuItem>(`/restaurants/${restaurantId}/menu-items/${itemId}`),
     onSuccess: (item) => {
-      queryClient.invalidateQueries({ queryKey: menuItemKeys.list(restaurantId) });
+      queryClient.invalidateQueries({ queryKey: menuItemKeys.all(restaurantId) });
       toast.success(item.active ? "Menu item activated" : "Menu item deactivated");
     },
     onError: (error) => toastApiError(error, "Could not update menu item."),

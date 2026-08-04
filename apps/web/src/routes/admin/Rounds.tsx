@@ -1,4 +1,5 @@
 import { type SubmitEvent, useState } from "react";
+import { Link } from "react-router";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -142,7 +143,12 @@ export function Rounds() {
                 <ul className="flex flex-col gap-2">
                   {rounds.map((round) => (
                     <li key={round.id} className="text-sm">
-                      <span className="font-medium">{round.label}</span>
+                      <Link
+                        to={`/admin/rounds/${round.id}`}
+                        className="font-medium underline"
+                      >
+                        {round.label}
+                      </Link>
                       <span className="text-muted-foreground"> ({round.status})</span>
                       <span className="text-muted-foreground">
                         {" "}

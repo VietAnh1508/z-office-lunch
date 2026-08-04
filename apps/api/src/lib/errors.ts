@@ -14,4 +14,12 @@ export const ERROR_MESSAGES = {
   drinkRestaurantIdInvalid: "drinkRestaurantId must be a valid restaurant id",
   drinkRestaurantTypeInvalid: "drinkRestaurantId must reference a drink restaurant",
   roundNotFound: "round not found",
+  menuItemIdRequired: "menuItemId is required",
+  roundMenuItemMismatch: "menuItemId must belong to the round's food or drink restaurant",
+  roundMenuItemAlreadyCurated: "menu item is already curated for this round",
+  roundMenuItemNotFound: "round menu item not found",
+  roundStatusInvalid: "status must be open or closed",
+  roundOpenNoFoodItems: "round must have at least one curated food item to open",
+  roundOpenAnotherOpen: "another round is already open",
+  roundCloseNotOpen: "round is not open",
 } as const;
