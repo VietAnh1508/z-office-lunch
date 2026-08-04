@@ -11,7 +11,7 @@ Turn this idea into one or more small, sequentially-executed task files under `t
 
 ## Steps
 
-1. **Orient.** Read `CLAUDE.md` and `docs/architecture.md`. Run `ls tasks/` and read only the frontmatter (`id`, `status`, `title`) of existing task files — git history is authoritative for what already shipped, don't re-read the full body of `done` tasks.
+1. **Orient.** Read `CLAUDE.md` and `docs/architecture.md`. Run `pnpm tasks:status` (`scripts/task-status.mjs`) to get the id/status/title of every existing task, including its `Done:` section — this is computed from frontmatter, not scanned by eye, and gives you the highest existing id (for numbering the new task) plus what's already shipped, in flight, or approved (to avoid re-proposing covered work). Git history is authoritative for what already shipped, so don't re-read the full body of `done` tasks.
 
 2. **Explore.** Launch 1-3 `feature-dev:code-explorer` agents in parallel to understand relevant existing code, patterns, and integration points for this idea. Use 1 agent for a small, well-scoped idea; use up to 3 with different focuses (similar features, architecture, testing/extension points) when the scope is broader or uncertain.
 

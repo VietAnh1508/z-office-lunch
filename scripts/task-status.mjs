@@ -76,3 +76,9 @@ if (needsApproval.length > 0) {
   console.log("\nNeeds approval:");
   for (const t of needsApproval) console.log(`  ${t.id} ${t.title}`);
 }
+
+const done = [...tasks.values()].filter((t) => t.status === "done");
+if (done.length > 0) {
+  console.log("\nDone:");
+  for (const t of done) console.log(`  ${t.id} ${t.title}`);
+}
