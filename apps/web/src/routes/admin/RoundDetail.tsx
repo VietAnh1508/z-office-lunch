@@ -1,4 +1,15 @@
-import { Link, useParams } from "react-router";
+import { Link, useNavigate, useParams } from "react-router";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -10,11 +21,12 @@ import {
   useRemoveRoundMenuItem,
   useRoundMenuItems,
 } from "./useRoundMenuItems";
-import { useRound, useUpdateRoundStatus } from "./useRounds";
+import { useDeleteRound, useRound, useUpdateRoundStatus } from "./useRounds";
 
 export function RoundDetail() {
   const { id } = useParams<{ id: string }>();
   const roundId = Number(id);
+  const navigate = useNavigate();
 
   const { data: round, isPending: roundPending } = useRound(roundId);
   const { data: restaurants } = useRestaurants();
@@ -22,6 +34,7 @@ export function RoundDetail() {
   const addItem = useAddRoundMenuItem(roundId);
   const removeItem = useRemoveRoundMenuItem(roundId);
   const updateStatus = useUpdateRoundStatus(roundId);
+  const deleteRound = useDeleteRound();
 
   const { data: foodItems, isPending: foodPending } = useMenuItems(
     round?.foodRestaurantId ?? 0,
@@ -118,6 +131,34 @@ export function RoundDetail() {
           )}
           {round.status === "closed" && (
             <p className="text-sm text-muted-foreground">This round is closed.</p>
+          )}
+          {round.status === "draft" && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button type="button" variant="destructive" className="ml-2">
+                  Delete
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete this round?</AlertDialogTitle>
+                  <AlertDialogDescription>This cannot be undone.</AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    variant="destructive"
+                    onClick={() =>
+                      deleteRound.mutate(round.id, {
+                        onSuccess: () => navigate("/admin/rounds"),
+                      })
+                    }
+                  >
+                    Delete round
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           )}
         </CardContent>
       </Card>

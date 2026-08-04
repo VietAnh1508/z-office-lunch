@@ -15,6 +15,13 @@
       "when": 1785855600000,
       "tag": "0001_move_type_to_restaurant",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1785855600001,
+      "tag": "0002_green_imperial_guard",
+      "breakpoints": true
     }
   ]
 }

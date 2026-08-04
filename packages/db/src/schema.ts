@@ -56,7 +56,7 @@ export const roundMenuItems = pgTable(
     id: serial("id").primaryKey(),
     roundId: integer("round_id")
       .notNull()
-      .references(() => rounds.id),
+      .references(() => rounds.id, { onDelete: "cascade" }),
     menuItemId: integer("menu_item_id")
       .notNull()
       .references(() => menuItems.id),

@@ -53,6 +53,19 @@ export function useCreateRound() {
   });
 }
 
+export function useDeleteRound() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (roundId: number) => api.delete<Round>(`/rounds/${roundId}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: roundKeys.all });
+      toast.success("Round deleted");
+    },
+    onError: (error) => toastApiError(error, "Could not delete round."),
+  });
+}
+
 export function useUpdateRoundStatus(roundId: number) {
   const queryClient = useQueryClient();
 
