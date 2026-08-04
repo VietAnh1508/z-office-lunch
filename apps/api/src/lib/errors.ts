@@ -7,4 +7,11 @@ export const ERROR_MESSAGES = {
   menuItemNotFound: "menu item not found",
   fullNameRequired: "fullName is required",
   employeeNotFound: "employee not found",
+  labelRequired: "label is required",
+  deadlineInvalid: "deadline must be a valid date",
+  foodRestaurantIdRequired: "foodRestaurantId is required",
+  foodRestaurantTypeInvalid: "foodRestaurantId must reference a food restaurant",
+  drinkRestaurantIdInvalid: "drinkRestaurantId must be a valid restaurant id",
+  drinkRestaurantTypeInvalid: "drinkRestaurantId must reference a drink restaurant",
+  roundNotFound: "round not found",
 } as const;
