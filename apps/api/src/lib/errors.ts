@@ -22,4 +22,5 @@ export const ERROR_MESSAGES = {
   roundOpenNoFoodItems: "round must have at least one curated food item to open",
   roundOpenAnotherOpen: "another round is already open",
   roundCloseNotOpen: "round is not open",
+  roundDeleteNotDraft: "round is not draft",
 } as const;

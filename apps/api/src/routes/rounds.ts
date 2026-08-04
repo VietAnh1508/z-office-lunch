@@ -224,6 +224,32 @@ roundsRoute.delete("/:id/menu-items/:itemId", async (c) => {
   }
 });
 
+roundsRoute.delete("/:id", async (c) => {
+  const id = Number(c.req.param("id"));
+  if (!Number.isInteger(id)) {
+    return c.json({ error: ERROR_MESSAGES.roundNotFound }, 404);
+  }
+
+  const db = getDb(c);
+  try {
+    const [round] = await db.select().from(rounds).where(eq(rounds.id, id));
+    if (!round) {
+      return c.json({ error: ERROR_MESSAGES.roundNotFound }, 404);
+    }
+    if (round.status !== "draft") {
+      return c.json({ error: ERROR_MESSAGES.roundDeleteNotDraft }, 400);
+    }
+
+    const [row] = await db.delete(rounds).where(eq(rounds.id, id)).returning();
+    return c.json(row);
+  } catch (e) {
+    console.error(JSON.stringify({ message: "failed to delete round", error: String(e) }));
+    return c.json({ error: ERROR_MESSAGES.internal }, 500);
+  } finally {
+    await db.$client.end();
+  }
+});
+
 roundsRoute.patch("/:id/status", async (c) => {
   const roundId = Number(c.req.param("id"));
   const body = await c.req.json().catch(() => ({}));

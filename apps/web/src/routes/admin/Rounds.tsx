@@ -1,17 +1,29 @@
 import { type SubmitEvent, useState } from "react";
 import { Link } from "react-router";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useRequiredField } from "@/hooks/useRequiredField";
 import { useRestaurants } from "./useRestaurants";
-import { useCreateRound, useRounds } from "./useRounds";
+import { useCreateRound, useDeleteRound, useRounds } from "./useRounds";
 
 export function Rounds() {
   const { data: rounds, isPending, isError } = useRounds();
   const { data: restaurants } = useRestaurants();
   const createRound = useCreateRound();
+  const deleteRound = useDeleteRound();
 
   const label = useRequiredField("Label is required.");
   const deadline = useRequiredField("Deadline is required.");
@@ -160,6 +172,38 @@ export function Rounds() {
                         {" "}
                         · deadline {new Date(round.deadline).toLocaleString()}
                       </span>
+                      {round.status === "draft" && (
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              type="button"
+                              variant="destructive"
+                              size="sm"
+                              className="ml-2"
+                              disabled={deleteRound.isPending && deleteRound.variables === round.id}
+                            >
+                              Delete
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete this round?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                variant="destructive"
+                                onClick={() => deleteRound.mutate(round.id)}
+                              >
+                                Delete round
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      )}
                     </li>
                   ))}
                 </ul>
