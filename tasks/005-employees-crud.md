@@ -1,7 +1,7 @@
 ---
 id: 005
 title: Employees CRUD (create, list, deactivate)
-status: approved
+status: in_review
 depends_on: [002, 013]
 parallelizable_with: [004]
 tdd: required
@@ -31,11 +31,29 @@ Admin maintains the employee list the submission form's name-picker (task 009) d
 
 ## Implementation Log
 
-(Filled in by /implement-task.)
+- red commit: `62bc6de` — `pnpm -r typecheck && pnpm --filter web build && pnpm test` -> 12 failing (7 in `apps/web/src/routes/admin/Employees.test.tsx`, 5 in `apps/api/src/routes/employees.test.ts`; 2 of the API tests asserting a 404 already passed trivially since every route 404s before `employeesRoute` exists)
+- green commit: `6563f9a` — `pnpm -r typecheck && pnpm --filter web build && pnpm test` -> all passing (66/66 tests, 14/14 files)
 
-- red commit: <sha> — `pnpm -r typecheck && pnpm --filter web build && pnpm test` -> N failing
-- green commit: <sha> — `pnpm -r typecheck && pnpm --filter web build && pnpm test` -> all passing
+## Plan Deviations
+
+- The Plan didn't call out `GET /api/employees/:id` as a distinct route, but the "deactivated employee still resolvable by id" acceptance criterion requires it, and the Plan's own step 2 says exactly that ("deactivated employee still fetchable by id (`GET /api/employees/:id`)") — added as its own handler alongside `POST /`, `GET /`, and `PATCH /:id`, following the same try/catch/finally shape as the other routes.
+- Discovered mid-implementation that `apps/web/src/routes/admin/AdminLayout.test.tsx`'s "navigates to each admin section via the nav links" test asserted an `h1` heading "Employees" that only existed because of the placeholder screen. Replacing the placeholder with the real screen (Card-based UI, no page-level `h1`, matching `Restaurants.tsx`'s shape) broke that pre-existing test. Fixed it in the same green commit by mocking `GET /api/employees` and asserting on `"No employees yet."` instead, mirroring how the same test already asserts on `"No restaurants yet."` for the Restaurants tab — this is a one-line adjustment to reflect the real screen, not a change in scope.
+- Everything else matched the Plan: reused `useRequiredField` for the required `fullName` field, mirrored `Restaurants.tsx`/`RestaurantDetail.tsx`'s list+add+toggle shape and `useMenuItems.ts`'s toggle-mutation pattern, and added no new shadcn primitives.
 
 ## Review Notes
 
-(Output of the feature-dev:code-reviewer agent, appended by /implement-task.)
+Reviewed by `feature-dev:code-reviewer` against `.claude/rules/api-error-handling.md`, `.claude/rules/form-validation.md`, `.claude/rules/mutation-feedback.md`, and this task's acceptance criteria (diff: `62bc6de..6563f9a`).
+
+> Reviewed the diff implementing task 005 (Employees CRUD) against `.claude/rules/api-error-handling.md`, `.claude/rules/form-validation.md`, `.claude/rules/mutation-feedback.md`, and the task's acceptance criteria.
+>
+> **Checks performed:**
+>
+> 1. **API error handling** — all four route handlers (`POST /`, `GET /`, `GET /:id`, `PATCH /:id`) correctly wrap DB access in try/catch/finally, log structured JSON, return `{error}`/500, and `await db.$client.end()` in `finally`. Matches `restaurants.ts`/`menu-items.ts` pattern exactly.
+> 2. **Toggle-active select-then-update pattern** (potential TOCTOU race, and shared `toggleActive.isPending` disabling every row's button rather than per-item) — initially flagged both as possible issues, but confirmed both are byte-for-byte the same pattern already used in `menu-items.ts` (select-then-update) and `RestaurantDetail.tsx` (single shared mutation disabling all rows). Pre-existing precedent, not regressions introduced by this diff, so not reportable per the confidence rubric.
+> 3. **Toast messages** — `useToggleEmployeeActive`'s conditional `toast.success(employee.active ? "Employee activated" : "Employee deactivated")` is verbatim the same pattern as `useMenuItems.ts`'s `useToggleMenuItemActive`. Static-string choice based on state, not entity-data interpolation — consistent with `mutation-feedback.md` and precedent.
+> 4. **Form validation** — `useRequiredField` + `noValidate` + inline error usage matches `Restaurants.tsx`/`RestaurantDetail.tsx` exactly, including the `SubmitEvent` type import.
+> 5. **Line length / formatting** — no Biome/Prettier/dprint config in this repo, only `oxlint` (doesn't enforce line width) — no formatting gate this would trip.
+> 6. **Route logic vs. acceptance criteria** — POST defaults `active: true` (schema default), GET filters correctly on `active=true` vs. omitted, PATCH toggles and 404s on missing id, GET `/:id` returns a deactivated employee (not just active ones) — all verified against `employees.test.ts`, which covers every AC explicitly.
+> 7. **Icon button `size="icon-sm"` variant** — confirmed it's a real defined variant in `components/ui/button.tsx`.
+>
+> **Findings:** No high-confidence (≥80) issues found. The implementation is a faithful, consistent extension of the existing restaurants/menu-items patterns (error handling, form validation, mutation feedback, and list/toggle UI), and the accompanying tests (`employees.test.ts`, `Employees.test.tsx`) directly exercise every acceptance criterion in `tasks/005-employees-crud.md`. This diff meets the project's established conventions.

@@ -33,7 +33,10 @@ describe("AdminLayout", () => {
 
   it("navigates to each admin section via the nav links", async () => {
     const user = userEvent.setup();
-    server.use(http.get("/api/restaurants", () => HttpResponse.json([])));
+    server.use(
+      http.get("/api/restaurants", () => HttpResponse.json([])),
+      http.get("/api/employees", () => HttpResponse.json([])),
+    );
 
     renderApp("/admin");
 
@@ -41,7 +44,7 @@ describe("AdminLayout", () => {
     expect(await screen.findByText("No restaurants yet.")).toBeInTheDocument();
 
     await user.click(screen.getByRole("link", { name: "Employees" }));
-    expect(screen.getByRole("heading", { name: "Employees" })).toBeInTheDocument();
+    expect(await screen.findByText("No employees yet.")).toBeInTheDocument();
 
     await user.click(screen.getByRole("link", { name: "Rounds" }));
     expect(screen.getByRole("heading", { name: "Rounds" })).toBeInTheDocument();

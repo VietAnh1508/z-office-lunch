@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { Client } from "pg";
 import type { Bindings } from "./bindings";
+import { employeesRoute } from "./routes/employees";
 import { menuItemsRoute } from "./routes/menu-items";
 import { restaurantsRoute } from "./routes/restaurants";
 
@@ -8,6 +9,7 @@ const app = new Hono<{ Bindings: Bindings }>();
 
 app.route("/api/restaurants", restaurantsRoute);
 app.route("/api/restaurants", menuItemsRoute);
+app.route("/api/employees", employeesRoute);
 
 app.get("/api/health", async (c) => {
   const client = new Client({ connectionString: c.env.HYPERDRIVE.connectionString });

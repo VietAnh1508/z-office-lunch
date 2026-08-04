@@ -1,18 +1,12 @@
 import { createDb, menuItems } from "db";
 import { TEST_DATABASE_URL, seedRestaurant, truncateAll } from "db/testing";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import type { Bindings } from "../bindings";
 import app from "../index";
+import { testEnv } from "../test/env";
 
 type MenuItem = typeof menuItems.$inferSelect;
 
 const db = createDb(TEST_DATABASE_URL);
-
-const testEnv = {
-  ASSETS: {} as unknown,
-  HYPERDRIVE: { connectionString: TEST_DATABASE_URL } as unknown,
-  MENU_IMAGES: {} as unknown,
-} as unknown as Bindings;
 
 describe("menu items routes", () => {
   beforeEach(async () => {
