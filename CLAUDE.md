@@ -34,6 +34,7 @@ Execution is strictly sequential — one task at a time — by design, so there'
 ### Pre-authorization
 
 `/implement-task` does the following as normal per-task operation, with no confirmation needed for any of it:
+
 - creating and checking out the feature branch off `main`
 - three commits per task: one failing-test commit (`test:` prefix), one passing-implementation commit (`feat:`/`fix:` prefix), and one bookkeeping commit (`chore:` prefix) that records the task's status/review-notes updates
 - pushing that branch to `origin`
@@ -43,13 +44,14 @@ Anything outside that (amending, force-pushing, merging the PR itself, touching 
 
 ## App
 
-pnpm workspace: `apps/web` (Vite React SPA), `apps/api` (Hono Worker), `packages/db` (Drizzle schema/migrations). See `docs/architecture.md` for the full rationale, and root `package.json` `scripts` for the full command list.
+See `docs/architecture.md` for the full rationale, and root `package.json` `scripts` for the full command list.
 
 `pnpm dev` (`scripts/dev.sh`) is the one command for local dev: starts colima if no container runtime is reachable, brings up Postgres (`docker compose up -d --wait`), creates `apps/api/.env` from the example if missing, builds the SPA, then runs `wrangler dev` on `http://localhost:8787`. Safe to run from a fully cold machine. This serves the SPA as a static build (`apps/web/dist`, per `apps/api/wrangler.jsonc`'s `assets.directory`) — there's no watch/rebuild, so it's the right setup for e2e-accurate testing but the wrong one for iterating on frontend code.
 
 For frontend iteration, use `pnpm dev:hot` (`scripts/dev-hot.sh`) instead: same cold-machine-safe prereq setup as `pnpm dev` (shared via `scripts/dev-setup.sh`), but skips the build and runs `wrangler dev` (`:8787`) and `vite` (`:5173`, real HMR) concurrently via `concurrently`. Browse the Vite port, not `8787` — `apps/web/vite.config.ts`'s `server.proxy` already forwards `/api` to `localhost:8787`, so API calls still work with no build step in between. (`dev:web`/`dev:api` also exist as the two underlying commands if you want them in separate terminals instead of one `concurrently`-managed process.)
 
 Non-obvious bits the scripts themselves don't tell you:
+
 - `dev:api`, `dev:web`, `test`, and `test:e2e` don't go through `scripts/dev-setup.sh`, so they skip its setup — Postgres must already be up (`db:up`, which needs a container runtime already running) before using them directly. `dev:api` and `test:e2e` also need `apps/api/.env` to already exist (copy from `.env.example`).
 - Plain `pnpm test` (Vitest) hard-requires Postgres too, not just `test:e2e` — its `globalSetup` (`packages/db/src/vitest-global-setup.ts`) connects to create/migrate the `office_lunch_test` database before any test file runs.
 - Without `apps/api/.env`, `wrangler dev` hard-fails on startup rather than silently hitting the wrong database — that's Wrangler's own Hyperdrive local-override check, not a bug.
@@ -63,3 +65,4 @@ If you're picking this project up with no prior context, read things in this ord
 2. `git log --oneline -20` — recent history.
 3. `pnpm tasks:status` (reads `tasks/*.md` frontmatter directly, so it can't drift) — shows the in-flight task if one exists, otherwise which approved tasks are unblocked. Fall back to `ls tasks/` and reading frontmatter by hand only if you need detail beyond what it reports.
 4. `docs/architecture.md`, if you need the app's data model or stack rationale.
+
