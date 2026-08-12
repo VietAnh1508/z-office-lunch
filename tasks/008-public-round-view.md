@@ -1,7 +1,7 @@
 ---
 id: 008
 title: Public round view (employee-facing read)
-status: in_review
+status: done
 depends_on: [007]
 parallelizable_with: []
 tdd: required
