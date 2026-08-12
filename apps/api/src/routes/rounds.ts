@@ -118,6 +118,48 @@ roundsRoute.get("/:id", async (c) => {
   }
 });
 
+roundsRoute.get("/:id/public", async (c) => {
+  const id = Number(c.req.param("id"));
+  if (!Number.isInteger(id)) {
+    return c.json({ error: ERROR_MESSAGES.roundNotFound }, 404);
+  }
+
+  const db = getDb(c);
+  try {
+    const [round] = await db.select().from(rounds).where(eq(rounds.id, id));
+    // A draft round returns the same 404 as a nonexistent one — no partial
+    // signal that it exists before the admin opens it.
+    if (!round || round.status === "draft") {
+      return c.json({ error: ERROR_MESSAGES.roundNotFound }, 404);
+    }
+
+    const selectCuratedItems = (restaurantId: number) =>
+      db
+        .select({ id: roundMenuItems.id, name: menuItems.name })
+        .from(roundMenuItems)
+        .innerJoin(menuItems, eq(roundMenuItems.menuItemId, menuItems.id))
+        .where(and(eq(roundMenuItems.roundId, round.id), eq(menuItems.restaurantId, restaurantId)))
+        .orderBy(roundMenuItems.id);
+
+    const foodItems = await selectCuratedItems(round.foodRestaurantId);
+    const drinkItems =
+      round.drinkRestaurantId !== null ? await selectCuratedItems(round.drinkRestaurantId) : null;
+
+    return c.json({
+      label: round.label,
+      deadline: round.deadline,
+      status: round.status,
+      foodItems,
+      ...(drinkItems !== null ? { drinkItems } : {}),
+    });
+  } catch (e) {
+    console.error(JSON.stringify({ message: "failed to fetch public round", error: String(e) }));
+    return c.json({ error: ERROR_MESSAGES.internal }, 500);
+  } finally {
+    await db.$client.end();
+  }
+});
+
 roundsRoute.post("/:id/menu-items", async (c) => {
   const roundId = Number(c.req.param("id"));
   const body = await c.req.json().catch(() => ({}));
