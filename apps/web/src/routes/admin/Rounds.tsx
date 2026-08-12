@@ -1,29 +1,16 @@
 import { type SubmitEvent, useState } from "react";
-import { Link } from "react-router";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useRequiredField } from "@/hooks/useRequiredField";
+import { RoundList } from "./RoundList";
 import { useRestaurants } from "./useRestaurants";
-import { useCreateRound, useDeleteRound, useRounds } from "./useRounds";
+import { useCreateRound } from "./useRounds";
 
 export function Rounds() {
-  const { data: rounds, isPending, isError } = useRounds();
   const { data: restaurants } = useRestaurants();
   const createRound = useCreateRound();
-  const deleteRound = useDeleteRound();
 
   const label = useRequiredField("Label is required.");
   const deadline = useRequiredField("Deadline is required.");
@@ -33,8 +20,6 @@ export function Rounds() {
 
   const foodRestaurants = (restaurants ?? []).filter((restaurant) => restaurant.type === "food");
   const drinkRestaurants = (restaurants ?? []).filter((restaurant) => restaurant.type === "drink");
-  const restaurantName = (id: number) =>
-    restaurants?.find((restaurant) => restaurant.id === id)?.name ?? `#${id}`;
 
   function handleSubmit(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -135,83 +120,7 @@ export function Rounds() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Rounds</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {isPending ? (
-            <p className="text-sm text-muted-foreground">Loading rounds…</p>
-          ) : isError && !rounds ? (
-            <p className="text-sm text-destructive">Could not load rounds.</p>
-          ) : (
-            <>
-              {isError && (
-                <p className="mb-2 text-sm text-destructive">Could not refresh rounds.</p>
-              )}
-              {rounds.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No rounds yet.</p>
-              ) : (
-                <ul className="flex flex-col gap-2">
-                  {rounds.map((round) => (
-                    <li key={round.id} className="text-sm">
-                      <Link
-                        to={`/admin/rounds/${round.id}`}
-                        className="font-medium underline"
-                      >
-                        {round.label}
-                      </Link>
-                      <span className="text-muted-foreground"> ({round.status})</span>
-                      <span className="text-muted-foreground">
-                        {" "}
-                        — {restaurantName(round.foodRestaurantId)}
-                        {round.drinkRestaurantId != null &&
-                          ` + ${restaurantName(round.drinkRestaurantId)}`}
-                      </span>
-                      <span className="text-muted-foreground">
-                        {" "}
-                        · deadline {new Date(round.deadline).toLocaleString()}
-                      </span>
-                      {round.status === "draft" && (
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button
-                              type="button"
-                              variant="destructive"
-                              size="sm"
-                              className="ml-2"
-                              disabled={deleteRound.isPending && deleteRound.variables === round.id}
-                            >
-                              Delete
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Delete this round?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                This cannot be undone.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction
-                                variant="destructive"
-                                onClick={() => deleteRound.mutate(round.id)}
-                              >
-                                Delete round
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </>
-          )}
-        </CardContent>
-      </Card>
+      <RoundList />
     </div>
   );
 }
