@@ -37,6 +37,21 @@ describe("Round (public view)", () => {
     expect(draftText.textContent).toBe(missingText.textContent);
   });
 
+  it("shows a distinct error message for a real backend failure, not the not-open-yet message", async () => {
+    server.use(
+      http.get("/api/rounds/1/public", () =>
+        HttpResponse.json({ error: "internal error" }, { status: 500 }),
+      ),
+    );
+
+    renderRound("1");
+
+    expect(
+      await screen.findByText("Something went wrong loading this round. Please try again."),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("This round isn't open yet.")).not.toBeInTheDocument();
+  });
+
   it("shows a closed message with the round label for a closed round", async () => {
     server.use(
       http.get("/api/rounds/1/public", () =>

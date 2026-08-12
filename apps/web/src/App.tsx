@@ -7,6 +7,7 @@ import { RestaurantDetail } from "@/routes/admin/RestaurantDetail";
 import { Restaurants } from "@/routes/admin/Restaurants";
 import { RoundDetail } from "@/routes/admin/RoundDetail";
 import { Rounds } from "@/routes/admin/Rounds";
+import { Round } from "@/routes/public/Round";
 
 function Home() {
   return (
@@ -20,6 +21,7 @@ function App() {
   return (
     <Routes>
       <Route index element={<Home />} />
+      <Route path="r/:roundId" element={<Round />} />
       <Route path="admin" element={<AdminLayout />}>
         <Route index element={<AdminOverview />} />
         <Route path="restaurants" element={<Restaurants />} />
