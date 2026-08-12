@@ -599,4 +599,91 @@ describe("rounds routes", () => {
       expect(res.status).toBe(404);
     });
   });
+
+  describe("public round view", () => {
+    it("GET /public for a draft round returns 404", async () => {
+      const food = await seedRestaurant(db, { type: "food" });
+      const round = await seedRound(db, { foodRestaurantId: food!.id });
+
+      const res = await app.request(`/api/rounds/${round!.id}/public`, {}, testEnv);
+
+      expect(res.status).toBe(404);
+    });
+
+    it("GET /public for a nonexistent round returns 404", async () => {
+      const res = await app.request("/api/rounds/999999/public", {}, testEnv);
+
+      expect(res.status).toBe(404);
+    });
+
+    it("a draft round and a nonexistent round return the identical 404 body", async () => {
+      const food = await seedRestaurant(db, { type: "food" });
+      const draftRound = await seedRound(db, { foodRestaurantId: food!.id });
+
+      const draftRes = await app.request(`/api/rounds/${draftRound!.id}/public`, {}, testEnv);
+      const missingRes = await app.request("/api/rounds/999999/public", {}, testEnv);
+
+      expect(await draftRes.json()).toEqual(await missingRes.json());
+    });
+
+    it("GET /public for an open round with no drinkRestaurantId omits drinkItems entirely", async () => {
+      const food = await seedRestaurant(db, { type: "food" });
+      const foodItem = await seedMenuItem(db, {
+        restaurantId: food!.id,
+        name: "Pho Bo",
+        price: "50000",
+      });
+      const round = await seedRound(db, { foodRestaurantId: food!.id, status: "open" });
+      await seedRoundMenuItem(db, { roundId: round!.id, menuItemId: foodItem!.id });
+
+      const res = await app.request(`/api/rounds/${round!.id}/public`, {}, testEnv);
+
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as {
+        label: string;
+        foodItems: Array<{ id: number; name: string }>;
+        drinkItems?: unknown[];
+      };
+      expect(body.label).toBe(round!.label);
+      expect(body.foodItems).toHaveLength(1);
+      expect(body.foodItems[0]?.name).toBe("Pho Bo");
+      expect("drinkItems" in body).toBe(false);
+      expect(JSON.stringify(body)).not.toContain("price");
+    });
+
+    it("GET /public for an open round with a drinkRestaurantId includes curated drink items", async () => {
+      const food = await seedRestaurant(db, { type: "food" });
+      const drink = await seedRestaurant(db, { name: "Tra Da Corner", type: "drink" });
+      const foodItem = await seedMenuItem(db, { restaurantId: food!.id, name: "Pho Bo" });
+      const drinkItem = await seedMenuItem(db, { restaurantId: drink!.id, name: "Tra Da" });
+      const round = await seedRound(db, {
+        foodRestaurantId: food!.id,
+        drinkRestaurantId: drink!.id,
+        status: "open",
+      });
+      await seedRoundMenuItem(db, { roundId: round!.id, menuItemId: foodItem!.id });
+      await seedRoundMenuItem(db, { roundId: round!.id, menuItemId: drinkItem!.id });
+
+      const res = await app.request(`/api/rounds/${round!.id}/public`, {}, testEnv);
+
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as { drinkItems: Array<{ id: number; name: string }> };
+      expect(body.drinkItems).toHaveLength(1);
+      expect(body.drinkItems[0]?.name).toBe("Tra Da");
+    });
+
+    it("GET /public for a closed round still returns its items and status", async () => {
+      const food = await seedRestaurant(db, { type: "food" });
+      const foodItem = await seedMenuItem(db, { restaurantId: food!.id, name: "Pho Bo" });
+      const round = await seedRound(db, { foodRestaurantId: food!.id, status: "closed" });
+      await seedRoundMenuItem(db, { roundId: round!.id, menuItemId: foodItem!.id });
+
+      const res = await app.request(`/api/rounds/${round!.id}/public`, {}, testEnv);
+
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as { status: string; foodItems: unknown[] };
+      expect(body.status).toBe("closed");
+      expect(body.foodItems).toHaveLength(1);
+    });
+  });
 });
