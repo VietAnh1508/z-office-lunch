@@ -108,4 +108,113 @@ describe("employees routes", () => {
 
     expect(res.status).toBe(404);
   });
+
+  describe("PATCH /:id/name", () => {
+    it("updates fullName and leaves active unchanged", async () => {
+      const employee = await seedEmployee(db, { fullName: "Jane Doe", active: false });
+
+      const res = await app.request(
+        `/api/employees/${employee!.id}/name`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ fullName: "Jane Smith" }),
+        },
+        testEnv,
+      );
+
+      expect(res.status).toBe(200);
+      const updated = (await res.json()) as Employee;
+      expect(updated.fullName).toBe("Jane Smith");
+      expect(updated.active).toBe(false);
+
+      const getRes = await app.request(`/api/employees/${employee!.id}`, {}, testEnv);
+      const fetched = (await getRes.json()) as Employee;
+      expect(fetched.fullName).toBe("Jane Smith");
+    });
+
+    it("trims fullName before saving", async () => {
+      const employee = await seedEmployee(db, { fullName: "Jane Doe" });
+
+      const res = await app.request(
+        `/api/employees/${employee!.id}/name`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ fullName: "  Jane Smith  " }),
+        },
+        testEnv,
+      );
+
+      expect(res.status).toBe(200);
+      const updated = (await res.json()) as Employee;
+      expect(updated.fullName).toBe("Jane Smith");
+    });
+
+    it("missing fullName returns 400 fullNameRequired and leaves the row unchanged", async () => {
+      const employee = await seedEmployee(db, { fullName: "Jane Doe" });
+
+      const res = await app.request(
+        `/api/employees/${employee!.id}/name`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({}),
+        },
+        testEnv,
+      );
+
+      expect(res.status).toBe(400);
+      const body = (await res.json()) as { error: string };
+      expect(body.error).toBe("fullName is required");
+
+      const getRes = await app.request(`/api/employees/${employee!.id}`, {}, testEnv);
+      const fetched = (await getRes.json()) as Employee;
+      expect(fetched.fullName).toBe("Jane Doe");
+    });
+
+    it("blank/whitespace-only fullName returns 400 fullNameRequired", async () => {
+      const employee = await seedEmployee(db, { fullName: "Jane Doe" });
+
+      const res = await app.request(
+        `/api/employees/${employee!.id}/name`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ fullName: "   " }),
+        },
+        testEnv,
+      );
+
+      expect(res.status).toBe(400);
+    });
+
+    it("nonexistent id returns 404 employeeNotFound", async () => {
+      const res = await app.request(
+        "/api/employees/999999/name",
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ fullName: "Jane Smith" }),
+        },
+        testEnv,
+      );
+
+      expect(res.status).toBe(404);
+    });
+
+    it("non-integer id returns 404 employeeNotFound", async () => {
+      const res = await app.request(
+        "/api/employees/not-a-number/name",
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ fullName: "Jane Smith" }),
+        },
+        testEnv,
+      );
+
+      expect(res.status).toBe(404);
+    });
+  });
 });
