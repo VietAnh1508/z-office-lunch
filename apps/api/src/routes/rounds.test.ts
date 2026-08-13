@@ -10,6 +10,7 @@ import {
 } from "db/testing";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import app from "../index";
+import { ERROR_MESSAGES } from "../lib/errors";
 import { testEnv, unreachableEnv } from "../test/env";
 
 type Round = typeof rounds.$inferSelect;
@@ -404,6 +405,124 @@ describe("rounds routes", () => {
       );
 
       expect(res.status).toBe(404);
+    });
+
+    it("POST on an open round returns 400 roundEditNotDraft", async () => {
+      const food = await seedRestaurant(db, { type: "food" });
+      const foodItem = await seedMenuItem(db, { restaurantId: food!.id });
+      const round = await seedRound(db, { foodRestaurantId: food!.id, status: "open" });
+
+      const res = await app.request(
+        `/api/rounds/${round!.id}/menu-items`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ menuItemId: foodItem!.id }),
+        },
+        testEnv,
+      );
+
+      expect(res.status).toBe(400);
+      const body = (await res.json()) as { error: string };
+      expect(body.error).toBe(ERROR_MESSAGES.roundEditNotDraft);
+    });
+
+    it("POST on a closed round returns 400 roundEditNotDraft", async () => {
+      const food = await seedRestaurant(db, { type: "food" });
+      const foodItem = await seedMenuItem(db, { restaurantId: food!.id });
+      const round = await seedRound(db, { foodRestaurantId: food!.id, status: "closed" });
+
+      const res = await app.request(
+        `/api/rounds/${round!.id}/menu-items`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ menuItemId: foodItem!.id }),
+        },
+        testEnv,
+      );
+
+      expect(res.status).toBe(400);
+      const body = (await res.json()) as { error: string };
+      expect(body.error).toBe(ERROR_MESSAGES.roundEditNotDraft);
+    });
+
+    it("POST on a closed round with a mismatched-restaurant menuItemId still returns roundEditNotDraft, not roundMenuItemMismatch", async () => {
+      const food = await seedRestaurant(db, { type: "food" });
+      const otherFood = await seedRestaurant(db, { name: "Other Food", type: "food" });
+      const otherItem = await seedMenuItem(db, { restaurantId: otherFood!.id, name: "Bun Cha" });
+      const round = await seedRound(db, { foodRestaurantId: food!.id, status: "closed" });
+
+      const res = await app.request(
+        `/api/rounds/${round!.id}/menu-items`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ menuItemId: otherItem!.id }),
+        },
+        testEnv,
+      );
+
+      expect(res.status).toBe(400);
+      const body = (await res.json()) as { error: string };
+      expect(body.error).toBe(ERROR_MESSAGES.roundEditNotDraft);
+    });
+
+    it("DELETE on an open round returns 400 roundEditNotDraft, leaving the item curated", async () => {
+      const food = await seedRestaurant(db, { type: "food" });
+      const foodItem = await seedMenuItem(db, { restaurantId: food!.id });
+      const round = await seedRound(db, { foodRestaurantId: food!.id, status: "open" });
+      const curated = await seedRoundMenuItem(db, { roundId: round!.id, menuItemId: foodItem!.id });
+
+      const res = await app.request(
+        `/api/rounds/${round!.id}/menu-items/${curated!.id}`,
+        { method: "DELETE" },
+        testEnv,
+      );
+
+      expect(res.status).toBe(400);
+      const body = (await res.json()) as { error: string };
+      expect(body.error).toBe(ERROR_MESSAGES.roundEditNotDraft);
+
+      const listRes = await app.request(`/api/rounds/${round!.id}/menu-items`, {}, testEnv);
+      const list = (await listRes.json()) as RoundMenuItem[];
+      expect(list).toHaveLength(1);
+    });
+
+    it("DELETE on a closed round returns 400 roundEditNotDraft, leaving the item curated", async () => {
+      const food = await seedRestaurant(db, { type: "food" });
+      const foodItem = await seedMenuItem(db, { restaurantId: food!.id });
+      const round = await seedRound(db, { foodRestaurantId: food!.id, status: "closed" });
+      const curated = await seedRoundMenuItem(db, { roundId: round!.id, menuItemId: foodItem!.id });
+
+      const res = await app.request(
+        `/api/rounds/${round!.id}/menu-items/${curated!.id}`,
+        { method: "DELETE" },
+        testEnv,
+      );
+
+      expect(res.status).toBe(400);
+      const body = (await res.json()) as { error: string };
+      expect(body.error).toBe(ERROR_MESSAGES.roundEditNotDraft);
+
+      const listRes = await app.request(`/api/rounds/${round!.id}/menu-items`, {}, testEnv);
+      const list = (await listRes.json()) as RoundMenuItem[];
+      expect(list).toHaveLength(1);
+    });
+
+    it("DELETE on a closed round with a nonexistent itemId still returns 404 roundMenuItemNotFound", async () => {
+      const food = await seedRestaurant(db, { type: "food" });
+      const round = await seedRound(db, { foodRestaurantId: food!.id, status: "closed" });
+
+      const res = await app.request(
+        `/api/rounds/${round!.id}/menu-items/999999`,
+        { method: "DELETE" },
+        testEnv,
+      );
+
+      expect(res.status).toBe(404);
+      const body = (await res.json()) as { error: string };
+      expect(body.error).toBe(ERROR_MESSAGES.roundMenuItemNotFound);
     });
   });
 

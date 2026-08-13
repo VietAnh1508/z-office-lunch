@@ -68,6 +68,36 @@ describe("RoundDetail", () => {
     expect(screen.getByLabelText("Banh Mi")).not.toBeChecked();
   });
 
+  it("disables a curated item's checkbox for an open round", async () => {
+    server.use(
+      http.get("/api/rounds/1", () => HttpResponse.json(draftRound({ status: "open" }))),
+      http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+      http.get("/api/rounds/1/menu-items", () => HttpResponse.json([{ id: 5, roundId: 1, menuItemId: 10 }])),
+      http.get("/api/restaurants/1/menu-items", () =>
+        HttpResponse.json([{ id: 10, restaurantId: 1, name: "Pho Bo", price: null, active: true }]),
+      ),
+    );
+
+    renderDetail("1");
+
+    expect(await screen.findByLabelText("Pho Bo")).toBeDisabled();
+  });
+
+  it("disables a curated item's checkbox for a closed round", async () => {
+    server.use(
+      http.get("/api/rounds/1", () => HttpResponse.json(draftRound({ status: "closed" }))),
+      http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+      http.get("/api/rounds/1/menu-items", () => HttpResponse.json([{ id: 5, roundId: 1, menuItemId: 10 }])),
+      http.get("/api/restaurants/1/menu-items", () =>
+        HttpResponse.json([{ id: 10, restaurantId: 1, name: "Pho Bo", price: null, active: true }]),
+      ),
+    );
+
+    renderDetail("1");
+
+    expect(await screen.findByLabelText("Pho Bo")).toBeDisabled();
+  });
+
   it("curates a menu item by checking it", async () => {
     const user = userEvent.setup();
     let curated: Array<{ id: number; roundId: number; menuItemId: number }> = [];
