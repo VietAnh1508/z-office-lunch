@@ -1,7 +1,7 @@
 import { type ChangeEvent, useState } from "react";
 
-export function useRequiredField(errorMessage: string) {
-  const [value, setValue] = useState("");
+export function useRequiredField(errorMessage: string, initialValue = "") {
+  const [value, setValue] = useState(initialValue);
   const [error, setError] = useState<string | null>(null);
 
   function onChange(e: ChangeEvent<HTMLInputElement>) {
@@ -19,7 +19,7 @@ export function useRequiredField(errorMessage: string) {
   }
 
   function reset() {
-    setValue("");
+    setValue(initialValue);
     setError(null);
   }
 
