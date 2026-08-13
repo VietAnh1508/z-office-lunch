@@ -1,7 +1,7 @@
 ---
 id: 021
 title: Restrict round menu-item curation to draft rounds
-status: in_review
+status: done
 depends_on: [019]
 parallelizable_with: []
 tdd: required
