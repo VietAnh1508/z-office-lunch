@@ -53,7 +53,7 @@ Reviewed the red→green diff for task 007 (`tasks/007-round-curation-and-status
 
 ### Result: no high-confidence (≥80) issues found
 
-I checked bug potential (TOCTOU race on the "only one round open" invariant, curation not gated on round status, FK-restrict risk on deleting a curated item referenced elsewhere, a curated-then-deactivated item silently still counting toward the open check) and none clear the bar — they're either the codebase's established select-then-write pattern elsewhere (not a regression introduced here), scope creep beyond the stated Acceptance Criteria, or reach into functionality (`submissions`, public round view) that doesn't exist yet in this repo.
+I checked bug potential (TOCTOU race on the "only one round open" invariant, curation not gated on round status — **fixed by task 021**, FK-restrict risk on deleting a curated item referenced elsewhere, a curated-then-deactivated item silently still counting toward the open check) and none clear the bar — they're either the codebase's established select-then-write pattern elsewhere (not a regression introduced here), scope creep beyond the stated Acceptance Criteria, or reach into functionality (`submissions`, public round view) that doesn't exist yet in this repo.
 
 ### Convention adherence — verified compliant
 

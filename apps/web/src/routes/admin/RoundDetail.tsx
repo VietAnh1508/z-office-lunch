@@ -222,6 +222,8 @@ export function RoundDetail() {
     }
   }
 
+  const isDraft = round.status === "draft";
+
   function renderMenuItemList(items: MenuItem[] | undefined, isPending: boolean) {
     if (isPending) {
       return <p className="text-sm text-muted-foreground">Loading menu items…</p>;
@@ -238,6 +240,7 @@ export function RoundDetail() {
               id={`round-menu-item-${item.id}`}
               className="size-4 rounded-sm border-input accent-primary"
               checked={curatedByMenuItemId.has(item.id)}
+              disabled={!isDraft}
               onChange={(e) => toggleItem(item.id, e.target.checked)}
             />
             <Label htmlFor={`round-menu-item-${item.id}`}>{item.name}</Label>

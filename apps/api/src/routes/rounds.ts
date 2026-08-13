@@ -178,6 +178,9 @@ roundsRoute.post("/:id/menu-items", async (c) => {
     if (!round) {
       return c.json({ error: ERROR_MESSAGES.roundNotFound }, 404);
     }
+    if (round.status !== "draft") {
+      return c.json({ error: ERROR_MESSAGES.roundEditNotDraft }, 400);
+    }
 
     const [menuItem] = await db.select().from(menuItems).where(eq(menuItems.id, menuItemId));
     if (!menuItem) {
@@ -249,6 +252,11 @@ roundsRoute.delete("/:id/menu-items/:itemId", async (c) => {
       .where(and(eq(roundMenuItems.id, itemId), eq(roundMenuItems.roundId, roundId)));
     if (!existing) {
       return c.json({ error: ERROR_MESSAGES.roundMenuItemNotFound }, 404);
+    }
+
+    const [round] = await db.select().from(rounds).where(eq(rounds.id, roundId));
+    if (round!.status !== "draft") {
+      return c.json({ error: ERROR_MESSAGES.roundEditNotDraft }, 400);
     }
 
     const [row] = await db

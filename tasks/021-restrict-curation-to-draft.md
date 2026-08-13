@@ -1,7 +1,7 @@
 ---
 id: 021
 title: Restrict round menu-item curation to draft rounds
-status: approved
+status: in_review
 depends_on: [019]
 parallelizable_with: []
 tdd: required
@@ -63,19 +63,23 @@ Confirmed while planning: `e2e/admin-round-detail.spec.ts` only clicks the curat
 
 ## Implementation Log
 
-(Filled in by /implement-task.)
-
-- red commit: <sha> — `<test_command>` -> N failing
-- green commit: <sha> — `<test_command>` -> all passing
+- red commit: `17ef04d` — `pnpm -r typecheck && pnpm --filter web build && pnpm test` -> 7 failing
+- green commit: `170898b` — `pnpm -r typecheck && pnpm --filter web build && pnpm test` -> all passing (175 tests)
 
 ## Plan Deviations
 
-(Filled in by /implement-task, honestly, before requesting review — write "None." if genuinely nothing applies, don't skip this section silently. Only list genuine deviations — if a step was carried out as the Plan described, it doesn't belong here, even if it's worth doing again.)
-
-- Where did the actual implementation differ from the Plan above, and why?
-- Any wrong assumption, dead end, or approach abandoned partway through?
-- Anything the user had to correct or redirect mid-task?
+- The plan's `renderMenuItemList`'s `disabled={round.status !== "draft"}` doesn't typecheck as written: `round` is narrowed non-null in the outer component body, but that narrowing doesn't persist into the nested `renderMenuItemList` function declaration (a standard TS closure-narrowing limitation), so `tsc` flags `round` as possibly `undefined` there. Fixed by hoisting `const isDraft = round.status === "draft"` above the nested function (still in the narrowed outer scope) and using `disabled={!isDraft}` inside it. Same rule, no behavior change from what the plan specified.
+- Everything else (both API route guards, the DELETE route's non-null assertion on `round`, and all test cases) matches the Plan section as written.
 
 ## Review Notes
 
-(Output of the feature-dev:code-reviewer agent, appended by /implement-task.)
+Reviewed by `feature-dev:code-reviewer` against the `git diff <red-sha> <green-sha>` output:
+
+- **POST `/:id/menu-items`**: guard placed immediately after the round-existence check and before the `menuItem` lookup/mismatch check, exactly matching the AC (verified against the test confirming `roundEditNotDraft` wins over `roundMenuItemMismatch`).
+- **DELETE `/:id/menu-items/:itemId`**: guard placed after the existing `roundMenuItems` 404 check, leaving the nonexistent-item 404 path unchanged, matching the AC.
+- The `round!` non-null assertion is sound: `roundMenuItems.roundId` is `notNull().references(() => rounds.id, { onDelete: "cascade" })` (`packages/db/src/schema.ts:57-59`), so a found `existing` row guarantees a live round at the time of the first query. A theoretical delete-race would surface as a caught `TypeError` → structured 500, which is the convention-correct failure path, not a bug.
+- **GET `/:id/menu-items`** is untouched, as required.
+- Both handlers reuse `ERROR_MESSAGES.roundEditNotDraft` (already defined from the prior PATCH/DELETE `:id` work) rather than re-typing a string, and both keep the existing try/catch/finally + `await db.$client.end()` shape per `.claude/rules/api-error-handling.md`.
+- **Frontend**: `isDraft` gates the checkbox `disabled` prop. Confirmed the `renderMenuItemList` call sites are unconditional — not nested inside the `round.status === "draft"` block that wraps only `EditRoundForm` — so this isn't dead/vacuous code. Direct test coverage exists for both the open- and closed-round disabled-checkbox cases, confirming the checkboxes render (not hidden) and are disabled as intended.
+
+**No high-confidence issues found.** The implementation matches the task's acceptance criteria precisely, follows the established error-handling and error-message-reuse conventions, and is backed by tests exercising the exact scenarios called out in the AC.
