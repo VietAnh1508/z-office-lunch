@@ -1,4 +1,4 @@
-import { screen } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { HttpResponse, http } from "msw";
 import { MemoryRouter } from "react-router";
@@ -25,10 +25,10 @@ describe("AdminLayout", () => {
   it("renders the section links inside a nav landmark", () => {
     renderApp("/admin");
 
-    const nav = screen.getByRole("navigation");
-    expect(nav).toContainElement(screen.getByRole("link", { name: "Restaurants" }));
-    expect(nav).toContainElement(screen.getByRole("link", { name: "Employees" }));
-    expect(nav).toContainElement(screen.getByRole("link", { name: "Rounds" }));
+    const nav = within(screen.getByRole("navigation"));
+    expect(nav.getByRole("link", { name: "Restaurants" })).toBeInTheDocument();
+    expect(nav.getByRole("link", { name: "Employees" })).toBeInTheDocument();
+    expect(nav.getByRole("link", { name: "Rounds" })).toBeInTheDocument();
   });
 
   it("navigates to each admin section via the nav links", async () => {
@@ -39,14 +39,15 @@ describe("AdminLayout", () => {
     );
 
     renderApp("/admin");
+    const nav = within(screen.getByRole("navigation"));
 
-    await user.click(screen.getByRole("link", { name: "Restaurants" }));
+    await user.click(nav.getByRole("link", { name: "Restaurants" }));
     expect(await screen.findByText("No restaurants yet.")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("link", { name: "Employees" }));
+    await user.click(nav.getByRole("link", { name: "Employees" }));
     expect(await screen.findByText("No employees yet.")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("link", { name: "Rounds" }));
+    await user.click(nav.getByRole("link", { name: "Rounds" }));
     expect(screen.getByRole("heading", { name: "Rounds" })).toBeInTheDocument();
   });
 
@@ -55,13 +56,14 @@ describe("AdminLayout", () => {
     server.use(http.get("/api/restaurants", () => HttpResponse.json([])));
 
     renderApp("/admin");
+    const nav = within(screen.getByRole("navigation"));
 
-    await user.click(screen.getByRole("link", { name: "Restaurants" }));
+    await user.click(nav.getByRole("link", { name: "Restaurants" }));
 
-    expect(screen.getByRole("link", { name: "Restaurants" })).toHaveAttribute(
+    expect(nav.getByRole("link", { name: "Restaurants" })).toHaveAttribute(
       "aria-current",
       "page",
     );
-    expect(screen.getByRole("link", { name: "Employees" })).not.toHaveAttribute("aria-current");
+    expect(nav.getByRole("link", { name: "Employees" })).not.toHaveAttribute("aria-current");
   });
 });

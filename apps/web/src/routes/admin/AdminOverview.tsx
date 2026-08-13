@@ -1,21 +1,26 @@
 import { ClipboardList, Store, Users } from "lucide-react";
+import { Link } from "react-router";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-// Deliberately not links: the nav bar just above already provides navigation
-// to each section, and a second set of links with the same names would
-// create duplicate, ambiguous accessible names on this page.
+// These share their accessible name with the nav bar's links to the same
+// sections (both say "Restaurants", "Employees", "Rounds"). Tests that query
+// nav links by role+name must scope to the nav landmark rather than the
+// whole page — see AdminLayout.test.tsx and e2e/admin-nav.spec.ts.
 const SECTIONS = [
   {
+    to: "/admin/restaurants",
     label: "Restaurants",
     description: "Add restaurants and curate the menu items they offer.",
     icon: Store,
   },
   {
+    to: "/admin/employees",
     label: "Employees",
     description: "Keep the list of people who can order lunch up to date.",
     icon: Users,
   },
   {
+    to: "/admin/rounds",
     label: "Rounds",
     description: "Start a round, pick its menu, then open it for orders.",
     icon: ClipboardList,
@@ -33,15 +38,17 @@ export function AdminOverview() {
       </div>
       <div className="grid gap-4 sm:grid-cols-3">
         {SECTIONS.map((section) => (
-          <Card key={section.label}>
-            <CardHeader>
-              <section.icon className="size-5 text-primary" aria-hidden="true" />
-              <CardTitle className="mt-2">{section.label}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">{section.description}</p>
-            </CardContent>
-          </Card>
+          <Link key={section.to} to={section.to} className="group">
+            <Card className="h-full transition-colors group-hover:border-primary/40 group-hover:ring-primary/20">
+              <CardHeader>
+                <section.icon className="size-5 text-primary" aria-hidden="true" />
+                <CardTitle className="mt-2">{section.label}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">{section.description}</p>
+              </CardContent>
+            </Card>
+          </Link>
         ))}
       </div>
     </div>
