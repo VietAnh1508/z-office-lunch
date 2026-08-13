@@ -30,7 +30,7 @@ One or two sentences: what this task delivers and why.
 
 ## Plan Deviations
 
-(Filled in by /implement-task, honestly, before requesting review — write "None." if genuinely nothing applies, don't skip this section silently.)
+(Filled in by /implement-task, honestly, before requesting review — write "None." if genuinely nothing applies, don't skip this section silently. Only list genuine deviations — if a step was carried out as the Plan described, it doesn't belong here, even if it's worth doing again.)
 
 - Where did the actual implementation differ from the Plan above, and why?
 - Any wrong assumption, dead end, or approach abandoned partway through?

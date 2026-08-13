@@ -50,3 +50,17 @@ export function useToggleEmployeeActive() {
     onError: (error) => toastApiError(error, "Could not update employee."),
   });
 }
+
+export function useUpdateEmployeeName() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: { id: number; fullName: string }) =>
+      api.patch<Employee>(`/employees/${input.id}/name`, { fullName: input.fullName }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: employeeKeys.list() });
+      toast.success("Employee updated");
+    },
+    onError: (error) => toastApiError(error, "Could not update employee."),
+  });
+}

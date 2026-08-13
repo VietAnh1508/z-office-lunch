@@ -7,9 +7,14 @@ import { getDb } from "../lib/get-db";
 
 export const employeesRoute = new Hono<{ Bindings: Bindings }>();
 
+function parseFullName(body: unknown): string {
+  const raw = (body as Record<string, unknown>)?.fullName;
+  return typeof raw === "string" ? raw.trim() : "";
+}
+
 employeesRoute.post("/", async (c) => {
   const body = await c.req.json().catch(() => ({}));
-  const fullName = typeof body.fullName === "string" ? body.fullName.trim() : "";
+  const fullName = parseFullName(body);
   if (!fullName) {
     return c.json({ error: ERROR_MESSAGES.fullNameRequired }, 400);
   }
@@ -85,6 +90,39 @@ employeesRoute.patch("/:id", async (c) => {
     return c.json(row);
   } catch (e) {
     console.error(JSON.stringify({ message: "failed to toggle employee", error: String(e) }));
+    return c.json({ error: ERROR_MESSAGES.internal }, 500);
+  } finally {
+    await db.$client.end();
+  }
+});
+
+employeesRoute.patch("/:id/name", async (c) => {
+  const id = Number(c.req.param("id"));
+  if (!Number.isInteger(id)) {
+    return c.json({ error: ERROR_MESSAGES.employeeNotFound }, 404);
+  }
+
+  const body = await c.req.json().catch(() => ({}));
+  const fullName = parseFullName(body);
+  if (!fullName) {
+    return c.json({ error: ERROR_MESSAGES.fullNameRequired }, 400);
+  }
+
+  const db = getDb(c);
+  try {
+    const [existing] = await db.select().from(employees).where(eq(employees.id, id));
+    if (!existing) {
+      return c.json({ error: ERROR_MESSAGES.employeeNotFound }, 404);
+    }
+
+    const [row] = await db
+      .update(employees)
+      .set({ fullName })
+      .where(eq(employees.id, id))
+      .returning();
+    return c.json(row);
+  } catch (e) {
+    console.error(JSON.stringify({ message: "failed to update employee name", error: String(e) }));
     return c.json({ error: ERROR_MESSAGES.internal }, 500);
   } finally {
     await db.$client.end();
