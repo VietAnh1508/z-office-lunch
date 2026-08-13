@@ -1,12 +1,20 @@
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useRequiredField } from "@/hooks/useRequiredField";
 import { type SubmitEvent, useState } from "react";
 import { Link } from "react-router";
 import { RestaurantTypeBadge } from "./RestaurantTypeBadge";
-import { useCreateRestaurant, useRestaurants } from "./useRestaurants";
+import { useCreateRestaurant, useRestaurants, type Restaurant } from "./useRestaurants";
+
+type TypeFilter = "all" | Restaurant["type"];
+
+const TYPE_FILTER_OPTIONS: Array<{ value: TypeFilter; label: string }> = [
+  { value: "all", label: "All types" },
+  { value: "food", label: "Food" },
+  { value: "drink", label: "Drink" },
+];
 
 export function Restaurants() {
   const { data: restaurants, isPending, isError } = useRestaurants();
@@ -15,6 +23,12 @@ export function Restaurants() {
   const name = useRequiredField("Name is required.");
   const [type, setType] = useState<"food" | "drink">("food");
   const [contactInfo, setContactInfo] = useState("");
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
+
+  const filteredRestaurants =
+    restaurants?.filter(
+      (restaurant) => typeFilter === "all" || restaurant.type === typeFilter,
+    ) ?? [];
 
   function handleSubmit(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -84,6 +98,25 @@ export function Restaurants() {
         <Card>
           <CardHeader>
             <CardTitle>Restaurants</CardTitle>
+            <CardAction>
+              <div className="flex items-center gap-2">
+                <Label htmlFor="restaurant-type-filter" className="text-sm text-muted-foreground">
+                  Type
+                </Label>
+                <select
+                  id="restaurant-type-filter"
+                  className="h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                  value={typeFilter}
+                  onChange={(e) => setTypeFilter(e.target.value as TypeFilter)}
+                >
+                  {TYPE_FILTER_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </CardAction>
           </CardHeader>
           <CardContent>
             {isPending ? (
@@ -105,9 +138,13 @@ export function Restaurants() {
                   <p className="text-sm text-muted-foreground">
                     No restaurants yet.
                   </p>
+                ) : filteredRestaurants.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    No restaurants match this filter.
+                  </p>
                 ) : (
                   <ul className="flex flex-col divide-y divide-border">
-                    {restaurants.map((restaurant) => (
+                    {filteredRestaurants.map((restaurant) => (
                       <li
                         key={restaurant.id}
                         className="flex flex-wrap items-center gap-2 py-2.5 text-sm first:pt-0 last:pb-0"
