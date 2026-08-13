@@ -28,7 +28,7 @@ describe("Restaurants", () => {
     renderRestaurants();
 
     expect(await screen.findByText("Pizza Place")).toBeInTheDocument();
-    expect(screen.getByText("(food)")).toBeInTheDocument();
+    expect(screen.getByText("food")).toBeInTheDocument();
   });
 
   it("adds a restaurant via the create form without a page reload", async () => {
@@ -158,7 +158,7 @@ describe("Restaurants", () => {
     expect(capturedBody).toEqual(
       expect.objectContaining({ name: "Tra Da Corner", type: "drink" }),
     );
-    expect(screen.getByText("(drink)")).toBeInTheDocument();
+    expect(screen.getByText("drink")).toBeInTheDocument();
   });
 
   it("keeps showing the previously loaded list if a refetch fails", async () => {

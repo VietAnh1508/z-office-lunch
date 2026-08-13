@@ -10,18 +10,11 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { RoundStatusBadge } from "./RoundStatusBadge";
 import { useRestaurants } from "./useRestaurants";
 import { useDeleteRound, useRounds } from "./useRounds";
-import type { Round } from "./useRounds";
-
-const STATUS_BADGE_CLASS: Record<Round["status"], string> = {
-  draft: "border-transparent bg-secondary text-secondary-foreground",
-  open: "border-transparent bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400",
-  closed: "border-border bg-muted text-muted-foreground",
-};
 
 export function RoundList() {
   const { data: rounds, isPending, isError } = useRounds();
@@ -63,9 +56,7 @@ export function RoundList() {
                         >
                           {round.label}
                         </Link>
-                        <Badge className={STATUS_BADGE_CLASS[round.status]}>
-                          {round.status}
-                        </Badge>
+                        <RoundStatusBadge status={round.status} />
                       </div>
                       <p className="text-sm text-muted-foreground">
                         {restaurantName(round.foodRestaurantId)}
