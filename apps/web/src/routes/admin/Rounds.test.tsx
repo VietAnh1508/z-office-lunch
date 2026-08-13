@@ -41,8 +41,9 @@ describe("Rounds", () => {
 
     renderRounds();
 
-    expect(await screen.findByText("Week 1")).toBeInTheDocument();
-    expect(screen.getByText("draft", { exact: false })).toBeInTheDocument();
+    const roundRow = (await screen.findByText("Week 1")).closest("li");
+    expect(roundRow).not.toBeNull();
+    expect(within(roundRow!).getByText("draft")).toBeInTheDocument();
   });
 
   it("adds a round via the create form without a page reload", async () => {
@@ -274,6 +275,96 @@ describe("Rounds", () => {
     });
     expect(screen.getByText("Week 1")).toBeInTheDocument();
     expect(deleteCount).toBe(0);
+  });
+
+  it("filters rounds by status", async () => {
+    const user = userEvent.setup();
+
+    server.use(
+      http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+      http.get("/api/rounds", () =>
+        HttpResponse.json([
+          {
+            id: 1,
+            label: "Week 1",
+            foodRestaurantId: 1,
+            drinkRestaurantId: null,
+            deadline: "2026-08-10T12:00:00.000Z",
+            status: "draft",
+            createdAt: "2026-08-01T00:00:00.000Z",
+          },
+          {
+            id: 2,
+            label: "Week 2",
+            foodRestaurantId: 1,
+            drinkRestaurantId: null,
+            deadline: "2026-08-11T12:00:00.000Z",
+            status: "open",
+            createdAt: "2026-08-01T00:00:00.000Z",
+          },
+          {
+            id: 3,
+            label: "Week 3",
+            foodRestaurantId: 1,
+            drinkRestaurantId: null,
+            deadline: "2026-08-12T12:00:00.000Z",
+            status: "closed",
+            createdAt: "2026-08-01T00:00:00.000Z",
+          },
+        ]),
+      ),
+    );
+
+    renderRounds();
+
+    await screen.findByText("Week 1");
+    expect(screen.getByText("Week 2")).toBeInTheDocument();
+    expect(screen.getByText("Week 3")).toBeInTheDocument();
+
+    await user.selectOptions(screen.getByLabelText("Status"), "open");
+
+    expect(screen.queryByText("Week 1")).not.toBeInTheDocument();
+    expect(screen.getByText("Week 2")).toBeInTheDocument();
+    expect(screen.queryByText("Week 3")).not.toBeInTheDocument();
+
+    await user.selectOptions(screen.getByLabelText("Status"), "closed");
+
+    expect(screen.queryByText("Week 2")).not.toBeInTheDocument();
+    expect(screen.getByText("Week 3")).toBeInTheDocument();
+
+    await user.selectOptions(screen.getByLabelText("Status"), "all");
+
+    expect(screen.getByText("Week 1")).toBeInTheDocument();
+    expect(screen.getByText("Week 2")).toBeInTheDocument();
+    expect(screen.getByText("Week 3")).toBeInTheDocument();
+  });
+
+  it("shows a message when no round matches the selected status filter", async () => {
+    const user = userEvent.setup();
+
+    server.use(
+      http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+      http.get("/api/rounds", () =>
+        HttpResponse.json([
+          {
+            id: 1,
+            label: "Week 1",
+            foodRestaurantId: 1,
+            drinkRestaurantId: null,
+            deadline: "2026-08-10T12:00:00.000Z",
+            status: "draft",
+            createdAt: "2026-08-01T00:00:00.000Z",
+          },
+        ]),
+      ),
+    );
+
+    renderRounds();
+
+    await screen.findByText("Week 1");
+    await user.selectOptions(screen.getByLabelText("Status"), "open");
+
+    expect(await screen.findByText("No rounds match this filter.")).toBeInTheDocument();
   });
 
   it("shows the API's error message as a toast when deleting a round fails", async () => {
