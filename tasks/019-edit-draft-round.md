@@ -1,7 +1,7 @@
 ---
 id: 019
 title: Edit a draft round (deadline, food restaurant, drink restaurant)
-status: in_review
+status: done
 depends_on: [018]
 parallelizable_with: []
 tdd: required
