@@ -1,7 +1,7 @@
 ---
 id: 020
 title: Edit an employee's full name
-status: in_review
+status: done
 depends_on: [005]
 parallelizable_with: []
 tdd: required
