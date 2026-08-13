@@ -15,13 +15,13 @@ Let the admin fix a typo or name change on an existing employee without deleting
 
 ## Acceptance Criteria
 
-- [ ] `PATCH /api/employees/:id/name` with `{ fullName }` — a new route, separate from the existing bodyless `PATCH /api/employees/:id` toggle-active endpoint (which is untouched):
+- [x] `PATCH /api/employees/:id/name` with `{ fullName }` — a new route, separate from the existing bodyless `PATCH /api/employees/:id` toggle-active endpoint (which is untouched):
   - non-integer `:id` → 404 `employeeNotFound`
   - missing/blank (untrimmed) `fullName` → 400 `fullNameRequired`, checked before the existence lookup (same order as `POST /` and `rounds.ts`'s `PATCH /:id`)
   - missing employee → 404 `employeeNotFound`
   - success → 200, returns the updated employee row with the trimmed `fullName`; `active` untouched
   - works the same regardless of the employee's `active` state
-- [ ] Admin UI: each employee row in the Employees list gets an inline "edit name" control (pencil icon) next to the existing activate/deactivate toggle, available regardless of active state
+- [x] Admin UI: each employee row in the Employees list gets an inline "edit name" control (pencil icon) next to the existing activate/deactivate toggle, available regardless of active state
   - clicking it swaps the name to an editable, pre-filled text input (`useRequiredField`) with Save/Cancel actions
   - Save validates first (required); a blank name shows the inline error and sends no request
   - Save on success updates the displayed name, shows a success toast, and returns the row to display mode
@@ -86,10 +86,7 @@ Handler order (validate body before fetching, matching `POST /` and `rounds.ts`'
 
 ## Plan Deviations
 
-- Route placement: the plan said to place `PATCH /:id/name` "directly after the existing `PATCH /:id`" — implemented exactly that way (after, not before), matching the plan.
-- `useRequiredField`'s `reset()` previously hardcoded resetting `value` to `""`. Rather than adding a separate "reset to original" mechanism for the Cancel action, `reset()` now resets to the hook's `initialValue` closure param (which defaults to `""`, so existing create-form callers are unaffected). This lets `EmployeeRow`'s Cancel button just call the existing `reset()` and land back on `employee.fullName`, which is exactly what the plan described for Cancel — just implemented via the existing method rather than a new one.
-- Checked task 019 first as the plan instructed (it independently plans the same `useRequiredField` change): 019 is still `approved`/not implemented, so no conflict — implemented the `initialValue` param directly rather than skipping it.
-- Everything else (API handler order/shape, `useUpdateEmployeeName`, `EmployeeRow` extraction, Save/Cancel behavior, test coverage) matches the Plan section as written. No corrections or redirects from the user during this task.
+- `useRequiredField`'s `reset()` previously hardcoded resetting `value` to `""`. To satisfy the plan's "Cancel resets to `employee.fullName`" behavior without adding a separate method, `reset()` now resets to the hook's `initialValue` closure param instead (backward compatible: existing create-form callers omit `initialValue`, so it still defaults to `""`).
 
 ## Review Notes
 
