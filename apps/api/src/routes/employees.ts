@@ -7,9 +7,14 @@ import { getDb } from "../lib/get-db";
 
 export const employeesRoute = new Hono<{ Bindings: Bindings }>();
 
+function parseFullName(body: unknown): string {
+  const raw = (body as Record<string, unknown>)?.fullName;
+  return typeof raw === "string" ? raw.trim() : "";
+}
+
 employeesRoute.post("/", async (c) => {
   const body = await c.req.json().catch(() => ({}));
-  const fullName = typeof body.fullName === "string" ? body.fullName.trim() : "";
+  const fullName = parseFullName(body);
   if (!fullName) {
     return c.json({ error: ERROR_MESSAGES.fullNameRequired }, 400);
   }
@@ -98,7 +103,7 @@ employeesRoute.patch("/:id/name", async (c) => {
   }
 
   const body = await c.req.json().catch(() => ({}));
-  const fullName = typeof body.fullName === "string" ? body.fullName.trim() : "";
+  const fullName = parseFullName(body);
   if (!fullName) {
     return c.json({ error: ERROR_MESSAGES.fullNameRequired }, 400);
   }
