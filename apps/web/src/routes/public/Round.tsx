@@ -46,8 +46,8 @@ export function Round() {
 
   if (round.status === "closed") {
     return (
-      <div className="mx-auto flex max-w-xl flex-col gap-4 p-6">
-        <h1 className="text-2xl font-semibold">{round.label}</h1>
+      <div className="mx-auto flex max-w-xl flex-col gap-4 px-4 py-10 sm:px-6">
+        <h1 className="text-2xl font-semibold tracking-tight">{round.label}</h1>
         <p className="text-sm text-muted-foreground">This round is closed.</p>
       </div>
     );
@@ -56,18 +56,18 @@ export function Round() {
   const deadlinePassed = new Date(round.deadline).getTime() < Date.now();
   if (deadlinePassed) {
     return (
-      <div className="mx-auto flex max-w-xl flex-col gap-4 p-6">
-        <h1 className="text-2xl font-semibold">{round.label}</h1>
+      <div className="mx-auto flex max-w-xl flex-col gap-4 px-4 py-10 sm:px-6">
+        <h1 className="text-2xl font-semibold tracking-tight">{round.label}</h1>
         <p className="text-sm text-muted-foreground">The deadline for this round has passed.</p>
       </div>
     );
   }
 
   return (
-    <div className="mx-auto flex max-w-xl flex-col gap-6 p-6">
+    <div className="mx-auto flex max-w-xl flex-col gap-6 px-4 py-8 sm:px-6 sm:py-10">
       <div>
-        <h1 className="text-2xl font-semibold">{round.label}</h1>
-        <p className="text-sm text-muted-foreground">
+        <h1 className="text-2xl font-semibold tracking-tight">{round.label}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
           Deadline: {new Date(round.deadline).toLocaleString()}
         </p>
       </div>

@@ -4,13 +4,17 @@ test("clicking through the admin nav reaches each section", async ({ page }) => 
   await page.goto("/admin");
   await expect(page.getByRole("heading", { name: "Admin" })).toBeVisible();
 
-  await page.getByRole("link", { name: "Restaurants" }).click();
+  // Scoped to the nav landmark: the overview page below also links to each
+  // section (via its summary cards), sharing the same accessible names.
+  const nav = page.getByRole("navigation");
+
+  await nav.getByRole("link", { name: "Restaurants" }).click();
   await expect(page.getByRole("button", { name: "Add restaurant" })).toBeVisible();
 
-  await page.getByRole("link", { name: "Employees" }).click();
+  await nav.getByRole("link", { name: "Employees" }).click();
   await expect(page.getByRole("heading", { name: "Employees" })).toBeVisible();
 
-  await page.getByRole("link", { name: "Rounds" }).click();
+  await nav.getByRole("link", { name: "Rounds" }).click();
   await expect(page.getByRole("heading", { name: "Rounds" })).toBeVisible();
 });
 

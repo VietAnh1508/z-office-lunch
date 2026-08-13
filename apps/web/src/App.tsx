@@ -1,4 +1,5 @@
-import { Route, Routes } from "react-router";
+import { UtensilsCrossed } from "lucide-react";
+import { Route, Routes, useNavigate } from "react-router";
 import { Button } from "@/components/ui/button";
 import { AdminLayout } from "@/routes/admin/AdminLayout";
 import { AdminOverview } from "@/routes/admin/AdminOverview";
@@ -10,9 +11,22 @@ import { Rounds } from "@/routes/admin/Rounds";
 import { Round } from "@/routes/public/Round";
 
 function Home() {
+  const navigate = useNavigate();
+
   return (
-    <div className="flex min-h-svh items-center justify-center">
-      <Button>Office Lunch</Button>
+    <div className="flex min-h-svh flex-col items-center justify-center gap-4 bg-background px-6 text-center">
+      <div
+        className="flex size-14 items-center justify-center rounded-2xl bg-primary/10 text-primary"
+        aria-hidden="true"
+      >
+        <UtensilsCrossed className="size-7" />
+      </div>
+      <Button size="lg" className="px-6 text-base" onClick={() => navigate("/admin")}>
+        Office Lunch
+      </Button>
+      <p className="max-w-xs text-sm text-muted-foreground">
+        Tap to open the admin dashboard and manage restaurants, employees, and lunch rounds.
+      </p>
     </div>
   );
 }

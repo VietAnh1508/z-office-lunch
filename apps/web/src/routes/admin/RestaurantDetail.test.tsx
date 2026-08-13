@@ -35,7 +35,7 @@ describe("RestaurantDetail", () => {
     renderDetail("1");
 
     expect(await screen.findByRole("heading", { name: "Pho 24" })).toBeInTheDocument();
-    expect(screen.getByText("(food)")).toBeInTheDocument();
+    expect(screen.getByText("food")).toBeInTheDocument();
     expect(screen.getByText("Pho Bo")).toBeInTheDocument();
     expect(screen.getByText("11.000", { exact: false })).toBeInTheDocument();
   });
