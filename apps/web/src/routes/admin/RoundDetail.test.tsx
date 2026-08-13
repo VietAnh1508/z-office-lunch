@@ -273,4 +273,205 @@ describe("RoundDetail", () => {
     expect(await screen.findByText("Rounds list page")).toBeInTheDocument();
     expect(await screen.findByText("Round deleted")).toBeInTheDocument();
   });
+
+  describe("edit round", () => {
+    it("renders the edit form pre-filled, only for a draft round", async () => {
+      server.use(
+        http.get("/api/rounds/1", () => HttpResponse.json(draftRound())),
+        http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+        http.get("/api/rounds/1/menu-items", () => HttpResponse.json([])),
+        http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
+      );
+
+      renderDetail("1");
+
+      expect(await screen.findByText("Edit round")).toBeInTheDocument();
+      expect(screen.getByLabelText("Food restaurant", { exact: false })).toHaveValue("1");
+    });
+
+    it("does not render the edit form for a non-draft round", async () => {
+      server.use(
+        http.get("/api/rounds/1", () => HttpResponse.json(draftRound({ status: "open" }))),
+        http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+        http.get("/api/rounds/1/menu-items", () => HttpResponse.json([])),
+        http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
+      );
+
+      renderDetail("1");
+
+      await screen.findByRole("button", { name: "Close" });
+      expect(screen.queryByText("Edit round")).not.toBeInTheDocument();
+    });
+
+    it("saves a deadline-only change immediately, with no confirmation dialog", async () => {
+      const user = userEvent.setup();
+      let patchBody: Record<string, unknown> | null = null;
+
+      server.use(
+        http.get("/api/rounds/1", () => HttpResponse.json(draftRound())),
+        http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+        http.get("/api/rounds/1/menu-items", () => HttpResponse.json([])),
+        http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
+        http.patch("/api/rounds/1", async ({ request }) => {
+          patchBody = (await request.json()) as Record<string, unknown>;
+          return HttpResponse.json(draftRound());
+        }),
+      );
+
+      renderDetail("1");
+
+      await screen.findByText("Edit round");
+      const deadlineInput = screen.getByLabelText("Deadline", { exact: false });
+      await user.clear(deadlineInput);
+      await user.type(deadlineInput, "2026-09-01T12:00");
+      await user.click(screen.getByRole("button", { name: "Save changes" }));
+
+      expect(screen.queryByText(/curated items/i)).not.toBeInTheDocument();
+      await waitFor(() => {
+        expect(patchBody).not.toBeNull();
+      });
+      expect(patchBody).toMatchObject({ foodRestaurantId: 1 });
+      expect(await screen.findByText("Round updated")).toBeInTheDocument();
+    });
+
+    it("shows a confirmation dialog when changing the food restaurant, and submits on confirm", async () => {
+      const user = userEvent.setup({ pointerEventsCheck: 0 });
+      let patchBody: Record<string, unknown> | null = null;
+      const foodRestaurants = [
+        ...RESTAURANTS,
+        { id: 3, name: "Bun Cha", type: "food", contactInfo: null, menuSourceNote: null },
+      ];
+
+      server.use(
+        http.get("/api/rounds/1", () => HttpResponse.json(draftRound())),
+        http.get("/api/restaurants", () => HttpResponse.json(foodRestaurants)),
+        http.get("/api/rounds/1/menu-items", () => HttpResponse.json([])),
+        http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
+        http.get("/api/restaurants/3/menu-items", () => HttpResponse.json([])),
+        http.patch("/api/rounds/1", async ({ request }) => {
+          patchBody = (await request.json()) as Record<string, unknown>;
+          return HttpResponse.json(draftRound({ foodRestaurantId: 3 }));
+        }),
+      );
+
+      renderDetail("1");
+
+      await screen.findByText("Edit round");
+      await user.selectOptions(screen.getByLabelText("Food restaurant", { exact: false }), "3");
+      await user.click(screen.getByRole("button", { name: "Save changes" }));
+
+      await screen.findByText(/curated items/i);
+      expect(patchBody).toBeNull();
+
+      await user.click(screen.getByRole("button", { name: "Confirm" }));
+
+      await waitFor(() => {
+        expect(patchBody).not.toBeNull();
+      });
+      expect(patchBody).toMatchObject({ foodRestaurantId: 3 });
+      expect(await screen.findByText("Round updated")).toBeInTheDocument();
+    });
+
+    it("shows a confirmation dialog when changing the drink restaurant, including clearing it to None", async () => {
+      const user = userEvent.setup({ pointerEventsCheck: 0 });
+
+      server.use(
+        http.get("/api/rounds/1", () => HttpResponse.json(draftRound({ drinkRestaurantId: 2 }))),
+        http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+        http.get("/api/rounds/1/menu-items", () => HttpResponse.json([])),
+        http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
+        http.get("/api/restaurants/2/menu-items", () => HttpResponse.json([])),
+        http.patch("/api/rounds/1", () =>
+          HttpResponse.json(draftRound({ drinkRestaurantId: null })),
+        ),
+      );
+
+      renderDetail("1");
+
+      await screen.findByText("Edit round");
+      await user.selectOptions(screen.getByLabelText("Drink restaurant", { exact: false }), "");
+      await user.click(screen.getByRole("button", { name: "Save changes" }));
+
+      expect(await screen.findByText(/curated items/i)).toBeInTheDocument();
+    });
+
+    it("cancelling the confirmation dialog sends no request and leaves values unchanged", async () => {
+      const user = userEvent.setup({ pointerEventsCheck: 0 });
+      let patchCalled = false;
+      const foodRestaurants = [
+        ...RESTAURANTS,
+        { id: 3, name: "Bun Cha", type: "food", contactInfo: null, menuSourceNote: null },
+      ];
+
+      server.use(
+        http.get("/api/rounds/1", () => HttpResponse.json(draftRound())),
+        http.get("/api/restaurants", () => HttpResponse.json(foodRestaurants)),
+        http.get("/api/rounds/1/menu-items", () => HttpResponse.json([])),
+        http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
+        http.get("/api/restaurants/3/menu-items", () => HttpResponse.json([])),
+        http.patch("/api/rounds/1", () => {
+          patchCalled = true;
+          return HttpResponse.json(draftRound({ foodRestaurantId: 3 }));
+        }),
+      );
+
+      renderDetail("1");
+
+      await screen.findByText("Edit round");
+      await user.selectOptions(screen.getByLabelText("Food restaurant", { exact: false }), "3");
+      await user.click(screen.getByRole("button", { name: "Save changes" }));
+
+      await screen.findByText(/curated items/i);
+      await user.click(screen.getByRole("button", { name: "Cancel" }));
+
+      expect(screen.queryByText(/curated items/i)).not.toBeInTheDocument();
+      expect(patchCalled).toBe(false);
+    });
+
+    it("shows the error toast when a save fails", async () => {
+      const user = userEvent.setup();
+
+      server.use(
+        http.get("/api/rounds/1", () => HttpResponse.json(draftRound())),
+        http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+        http.get("/api/rounds/1/menu-items", () => HttpResponse.json([])),
+        http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
+        http.patch("/api/rounds/1", () =>
+          HttpResponse.json({ error: "round is not draft" }, { status: 400 }),
+        ),
+      );
+
+      renderDetail("1");
+
+      await screen.findByText("Edit round");
+      await user.click(screen.getByRole("button", { name: "Save changes" }));
+
+      expect(await screen.findByText("round is not draft")).toBeInTheDocument();
+    });
+
+    it("shows an inline error and sends no request when the food restaurant is cleared", async () => {
+      const user = userEvent.setup();
+      let patchCalled = false;
+
+      server.use(
+        http.get("/api/rounds/1", () => HttpResponse.json(draftRound())),
+        http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+        http.get("/api/rounds/1/menu-items", () => HttpResponse.json([])),
+        http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
+        http.patch("/api/rounds/1", () => {
+          patchCalled = true;
+          return HttpResponse.json(draftRound());
+        }),
+      );
+
+      renderDetail("1");
+
+      await screen.findByText("Edit round");
+      await user.selectOptions(screen.getByLabelText("Food restaurant", { exact: false }), "");
+      await user.click(screen.getByRole("button", { name: "Save changes" }));
+
+      expect(await screen.findByText("Food restaurant is required.")).toBeInTheDocument();
+      expect(patchCalled).toBe(false);
+    });
+  });
 });

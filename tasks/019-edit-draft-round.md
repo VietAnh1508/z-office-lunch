@@ -1,7 +1,7 @@
 ---
 id: 019
 title: Edit a draft round (deadline, food restaurant, drink restaurant)
-status: approved
+status: in_review
 depends_on: [018]
 parallelizable_with: []
 tdd: required
@@ -88,19 +88,39 @@ Let the admin fix a draft round's `deadline`, `foodRestaurantId`, or `drinkResta
 
 ## Implementation Log
 
-(Filled in by /implement-task.)
-
-- red commit: <sha> — `<test_command>` -> N failing
-- green commit: <sha> — `<test_command>` -> all passing
+- red commit: 1090a7f — `pnpm -r typecheck && pnpm --filter web build && pnpm test` -> 18 failing (11 API, 7 frontend)
+- green commit: 73bcb43 — `pnpm -r typecheck && pnpm --filter web build && pnpm test` -> all passing (165/165)
 
 ## Plan Deviations
 
-(Filled in by /implement-task, honestly, before requesting review — write "None." if genuinely nothing applies, don't skip this section silently.)
-
-- Where did the actual implementation differ from the Plan above, and why?
-- Any wrong assumption, dead end, or approach abandoned partway through?
-- Anything the user had to correct or redirect mid-task?
+- Plan step 4 said to add an optional `initialValue` param to `useRequiredField`. That param already exists — task 020 (edit an employee's full name), merged after this task was planned, added it first for its own edit form. No change needed here; `EditRoundForm`'s deadline field just consumes the existing param.
+- The initial red-commit frontend tests used `screen.findByRole("heading", { name: "Edit round" })` and `screen.getByLabelText("Food restaurant")` (exact match), copying the pattern from the plain `<h1>` round title. `CardTitle` renders a `<div>` (no heading role), and the required-field label text includes the `*` marker, so both queries were wrong against this codebase's actual conventions — not a business-logic gap. Fixed to `findByText("Edit round")` and `getByLabelText(..., { exact: false })` (matching `Rounds.test.tsx`'s established pattern) before green; the underlying feature behavior these tests assert didn't change.
 
 ## Review Notes
 
 (Output of the feature-dev:code-reviewer agent, appended by /implement-task.)
+
+### Review scope
+
+Reviewed the task 019 diff (red commit `1090a7f` → green `73bcb43`) adding `PATCH /api/rounds/:id` and the admin "Edit round" form. Note: the diff text handed to the agent only covered `apps/api/src/lib/errors.ts`, `apps/api/src/routes/rounds.ts`, `apps/web/src/routes/admin/RoundDetail.tsx(.test.tsx)`, and `apps/web/src/routes/admin/useRounds.ts` — it did not include a diff hunk for `apps/api/src/routes/rounds.test.ts`. The agent checked the actual file on disk directly and confirmed a full `describe("round update", ...)` block already exists there (deadline-only update, purge-only-changed-side for food and drink independently, clearing drink, non-draft 400 with row left unchanged, 404s, and all the restaurant-type/id validation branches), so the backend logic is in fact well covered.
+
+Files inspected directly: `apps/api/src/routes/rounds.ts`, `apps/api/src/routes/rounds.test.ts`, `apps/api/src/lib/errors.ts`, `apps/web/src/routes/admin/RoundDetail.tsx`, `apps/web/src/routes/admin/RoundDetail.test.tsx`, `apps/web/src/routes/admin/useRounds.ts`, `apps/web/src/routes/admin/useRoundMenuItems.ts`, `apps/web/src/components/ui/card.tsx`, `packages/db/src/index.ts`.
+
+### Findings
+
+No issues at confidence ≥ 80. Specifically checked and ruled out as either correct or pre-existing/non-issues:
+
+- **Purge logic correctness**: `purgeStaleItems` correctly scopes the DELETE by `roundId` and the *old* restaurant's menu-item ids, only runs per side when that side actually changed, and correctly handles drink going from a value → `null` (purges) and `null` → a value (nothing to purge). Confirmed by the existing backend tests (`PATCH changing foodRestaurantId purges only that side's stale curated items`, etc. in `rounds.test.ts:635-770`).
+- **Transaction atomicity**: `db.transaction` is on `drizzle-orm/node-postgres` (`packages/db/src/index.ts:1`), which supports real interactive transactions (unlike `neon-http`), so this isn't the common Drizzle/Neon transaction footgun.
+- **Status-guard ordering**: the draft-only check happens before the transaction is opened, and there's a test asserting the row is left unchanged on a non-draft round.
+- **Frontend query invalidation**: `useUpdateRound`'s `invalidateQueries({ queryKey: roundKeys.all })` (`useRounds.ts:81`) also invalidates `roundMenuItemKeys` because TanStack Query does prefix matching by default (`["rounds"]` is a prefix of `["rounds", roundId, "menu-items", "list"]`), so the curated-items checkboxes correctly refresh after a restaurant-changing edit — this matches the existing `useDeleteRound`/`useUpdateRoundStatus` pattern.
+- **Mutation feedback / form validation rules**: `useUpdateRound` follows `.claude/rules/mutation-feedback.md` exactly (static `toast.success`, `toastApiError` fallback, no interpolation). The deadline field follows `.claude/rules/form-validation.md` via `useRequiredField`; the food-restaurant `<select>` (which can't use that hook) reimplements the same inline-error pattern consistently.
+- `CardTitle` renders a `<div>`, not a semantic heading, everywhere in this codebase (`components/ui/card.tsx`) — the test's switch from `getByRole("heading", ...)` to `getByText(...)` just corrects a wrong assumption in the test, matching how every other `CardTitle` in this file is already tested. Not a regression.
+- `SubmitEvent<HTMLFormElement>` is an established convention already used in `Employees.tsx`, `Rounds.tsx`, `Restaurants.tsx`, `RestaurantDetail.tsx` — not something new/wrong introduced here.
+- The `Number(body.foodRestaurantId)` treating `""` as `0` (passing `Number.isInteger` and yielding a confusing 404 instead of a "required" 400) is copied verbatim from the existing `POST /` route — a pre-existing pattern, not something newly introduced by this diff, and the frontend already blocks submitting an empty food restaurant client-side.
+
+One sub-threshold (confidence ~65-70, not reported as a blocking issue) observation: `ERROR_MESSAGES.roundEditNotDraft` (`apps/api/src/lib/errors.ts:26`) duplicates the exact same string as `roundDeleteNotDraft` (`:25`) under a new key, rather than reusing the existing entry. This was per the task's own Acceptance Criteria (a distinct `roundEditNotDraft` key), so left as-is; harmless functionally, just a minor DRY nit noted for awareness.
+
+### Conclusion
+
+This diff meets the project's standards. The purge-on-restaurant-change logic, transaction scoping, draft-only guard, and validation ordering are correct and backed by a thorough backend test suite; the frontend form correctly follows the mutation-feedback and form-validation conventions and correctly derives the local-time `datetime-local` value from the UTC `deadline`. No changes requested.

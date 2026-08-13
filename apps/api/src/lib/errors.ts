@@ -23,4 +23,5 @@ export const ERROR_MESSAGES = {
   roundOpenAnotherOpen: "another round is already open",
   roundCloseNotOpen: "round is not open",
   roundDeleteNotDraft: "round is not draft",
+  roundEditNotDraft: "round is not draft",
 } as const;

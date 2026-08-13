@@ -600,6 +600,370 @@ describe("rounds routes", () => {
     });
   });
 
+  describe("round update", () => {
+    it("PATCH a deadline-only change on a draft round succeeds, leaving curated food items untouched", async () => {
+      const food = await seedRestaurant(db, { type: "food" });
+      const foodItem = await seedMenuItem(db, { restaurantId: food!.id });
+      const round = await seedRound(db, { foodRestaurantId: food!.id });
+      const curated = await seedRoundMenuItem(db, { roundId: round!.id, menuItemId: foodItem!.id });
+
+      const res = await app.request(
+        `/api/rounds/${round!.id}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            deadline: "2026-09-01T12:00:00.000Z",
+            foodRestaurantId: food!.id,
+          }),
+        },
+        testEnv,
+      );
+
+      expect(res.status).toBe(200);
+      const updated = (await res.json()) as Round;
+      expect(new Date(updated.deadline).toISOString()).toBe("2026-09-01T12:00:00.000Z");
+      expect(updated.foodRestaurantId).toBe(food!.id);
+
+      const [stillCurated] = await db
+        .select()
+        .from(roundMenuItems)
+        .where(eq(roundMenuItems.id, curated!.id));
+      expect(stillCurated).toBeDefined();
+    });
+
+    it("PATCH changing foodRestaurantId purges only that side's stale curated items", async () => {
+      const food = await seedRestaurant(db, { name: "Pho 24", type: "food" });
+      const otherFood = await seedRestaurant(db, { name: "Bun Cha", type: "food" });
+      const drink = await seedRestaurant(db, { name: "Tra Da Corner", type: "drink" });
+      const foodItem = await seedMenuItem(db, { restaurantId: food!.id, name: "Pho Bo" });
+      const drinkItem = await seedMenuItem(db, { restaurantId: drink!.id, name: "Tra Da" });
+      const round = await seedRound(db, {
+        foodRestaurantId: food!.id,
+        drinkRestaurantId: drink!.id,
+      });
+      const curatedFood = await seedRoundMenuItem(db, {
+        roundId: round!.id,
+        menuItemId: foodItem!.id,
+      });
+      const curatedDrink = await seedRoundMenuItem(db, {
+        roundId: round!.id,
+        menuItemId: drinkItem!.id,
+      });
+
+      const res = await app.request(
+        `/api/rounds/${round!.id}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            deadline: round!.deadline.toISOString(),
+            foodRestaurantId: otherFood!.id,
+            drinkRestaurantId: drink!.id,
+          }),
+        },
+        testEnv,
+      );
+
+      expect(res.status).toBe(200);
+      const updated = (await res.json()) as Round;
+      expect(updated.foodRestaurantId).toBe(otherFood!.id);
+
+      const [orphanFood] = await db
+        .select()
+        .from(roundMenuItems)
+        .where(eq(roundMenuItems.id, curatedFood!.id));
+      expect(orphanFood).toBeUndefined();
+
+      const [stillCuratedDrink] = await db
+        .select()
+        .from(roundMenuItems)
+        .where(eq(roundMenuItems.id, curatedDrink!.id));
+      expect(stillCuratedDrink).toBeDefined();
+    });
+
+    it("PATCH changing drinkRestaurantId purges only that side's stale curated items", async () => {
+      const food = await seedRestaurant(db, { type: "food" });
+      const drink = await seedRestaurant(db, { name: "Tra Da Corner", type: "drink" });
+      const otherDrink = await seedRestaurant(db, { name: "Coconut Coffee", type: "drink" });
+      const foodItem = await seedMenuItem(db, { restaurantId: food!.id });
+      const drinkItem = await seedMenuItem(db, { restaurantId: drink!.id });
+      const round = await seedRound(db, {
+        foodRestaurantId: food!.id,
+        drinkRestaurantId: drink!.id,
+      });
+      const curatedFood = await seedRoundMenuItem(db, {
+        roundId: round!.id,
+        menuItemId: foodItem!.id,
+      });
+      const curatedDrink = await seedRoundMenuItem(db, {
+        roundId: round!.id,
+        menuItemId: drinkItem!.id,
+      });
+
+      const res = await app.request(
+        `/api/rounds/${round!.id}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            deadline: round!.deadline.toISOString(),
+            foodRestaurantId: food!.id,
+            drinkRestaurantId: otherDrink!.id,
+          }),
+        },
+        testEnv,
+      );
+
+      expect(res.status).toBe(200);
+      const updated = (await res.json()) as Round;
+      expect(updated.drinkRestaurantId).toBe(otherDrink!.id);
+
+      const [orphanDrink] = await db
+        .select()
+        .from(roundMenuItems)
+        .where(eq(roundMenuItems.id, curatedDrink!.id));
+      expect(orphanDrink).toBeUndefined();
+
+      const [stillCuratedFood] = await db
+        .select()
+        .from(roundMenuItems)
+        .where(eq(roundMenuItems.id, curatedFood!.id));
+      expect(stillCuratedFood).toBeDefined();
+    });
+
+    it("PATCH clearing drinkRestaurantId sets it to null and purges its curated items", async () => {
+      const food = await seedRestaurant(db, { type: "food" });
+      const drink = await seedRestaurant(db, { name: "Tra Da Corner", type: "drink" });
+      const drinkItem = await seedMenuItem(db, { restaurantId: drink!.id });
+      const round = await seedRound(db, {
+        foodRestaurantId: food!.id,
+        drinkRestaurantId: drink!.id,
+      });
+      const curatedDrink = await seedRoundMenuItem(db, {
+        roundId: round!.id,
+        menuItemId: drinkItem!.id,
+      });
+
+      const res = await app.request(
+        `/api/rounds/${round!.id}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            deadline: round!.deadline.toISOString(),
+            foodRestaurantId: food!.id,
+          }),
+        },
+        testEnv,
+      );
+
+      expect(res.status).toBe(200);
+      const updated = (await res.json()) as Round;
+      expect(updated.drinkRestaurantId).toBeNull();
+
+      const [orphanDrink] = await db
+        .select()
+        .from(roundMenuItems)
+        .where(eq(roundMenuItems.id, curatedDrink!.id));
+      expect(orphanDrink).toBeUndefined();
+    });
+
+    it("PATCH on an open round returns 400 and leaves the row unchanged", async () => {
+      const food = await seedRestaurant(db, { type: "food" });
+      const round = await seedRound(db, { foodRestaurantId: food!.id, status: "open" });
+
+      const res = await app.request(
+        `/api/rounds/${round!.id}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            deadline: "2026-09-01T12:00:00.000Z",
+            foodRestaurantId: food!.id,
+          }),
+        },
+        testEnv,
+      );
+
+      expect(res.status).toBe(400);
+
+      const [unchanged] = await db.select().from(rounds).where(eq(rounds.id, round!.id));
+      expect(unchanged!.deadline).toEqual(round!.deadline);
+    });
+
+    it("PATCH on a closed round returns 400", async () => {
+      const food = await seedRestaurant(db, { type: "food" });
+      const round = await seedRound(db, { foodRestaurantId: food!.id, status: "closed" });
+
+      const res = await app.request(
+        `/api/rounds/${round!.id}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            deadline: "2026-09-01T12:00:00.000Z",
+            foodRestaurantId: food!.id,
+          }),
+        },
+        testEnv,
+      );
+
+      expect(res.status).toBe(400);
+    });
+
+    it("PATCH for a nonexistent round returns 404", async () => {
+      const food = await seedRestaurant(db, { type: "food" });
+
+      const res = await app.request(
+        "/api/rounds/999999",
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            deadline: "2026-09-01T12:00:00.000Z",
+            foodRestaurantId: food!.id,
+          }),
+        },
+        testEnv,
+      );
+
+      expect(res.status).toBe(404);
+    });
+
+    it("PATCH with a non-integer id returns 404", async () => {
+      const res = await app.request(
+        "/api/rounds/abc",
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ deadline: "2026-09-01T12:00:00.000Z", foodRestaurantId: 1 }),
+        },
+        testEnv,
+      );
+
+      expect(res.status).toBe(404);
+    });
+
+    it("PATCH with an invalid deadline returns 400", async () => {
+      const food = await seedRestaurant(db, { type: "food" });
+      const round = await seedRound(db, { foodRestaurantId: food!.id });
+
+      const res = await app.request(
+        `/api/rounds/${round!.id}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ foodRestaurantId: food!.id }),
+        },
+        testEnv,
+      );
+
+      expect(res.status).toBe(400);
+    });
+
+    it("PATCH with a non-integer foodRestaurantId returns 400", async () => {
+      const food = await seedRestaurant(db, { type: "food" });
+      const round = await seedRound(db, { foodRestaurantId: food!.id });
+
+      const res = await app.request(
+        `/api/rounds/${round!.id}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ deadline: "2026-09-01T12:00:00.000Z" }),
+        },
+        testEnv,
+      );
+
+      expect(res.status).toBe(400);
+    });
+
+    it("PATCH with a foodRestaurantId referencing a missing restaurant returns 404", async () => {
+      const food = await seedRestaurant(db, { type: "food" });
+      const round = await seedRound(db, { foodRestaurantId: food!.id });
+
+      const res = await app.request(
+        `/api/rounds/${round!.id}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            deadline: "2026-09-01T12:00:00.000Z",
+            foodRestaurantId: 999999,
+          }),
+        },
+        testEnv,
+      );
+
+      expect(res.status).toBe(404);
+    });
+
+    it("PATCH with a foodRestaurantId pointing at a drink restaurant returns 400", async () => {
+      const food = await seedRestaurant(db, { type: "food" });
+      const drink = await seedRestaurant(db, { type: "drink" });
+      const round = await seedRound(db, { foodRestaurantId: food!.id });
+
+      const res = await app.request(
+        `/api/rounds/${round!.id}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            deadline: "2026-09-01T12:00:00.000Z",
+            foodRestaurantId: drink!.id,
+          }),
+        },
+        testEnv,
+      );
+
+      expect(res.status).toBe(400);
+    });
+
+    it("PATCH with a non-integer drinkRestaurantId returns 400", async () => {
+      const food = await seedRestaurant(db, { type: "food" });
+      const round = await seedRound(db, { foodRestaurantId: food!.id });
+
+      const res = await app.request(
+        `/api/rounds/${round!.id}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            deadline: "2026-09-01T12:00:00.000Z",
+            foodRestaurantId: food!.id,
+            drinkRestaurantId: "abc",
+          }),
+        },
+        testEnv,
+      );
+
+      expect(res.status).toBe(400);
+    });
+
+    it("PATCH with a drinkRestaurantId pointing at a food restaurant returns 400", async () => {
+      const food = await seedRestaurant(db, { type: "food" });
+      const otherFood = await seedRestaurant(db, { name: "Other Food", type: "food" });
+      const round = await seedRound(db, { foodRestaurantId: food!.id });
+
+      const res = await app.request(
+        `/api/rounds/${round!.id}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            deadline: "2026-09-01T12:00:00.000Z",
+            foodRestaurantId: food!.id,
+            drinkRestaurantId: otherFood!.id,
+          }),
+        },
+        testEnv,
+      );
+
+      expect(res.status).toBe(400);
+    });
+  });
+
   describe("public round view", () => {
     it("GET /public for a draft round returns 404", async () => {
       const food = await seedRestaurant(db, { type: "food" });
