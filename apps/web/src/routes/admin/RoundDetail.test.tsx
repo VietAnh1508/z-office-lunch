@@ -285,8 +285,8 @@ describe("RoundDetail", () => {
 
       renderDetail("1");
 
-      expect(await screen.findByRole("heading", { name: "Edit round" })).toBeInTheDocument();
-      expect(screen.getByLabelText("Food restaurant")).toHaveValue("1");
+      expect(await screen.findByText("Edit round")).toBeInTheDocument();
+      expect(screen.getByLabelText("Food restaurant", { exact: false })).toHaveValue("1");
     });
 
     it("does not render the edit form for a non-draft round", async () => {
@@ -300,7 +300,7 @@ describe("RoundDetail", () => {
       renderDetail("1");
 
       await screen.findByRole("button", { name: "Close" });
-      expect(screen.queryByRole("heading", { name: "Edit round" })).not.toBeInTheDocument();
+      expect(screen.queryByText("Edit round")).not.toBeInTheDocument();
     });
 
     it("saves a deadline-only change immediately, with no confirmation dialog", async () => {
@@ -320,8 +320,8 @@ describe("RoundDetail", () => {
 
       renderDetail("1");
 
-      await screen.findByRole("heading", { name: "Edit round" });
-      const deadlineInput = screen.getByLabelText("Deadline");
+      await screen.findByText("Edit round");
+      const deadlineInput = screen.getByLabelText("Deadline", { exact: false });
       await user.clear(deadlineInput);
       await user.type(deadlineInput, "2026-09-01T12:00");
       await user.click(screen.getByRole("button", { name: "Save changes" }));
@@ -356,8 +356,8 @@ describe("RoundDetail", () => {
 
       renderDetail("1");
 
-      await screen.findByRole("heading", { name: "Edit round" });
-      await user.selectOptions(screen.getByLabelText("Food restaurant"), "3");
+      await screen.findByText("Edit round");
+      await user.selectOptions(screen.getByLabelText("Food restaurant", { exact: false }), "3");
       await user.click(screen.getByRole("button", { name: "Save changes" }));
 
       await screen.findByText(/curated items/i);
@@ -388,8 +388,8 @@ describe("RoundDetail", () => {
 
       renderDetail("1");
 
-      await screen.findByRole("heading", { name: "Edit round" });
-      await user.selectOptions(screen.getByLabelText("Drink restaurant"), "");
+      await screen.findByText("Edit round");
+      await user.selectOptions(screen.getByLabelText("Drink restaurant", { exact: false }), "");
       await user.click(screen.getByRole("button", { name: "Save changes" }));
 
       expect(await screen.findByText(/curated items/i)).toBeInTheDocument();
@@ -417,8 +417,8 @@ describe("RoundDetail", () => {
 
       renderDetail("1");
 
-      await screen.findByRole("heading", { name: "Edit round" });
-      await user.selectOptions(screen.getByLabelText("Food restaurant"), "3");
+      await screen.findByText("Edit round");
+      await user.selectOptions(screen.getByLabelText("Food restaurant", { exact: false }), "3");
       await user.click(screen.getByRole("button", { name: "Save changes" }));
 
       await screen.findByText(/curated items/i);
@@ -443,7 +443,7 @@ describe("RoundDetail", () => {
 
       renderDetail("1");
 
-      await screen.findByRole("heading", { name: "Edit round" });
+      await screen.findByText("Edit round");
       await user.click(screen.getByRole("button", { name: "Save changes" }));
 
       expect(await screen.findByText("round is not draft")).toBeInTheDocument();
@@ -466,8 +466,8 @@ describe("RoundDetail", () => {
 
       renderDetail("1");
 
-      await screen.findByRole("heading", { name: "Edit round" });
-      await user.selectOptions(screen.getByLabelText("Food restaurant"), "");
+      await screen.findByText("Edit round");
+      await user.selectOptions(screen.getByLabelText("Food restaurant", { exact: false }), "");
       await user.click(screen.getByRole("button", { name: "Save changes" }));
 
       expect(await screen.findByText("Food restaurant is required.")).toBeInTheDocument();

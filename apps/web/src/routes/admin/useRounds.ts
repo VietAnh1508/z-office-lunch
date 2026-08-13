@@ -20,6 +20,12 @@ type CreateRoundInput = {
   deadline: string;
 };
 
+type UpdateRoundInput = {
+  deadline: string;
+  foodRestaurantId: number;
+  drinkRestaurantId?: number;
+};
+
 export const roundKeys = {
   all: ["rounds"] as const,
   list: () => [...roundKeys.all, "list"] as const,
@@ -63,6 +69,19 @@ export function useDeleteRound() {
       toast.success("Round deleted");
     },
     onError: (error) => toastApiError(error, "Could not delete round."),
+  });
+}
+
+export function useUpdateRound(roundId: number) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: UpdateRoundInput) => api.patch<Round>(`/rounds/${roundId}`, input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: roundKeys.all });
+      toast.success("Round updated");
+    },
+    onError: (error) => toastApiError(error, "Could not update round."),
   });
 }
 

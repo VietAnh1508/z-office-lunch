@@ -1,4 +1,4 @@
-import { and, eq, ne, sql } from "drizzle-orm";
+import { and, eq, inArray, ne, sql } from "drizzle-orm";
 import { menuItems, restaurants, roundMenuItems, rounds } from "db";
 import { Hono } from "hono";
 import type { Bindings } from "../bindings";
@@ -260,6 +260,111 @@ roundsRoute.delete("/:id/menu-items/:itemId", async (c) => {
     console.error(
       JSON.stringify({ message: "failed to remove round menu item", error: String(e) }),
     );
+    return c.json({ error: ERROR_MESSAGES.internal }, 500);
+  } finally {
+    await db.$client.end();
+  }
+});
+
+roundsRoute.patch("/:id", async (c) => {
+  const id = Number(c.req.param("id"));
+  if (!Number.isInteger(id)) {
+    return c.json({ error: ERROR_MESSAGES.roundNotFound }, 404);
+  }
+
+  const body = await c.req.json().catch(() => ({}));
+  const foodRestaurantId = Number(body.foodRestaurantId);
+  const deadline =
+    typeof body.deadline === "string" || typeof body.deadline === "number"
+      ? new Date(body.deadline)
+      : null;
+
+  if (!Number.isInteger(foodRestaurantId)) {
+    return c.json({ error: ERROR_MESSAGES.foodRestaurantIdRequired }, 400);
+  }
+  if (!deadline || Number.isNaN(deadline.getTime())) {
+    return c.json({ error: ERROR_MESSAGES.deadlineInvalid }, 400);
+  }
+
+  let drinkRestaurantId: number | null = null;
+  if (
+    body.drinkRestaurantId !== undefined &&
+    body.drinkRestaurantId !== null &&
+    body.drinkRestaurantId !== ""
+  ) {
+    const parsed = Number(body.drinkRestaurantId);
+    if (!Number.isInteger(parsed)) {
+      return c.json({ error: ERROR_MESSAGES.drinkRestaurantIdInvalid }, 400);
+    }
+    drinkRestaurantId = parsed;
+  }
+
+  const db = getDb(c);
+  try {
+    const [round] = await db.select().from(rounds).where(eq(rounds.id, id));
+    if (!round) {
+      return c.json({ error: ERROR_MESSAGES.roundNotFound }, 404);
+    }
+    if (round.status !== "draft") {
+      return c.json({ error: ERROR_MESSAGES.roundEditNotDraft }, 400);
+    }
+
+    const [foodRestaurant] = await db
+      .select()
+      .from(restaurants)
+      .where(eq(restaurants.id, foodRestaurantId));
+    if (!foodRestaurant) {
+      return c.json({ error: ERROR_MESSAGES.restaurantNotFound }, 404);
+    }
+    if (foodRestaurant.type !== "food") {
+      return c.json({ error: ERROR_MESSAGES.foodRestaurantTypeInvalid }, 400);
+    }
+
+    if (drinkRestaurantId !== null) {
+      const [drinkRestaurant] = await db
+        .select()
+        .from(restaurants)
+        .where(eq(restaurants.id, drinkRestaurantId));
+      if (!drinkRestaurant) {
+        return c.json({ error: ERROR_MESSAGES.restaurantNotFound }, 404);
+      }
+      if (drinkRestaurant.type !== "drink") {
+        return c.json({ error: ERROR_MESSAGES.drinkRestaurantTypeInvalid }, 400);
+      }
+    }
+
+    const foodChanged = foodRestaurantId !== round.foodRestaurantId;
+    const drinkChanged = drinkRestaurantId !== round.drinkRestaurantId;
+
+    const [row] = await db.transaction(async (tx) => {
+      const purgeStaleItems = (restaurantId: number) =>
+        tx.delete(roundMenuItems).where(
+          and(
+            eq(roundMenuItems.roundId, id),
+            inArray(
+              roundMenuItems.menuItemId,
+              tx.select({ id: menuItems.id }).from(menuItems).where(eq(menuItems.restaurantId, restaurantId)),
+            ),
+          ),
+        );
+
+      if (foodChanged) {
+        await purgeStaleItems(round.foodRestaurantId);
+      }
+      if (drinkChanged && round.drinkRestaurantId !== null) {
+        await purgeStaleItems(round.drinkRestaurantId);
+      }
+
+      return tx
+        .update(rounds)
+        .set({ foodRestaurantId, drinkRestaurantId, deadline })
+        .where(eq(rounds.id, id))
+        .returning();
+    });
+
+    return c.json(row);
+  } catch (e) {
+    console.error(JSON.stringify({ message: "failed to update round", error: String(e) }));
     return c.json({ error: ERROR_MESSAGES.internal }, 500);
   } finally {
     await db.$client.end();
