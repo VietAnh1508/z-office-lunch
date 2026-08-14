@@ -7,13 +7,16 @@ import { Restaurants } from "@/routes/admin/Restaurants";
 import { RoundDetail } from "@/routes/admin/RoundDetail";
 import { Rounds } from "@/routes/admin/Rounds";
 import { BrowseRounds } from "@/routes/public/BrowseRounds";
+import { PublicLayout } from "@/routes/public/PublicLayout";
 import { Round } from "@/routes/public/Round";
 
 function App() {
   return (
     <Routes>
-      <Route index element={<BrowseRounds />} />
-      <Route path="r/:roundId" element={<Round />} />
+      <Route element={<PublicLayout />}>
+        <Route index element={<BrowseRounds />} />
+        <Route path="r/:roundId" element={<Round />} />
+      </Route>
       <Route path="admin" element={<AdminLayout />}>
         <Route index element={<AdminOverview />} />
         <Route path="restaurants" element={<Restaurants />} />
