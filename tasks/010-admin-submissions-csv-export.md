@@ -1,7 +1,7 @@
 ---
 id: 010
 title: Admin submissions view + CSV export
-status: in_review
+status: done
 depends_on: [007, 009]
 parallelizable_with: []
 tdd: required
