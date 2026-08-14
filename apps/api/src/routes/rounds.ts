@@ -1,6 +1,6 @@
 import { and, eq, inArray, ne, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
-import { menuItems, restaurants, roundMenuItems, rounds } from "db";
+import { employees, menuItems, restaurants, roundMenuItems, rounds, submissions } from "db";
 import { Hono } from "hono";
 import type { Bindings } from "../bindings";
 import { ERROR_MESSAGES } from "../lib/errors";
@@ -492,6 +492,117 @@ roundsRoute.patch("/:id/status", async (c) => {
     console.error(
       JSON.stringify({ message: "failed to update round status", error: String(e) }),
     );
+    return c.json({ error: ERROR_MESSAGES.internal }, 500);
+  } finally {
+    await db.$client.end();
+  }
+});
+
+roundsRoute.post("/:id/submissions", async (c) => {
+  const roundId = Number(c.req.param("id"));
+  const body = await c.req.json().catch(() => ({}));
+  const employeeId = Number(body.employeeId);
+  const foodRoundMenuItemId = Number(body.foodRoundMenuItemId);
+  const foodNote = typeof body.foodNote === "string" && body.foodNote.trim() ? body.foodNote.trim() : null;
+
+  if (!Number.isInteger(roundId)) {
+    return c.json({ error: ERROR_MESSAGES.roundNotFound }, 404);
+  }
+  if (!Number.isInteger(employeeId)) {
+    return c.json({ error: ERROR_MESSAGES.employeeIdRequired }, 400);
+  }
+  if (!Number.isInteger(foodRoundMenuItemId)) {
+    return c.json({ error: ERROR_MESSAGES.foodRoundMenuItemIdRequired }, 400);
+  }
+
+  let drinkRoundMenuItemId: number | null = null;
+  if (
+    body.drinkRoundMenuItemId !== undefined &&
+    body.drinkRoundMenuItemId !== null &&
+    body.drinkRoundMenuItemId !== ""
+  ) {
+    const parsed = Number(body.drinkRoundMenuItemId);
+    if (!Number.isInteger(parsed)) {
+      return c.json({ error: ERROR_MESSAGES.drinkRoundMenuItemIdInvalid }, 400);
+    }
+    drinkRoundMenuItemId = parsed;
+  }
+  const drinkNote =
+    drinkRoundMenuItemId !== null && typeof body.drinkNote === "string" && body.drinkNote.trim()
+      ? body.drinkNote.trim()
+      : null;
+
+  const db = getDb(c);
+  try {
+    const [round] = await db.select().from(rounds).where(eq(rounds.id, roundId));
+    if (!round) {
+      return c.json({ error: ERROR_MESSAGES.roundNotFound }, 404);
+    }
+    if (round.status !== "open") {
+      return c.json({ error: ERROR_MESSAGES.roundNotOpenForSubmission }, 400);
+    }
+    // Checked independently of `status` — closing a round is a separate admin
+    // action from the deadline, so a round left open past its deadline must
+    // still reject submissions.
+    if (new Date() > round.deadline) {
+      return c.json({ error: ERROR_MESSAGES.roundDeadlinePassed }, 400);
+    }
+
+    const [employee] = await db.select().from(employees).where(eq(employees.id, employeeId));
+    if (!employee) {
+      return c.json({ error: ERROR_MESSAGES.employeeNotFound }, 404);
+    }
+
+    const selectRoundMenuItem = (id: number) =>
+      db
+        .select({ id: roundMenuItems.id, restaurantId: menuItems.restaurantId })
+        .from(roundMenuItems)
+        .innerJoin(menuItems, eq(roundMenuItems.menuItemId, menuItems.id))
+        .where(and(eq(roundMenuItems.id, id), eq(roundMenuItems.roundId, roundId)));
+
+    const [foodItem] = await selectRoundMenuItem(foodRoundMenuItemId);
+    if (!foodItem) {
+      return c.json({ error: ERROR_MESSAGES.roundMenuItemNotFound }, 404);
+    }
+    if (foodItem.restaurantId !== round.foodRestaurantId) {
+      return c.json({ error: ERROR_MESSAGES.foodRoundMenuItemInvalid }, 400);
+    }
+
+    if (drinkRoundMenuItemId !== null) {
+      if (round.drinkRestaurantId === null) {
+        return c.json({ error: ERROR_MESSAGES.submissionNoDrinkRestaurant }, 400);
+      }
+      const [drinkItem] = await selectRoundMenuItem(drinkRoundMenuItemId);
+      if (!drinkItem) {
+        return c.json({ error: ERROR_MESSAGES.roundMenuItemNotFound }, 404);
+      }
+      if (drinkItem.restaurantId !== round.drinkRestaurantId) {
+        return c.json({ error: ERROR_MESSAGES.drinkRoundMenuItemInvalid }, 400);
+      }
+    }
+
+    const [existing] = await db
+      .select()
+      .from(submissions)
+      .where(and(eq(submissions.roundId, roundId), eq(submissions.employeeId, employeeId)));
+    if (existing) {
+      return c.json({ error: ERROR_MESSAGES.submissionDuplicate }, 409);
+    }
+
+    const [row] = await db
+      .insert(submissions)
+      .values({
+        roundId,
+        employeeId,
+        foodRoundMenuItemId,
+        foodNote,
+        drinkRoundMenuItemId,
+        drinkNote,
+      })
+      .returning();
+    return c.json(row, 201);
+  } catch (e) {
+    console.error(JSON.stringify({ message: "failed to create submission", error: String(e) }));
     return c.json({ error: ERROR_MESSAGES.internal }, 500);
   } finally {
     await db.$client.end();

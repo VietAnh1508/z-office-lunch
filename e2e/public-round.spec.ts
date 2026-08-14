@@ -35,7 +35,10 @@ test("employee-facing public round link reflects open then closed state", async 
 
   await page.goto(`/r/${roundId}`);
   await expect(page.getByRole("heading", { name: roundLabel })).toBeVisible();
-  await expect(page.getByText("Pho Bo")).toBeVisible();
+  // The submission form's own flow (task 009) is covered end-to-end in
+  // public-round-submission.spec.ts — this test only cares that the food
+  // item made it into the picker, not that a select's <option> is "visible".
+  await expect(page.getByLabel("Food item", { exact: false })).toContainText("Pho Bo");
   await expect(page.getByText("This round is closed.")).not.toBeVisible();
 
   await page.goto(`/admin/rounds/${roundId}`);
