@@ -1169,4 +1169,111 @@ describe("rounds routes", () => {
       expect(body.foodItems).toHaveLength(1);
     });
   });
+
+  describe("public rounds list", () => {
+    type PublicRound = {
+      id: number;
+      label: string;
+      status: string;
+      deadline: string;
+      foodRestaurantName: string;
+      drinkRestaurantName: string | null;
+    };
+
+    it("GET /api/rounds/public returns only open/closed rounds, draft's label absent", async () => {
+      const food = await seedRestaurant(db, { type: "food" });
+      await seedRound(db, { foodRestaurantId: food!.id, label: "Draft Round" });
+      await seedRound(db, { foodRestaurantId: food!.id, label: "Open Round", status: "open" });
+      await seedRound(db, { foodRestaurantId: food!.id, label: "Closed Round", status: "closed" });
+
+      const res = await app.request("/api/rounds/public", {}, testEnv);
+
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as PublicRound[];
+      const labels = body.map((r) => r.label);
+      expect(labels).toContain("Open Round");
+      expect(labels).toContain("Closed Round");
+      expect(labels).not.toContain("Draft Round");
+    });
+
+    it("GET /api/rounds/public returns 200 with an array (regression guard against /:id shadowing)", async () => {
+      const food = await seedRestaurant(db, { type: "food" });
+      await seedRound(db, { foodRestaurantId: food!.id, status: "open" });
+
+      const res = await app.request("/api/rounds/public", {}, testEnv);
+
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(Array.isArray(body)).toBe(true);
+    });
+
+    it("GET /api/rounds/public sorts the response by deadline ascending", async () => {
+      const food = await seedRestaurant(db, { type: "food" });
+      await seedRound(db, {
+        foodRestaurantId: food!.id,
+        label: "Later",
+        status: "open",
+        deadline: new Date("2026-09-01T00:00:00.000Z"),
+      });
+      await seedRound(db, {
+        foodRestaurantId: food!.id,
+        label: "Earlier",
+        status: "closed",
+        deadline: new Date("2026-08-01T00:00:00.000Z"),
+      });
+
+      const res = await app.request("/api/rounds/public", {}, testEnv);
+
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as PublicRound[];
+      expect(body.map((r) => r.label)).toEqual(["Earlier", "Later"]);
+    });
+
+    it("GET /api/rounds/public joins restaurant names, not raw ids", async () => {
+      const food = await seedRestaurant(db, { name: "Pho 24", type: "food" });
+      const drink = await seedRestaurant(db, { name: "Tra Da Corner", type: "drink" });
+      await seedRound(db, {
+        foodRestaurantId: food!.id,
+        drinkRestaurantId: drink!.id,
+        status: "open",
+      });
+
+      const res = await app.request("/api/rounds/public", {}, testEnv);
+
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as PublicRound[];
+      expect(body[0]?.foodRestaurantName).toBe("Pho 24");
+      expect(body[0]?.drinkRestaurantName).toBe("Tra Da Corner");
+    });
+
+    it("GET /api/rounds/public returns drinkRestaurantName: null when the round has no drink restaurant", async () => {
+      const food = await seedRestaurant(db, { type: "food" });
+      await seedRound(db, { foodRestaurantId: food!.id, status: "open" });
+
+      const res = await app.request("/api/rounds/public", {}, testEnv);
+
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as PublicRound[];
+      expect("drinkRestaurantName" in body[0]!).toBe(true);
+      expect(body[0]?.drinkRestaurantName).toBeNull();
+    });
+
+    it("GET /api/rounds/public returns 200, [] when no rounds match", async () => {
+      const food = await seedRestaurant(db, { type: "food" });
+      await seedRound(db, { foodRestaurantId: food!.id, label: "Only Draft" });
+
+      const res = await app.request("/api/rounds/public", {}, testEnv);
+
+      expect(res.status).toBe(200);
+      expect(await res.json()).toEqual([]);
+    });
+
+    it("GET /api/rounds/public returns a structured 500 when the database is unreachable", async () => {
+      const res = await app.request("/api/rounds/public", {}, unreachableEnv);
+
+      expect(res.status).toBe(500);
+      const body = (await res.json()) as { error?: string };
+      expect(body.error).toBeTruthy();
+    });
+  });
 });
