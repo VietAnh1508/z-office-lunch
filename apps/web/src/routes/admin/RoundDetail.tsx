@@ -13,10 +13,12 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useRequiredField } from "@/hooks/useRequiredField";
+import { toCsv } from "@/lib/csv";
+import { downloadCsv } from "@/lib/download";
 import { RoundStatusBadge } from "./RoundStatusBadge";
 import type { MenuItem } from "./useMenuItems";
 import { useMenuItems } from "./useMenuItems";
@@ -27,6 +29,7 @@ import {
   useRemoveRoundMenuItem,
   useRoundMenuItems,
 } from "./useRoundMenuItems";
+import { useRoundSubmissions } from "./useRoundSubmissions";
 import { useDeleteRound, useRound, useUpdateRound, useUpdateRoundStatus } from "./useRounds";
 import type { Round } from "./useRounds";
 
@@ -184,6 +187,7 @@ export function RoundDetail() {
   const { data: round, isPending: roundPending } = useRound(roundId);
   const { data: restaurants } = useRestaurants();
   const { data: curated } = useRoundMenuItems(roundId);
+  const { data: submissions } = useRoundSubmissions(roundId);
   const addItem = useAddRoundMenuItem(roundId);
   const removeItem = useRemoveRoundMenuItem(roundId);
   const updateStatus = useUpdateRoundStatus(roundId);
@@ -248,6 +252,19 @@ export function RoundDetail() {
         ))}
       </ul>
     );
+  }
+
+  function handleExportCsv() {
+    if (!submissions || submissions.length === 0) return;
+    const headers = ["Employee", "Food", "Food note", "Drink", "Drink note"];
+    const rows = submissions.map((s) => [
+      s.employeeName,
+      s.foodName,
+      s.foodNote,
+      s.drinkName,
+      s.drinkNote,
+    ]);
+    downloadCsv(`round-${roundId}-submissions.csv`, toCsv(headers, rows));
   }
 
   return (
@@ -347,6 +364,49 @@ export function RoundDetail() {
           </Card>
         )}
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Submissions</CardTitle>
+          {submissions && submissions.length > 0 && (
+            <CardAction>
+              <Button type="button" variant="outline" onClick={handleExportCsv}>
+                Export CSV
+              </Button>
+            </CardAction>
+          )}
+        </CardHeader>
+        <CardContent>
+          {!submissions || submissions.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No submissions yet.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-left text-muted-foreground">
+                    <th className="py-1.5 pr-4 font-medium">Employee</th>
+                    <th className="py-1.5 pr-4 font-medium">Food</th>
+                    <th className="py-1.5 pr-4 font-medium">Food note</th>
+                    <th className="py-1.5 pr-4 font-medium">Drink</th>
+                    <th className="py-1.5 font-medium">Drink note</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {submissions.map((submission) => (
+                    <tr key={submission.id}>
+                      <td className="py-1.5 pr-4">{submission.employeeName}</td>
+                      <td className="py-1.5 pr-4">{submission.foodName}</td>
+                      <td className="py-1.5 pr-4">{submission.foodNote}</td>
+                      <td className="py-1.5 pr-4">{submission.drinkName}</td>
+                      <td className="py-1.5">{submission.drinkNote}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

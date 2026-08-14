@@ -10,6 +10,10 @@ export const roundsRoute = new Hono<{ Bindings: Bindings }>();
 
 const foodRestaurantAlias = alias(restaurants, "food_restaurant");
 const drinkRestaurantAlias = alias(restaurants, "drink_restaurant");
+const foodRoundMenuItemAlias = alias(roundMenuItems, "food_round_menu_item");
+const drinkRoundMenuItemAlias = alias(roundMenuItems, "drink_round_menu_item");
+const foodMenuItemAlias = alias(menuItems, "food_menu_item");
+const drinkMenuItemAlias = alias(menuItems, "drink_menu_item");
 
 roundsRoute.post("/", async (c) => {
   const body = await c.req.json().catch(() => ({}));
@@ -603,6 +607,51 @@ roundsRoute.post("/:id/submissions", async (c) => {
     return c.json(row, 201);
   } catch (e) {
     console.error(JSON.stringify({ message: "failed to create submission", error: String(e) }));
+    return c.json({ error: ERROR_MESSAGES.internal }, 500);
+  } finally {
+    await db.$client.end();
+  }
+});
+
+roundsRoute.get("/:id/submissions", async (c) => {
+  const roundId = Number(c.req.param("id"));
+  if (!Number.isInteger(roundId)) {
+    return c.json([]);
+  }
+
+  const db = getDb(c);
+  try {
+    // Explicit column selection (never `price`, never a raw *RoundMenuItemId
+    // FK) so the client gets already-resolved names and never has to
+    // re-join or remember to drop a field itself.
+    const rows = await db
+      .select({
+        id: submissions.id,
+        employeeName: employees.fullName,
+        foodName: foodMenuItemAlias.name,
+        foodNote: submissions.foodNote,
+        drinkName: drinkMenuItemAlias.name,
+        drinkNote: submissions.drinkNote,
+      })
+      .from(submissions)
+      .innerJoin(employees, eq(submissions.employeeId, employees.id))
+      .innerJoin(
+        foodRoundMenuItemAlias,
+        eq(submissions.foodRoundMenuItemId, foodRoundMenuItemAlias.id),
+      )
+      .innerJoin(foodMenuItemAlias, eq(foodRoundMenuItemAlias.menuItemId, foodMenuItemAlias.id))
+      .leftJoin(
+        drinkRoundMenuItemAlias,
+        eq(submissions.drinkRoundMenuItemId, drinkRoundMenuItemAlias.id),
+      )
+      .leftJoin(drinkMenuItemAlias, eq(drinkRoundMenuItemAlias.menuItemId, drinkMenuItemAlias.id))
+      .where(eq(submissions.roundId, roundId))
+      .orderBy(submissions.id);
+    return c.json(rows);
+  } catch (e) {
+    console.error(
+      JSON.stringify({ message: "failed to list round submissions", error: String(e) }),
+    );
     return c.json({ error: ERROR_MESSAGES.internal }, 500);
   } finally {
     await db.$client.end();
