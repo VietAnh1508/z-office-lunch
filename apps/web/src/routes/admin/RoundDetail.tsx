@@ -42,6 +42,8 @@ function toDatetimeLocalValue(isoDeadline: string): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
+const SUBMISSION_COLUMNS = ["Employee", "Food", "Food note", "Drink", "Drink note"];
+
 function EditRoundForm({
   round,
   restaurants,
@@ -256,7 +258,6 @@ export function RoundDetail() {
 
   function handleExportCsv() {
     if (!submissions || submissions.length === 0) return;
-    const headers = ["Employee", "Food", "Food note", "Drink", "Drink note"];
     const rows = submissions.map((s) => [
       s.employeeName,
       s.foodName,
@@ -264,7 +265,7 @@ export function RoundDetail() {
       s.drinkName,
       s.drinkNote,
     ]);
-    downloadCsv(`round-${roundId}-submissions.csv`, toCsv(headers, rows));
+    downloadCsv(`round-${roundId}-submissions.csv`, toCsv(SUBMISSION_COLUMNS, rows));
   }
 
   return (
@@ -384,11 +385,18 @@ export function RoundDetail() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b text-left text-muted-foreground">
-                    <th className="py-1.5 pr-4 font-medium">Employee</th>
-                    <th className="py-1.5 pr-4 font-medium">Food</th>
-                    <th className="py-1.5 pr-4 font-medium">Food note</th>
-                    <th className="py-1.5 pr-4 font-medium">Drink</th>
-                    <th className="py-1.5 font-medium">Drink note</th>
+                    {SUBMISSION_COLUMNS.map((column, index) => (
+                      <th
+                        key={column}
+                        className={
+                          index === SUBMISSION_COLUMNS.length - 1
+                            ? "py-1.5 font-medium"
+                            : "py-1.5 pr-4 font-medium"
+                        }
+                      >
+                        {column}
+                      </th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
