@@ -1,7 +1,7 @@
 ---
 id: 022
 title: Public rounds-list API endpoint (open/closed only)
-status: in_review
+status: done
 depends_on: []
 parallelizable_with: []
 tdd: required
