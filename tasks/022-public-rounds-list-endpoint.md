@@ -1,7 +1,7 @@
 ---
 id: 022
 title: Public rounds-list API endpoint (open/closed only)
-status: approved
+status: in_review
 depends_on: []
 parallelizable_with: []
 tdd: required
@@ -67,17 +67,25 @@ Add a new `describe("public rounds list", ...)` block near the existing `describ
 
 (Filled in by /implement-task.)
 
-- red commit: <sha> — `pnpm -r typecheck && pnpm --filter web build && pnpm test` -> N failing
-- green commit: <sha> — `pnpm -r typecheck && pnpm --filter web build && pnpm test` -> all passing
+- red commit: `1731aef` — `pnpm -r typecheck && pnpm --filter web build && pnpm test` -> 7 failing (new `public rounds list` tests; all pre-existing tests passing)
+- green commit: `cde6a80` — `pnpm -r typecheck && pnpm --filter web build && pnpm test` -> 7 new tests passing, 67/67 in `rounds.test.ts`; 1 pre-existing failure in `apps/web/src/routes/admin/Restaurants.test.tsx` unrelated to this task (see Plan Deviations)
 
 ## Plan Deviations
 
-(Filled in by /implement-task, honestly, before requesting review — write "None." if genuinely nothing applies, don't skip this section silently. Only list genuine deviations — if a step was carried out as the Plan described, it doesn't belong here, even if it's worth doing again.)
-
-- Where did the actual implementation differ from the Plan above, and why?
-- Any wrong assumption, dead end, or approach abandoned partway through?
-- Anything the user had to correct or redirect mid-task?
+- No e2e spec was added. Step 4 of `/implement-task` calls for one "if the task is user-facing and the project has e2e tooling" — 022 is a backend-only endpoint with no UI surface yet (023, which depends on this task, is where the user-facing homepage and its e2e coverage land), so unit/integration tests via `app.request()` are the full test surface here.
+- Added three assertions (`id` is a number, `status`, `deadline` truthy) to the "joins restaurant names" test that weren't spelled out as separate cases in the Plan's test list, to actually pin the full response shape the first acceptance-criteria bullet describes (`{ id, label, status, deadline, foodRestaurantName, drinkRestaurantName }`) rather than only its two name fields.
+- While running the full `test_command`, found `apps/web/src/routes/admin/Restaurants.test.tsx:152` already failing on `main` (confirmed via `git stash` + rerun) — the type-filter-dropdown feature from `76a91b4` added a second element labelled "Type", so `getByLabelText("Type", { exact: false })` in the restaurant-create test now matches two elements. Unrelated to this task's files; left untouched here per user decision (asked via `AskUserQuestion`) to track it as a separate follow-up task rather than fold a fix into this PR.
 
 ## Review Notes
 
-(Output of the feature-dev:code-reviewer agent, appended by /implement-task.)
+Reviewed by `feature-dev:code-reviewer` against the red→green diff, the full `rounds.ts` file for convention consistency, `.claude/rules/api-error-handling.md`, and `packages/db/src/schema.ts` (confirmed `restaurants` has no soft-delete column and `rounds.deadline` is `notNull`, so the `innerJoin`/ordering choices are safe).
+
+No issues at or above the 80 confidence threshold. Confirmed:
+- `GET /public` is registered between `GET /` and `GET /:id`, avoiding `/:id` shadowing.
+- `alias()` from `drizzle-orm/pg-core` used for two separate joins against `restaurants`, hoisted to module scope — safe since Drizzle aliases are immutable metadata, not per-request state.
+- `innerJoin` on food restaurant, `leftJoin` on drink restaurant, matching FK nullability; `drinkRestaurantName` correctly surfaces as `null` rather than being omitted.
+- Status filter is an allow-list (`inArray(rounds.status, ["open", "closed"])`) as required.
+- Sorted by `rounds.deadline` ascending.
+- Follows the try/catch/finally convention exactly (structured `console.error`, `ERROR_MESSAGES.internal` on 500, `await db.$client.end()` in `finally`).
+
+Sub-threshold note (not a blocking issue): the green commit also strengthens an existing test's assertions (adds `typeof id`, `status`, `deadline` checks to the "joins restaurant names" test) rather than being purely implementation, a minor deviation from a clean red/green split — already called out in Plan Deviations above.
