@@ -2,10 +2,13 @@ import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { HttpResponse, http } from "msw";
 import { MemoryRouter, Route, Routes } from "react-router";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { downloadCsv } from "@/lib/download";
 import { renderWithProviders } from "@/test/render";
 import { server } from "@/test/mocks/server";
 import { RoundDetail } from "./RoundDetail";
+
+vi.mock("@/lib/download", () => ({ downloadCsv: vi.fn() }));
 
 const RESTAURANTS = [
   { id: 1, name: "Pho 24", type: "food", contactInfo: null, menuSourceNote: null },
@@ -41,6 +44,7 @@ describe("RoundDetail", () => {
     server.use(
       http.get("/api/rounds/999", () => HttpResponse.json({ error: "round not found" }, { status: 404 })),
       http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+      http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
     );
 
     renderDetail("999");
@@ -52,6 +56,7 @@ describe("RoundDetail", () => {
     server.use(
       http.get("/api/rounds/1", () => HttpResponse.json(draftRound())),
       http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+      http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
       http.get("/api/rounds/1/menu-items", () => HttpResponse.json([{ id: 5, roundId: 1, menuItemId: 10 }])),
       http.get("/api/restaurants/1/menu-items", () =>
         HttpResponse.json([
@@ -72,6 +77,7 @@ describe("RoundDetail", () => {
     server.use(
       http.get("/api/rounds/1", () => HttpResponse.json(draftRound({ status: "open" }))),
       http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+      http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
       http.get("/api/rounds/1/menu-items", () => HttpResponse.json([{ id: 5, roundId: 1, menuItemId: 10 }])),
       http.get("/api/restaurants/1/menu-items", () =>
         HttpResponse.json([{ id: 10, restaurantId: 1, name: "Pho Bo", price: null, active: true }]),
@@ -87,6 +93,7 @@ describe("RoundDetail", () => {
     server.use(
       http.get("/api/rounds/1", () => HttpResponse.json(draftRound({ status: "closed" }))),
       http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+      http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
       http.get("/api/rounds/1/menu-items", () => HttpResponse.json([{ id: 5, roundId: 1, menuItemId: 10 }])),
       http.get("/api/restaurants/1/menu-items", () =>
         HttpResponse.json([{ id: 10, restaurantId: 1, name: "Pho Bo", price: null, active: true }]),
@@ -105,6 +112,7 @@ describe("RoundDetail", () => {
     server.use(
       http.get("/api/rounds/1", () => HttpResponse.json(draftRound())),
       http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+      http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
       http.get("/api/rounds/1/menu-items", () => HttpResponse.json(curated)),
       http.get("/api/restaurants/1/menu-items", () =>
         HttpResponse.json([{ id: 10, restaurantId: 1, name: "Pho Bo", price: null, active: true }]),
@@ -137,6 +145,7 @@ describe("RoundDetail", () => {
     server.use(
       http.get("/api/rounds/1", () => HttpResponse.json(draftRound())),
       http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+      http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
       http.get("/api/rounds/1/menu-items", () => HttpResponse.json(curated)),
       http.get("/api/restaurants/1/menu-items", () =>
         HttpResponse.json([{ id: 10, restaurantId: 1, name: "Pho Bo", price: null, active: true }]),
@@ -167,6 +176,7 @@ describe("RoundDetail", () => {
     server.use(
       http.get("/api/rounds/1", () => HttpResponse.json(round)),
       http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+      http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
       http.get("/api/rounds/1/menu-items", () => HttpResponse.json([{ id: 5, roundId: 1, menuItemId: 10 }])),
       http.get("/api/restaurants/1/menu-items", () =>
         HttpResponse.json([{ id: 10, restaurantId: 1, name: "Pho Bo", price: null, active: true }]),
@@ -192,6 +202,7 @@ describe("RoundDetail", () => {
     server.use(
       http.get("/api/rounds/1", () => HttpResponse.json(draftRound())),
       http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+      http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
       http.get("/api/rounds/1/menu-items", () => HttpResponse.json([])),
       http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
       http.patch("/api/rounds/1/status", () =>
@@ -218,6 +229,7 @@ describe("RoundDetail", () => {
     server.use(
       http.get("/api/rounds/1", () => HttpResponse.json(round)),
       http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+      http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
       http.get("/api/rounds/1/menu-items", () => HttpResponse.json([{ id: 5, roundId: 1, menuItemId: 10 }])),
       http.get("/api/restaurants/1/menu-items", () =>
         HttpResponse.json([{ id: 10, restaurantId: 1, name: "Pho Bo", price: null, active: true }]),
@@ -241,6 +253,7 @@ describe("RoundDetail", () => {
     server.use(
       http.get("/api/rounds/1", () => HttpResponse.json(draftRound({ status: "closed" }))),
       http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+      http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
       http.get("/api/rounds/1/menu-items", () => HttpResponse.json([])),
       http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
     );
@@ -256,6 +269,7 @@ describe("RoundDetail", () => {
     server.use(
       http.get("/api/rounds/1", () => HttpResponse.json(draftRound({ drinkRestaurantId: 2 }))),
       http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+      http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
       http.get("/api/rounds/1/menu-items", () => HttpResponse.json([])),
       http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
       http.get("/api/restaurants/2/menu-items", () =>
@@ -273,6 +287,7 @@ describe("RoundDetail", () => {
     server.use(
       http.get("/api/rounds/1", () => HttpResponse.json(draftRound({ status: "open" }))),
       http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+      http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
       http.get("/api/rounds/1/menu-items", () => HttpResponse.json([])),
       http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
     );
@@ -289,6 +304,7 @@ describe("RoundDetail", () => {
     server.use(
       http.get("/api/rounds/1", () => HttpResponse.json(draftRound())),
       http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+      http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
       http.get("/api/rounds/1/menu-items", () => HttpResponse.json([])),
       http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
       http.delete("/api/rounds/1", () => HttpResponse.json(draftRound())),
@@ -309,6 +325,7 @@ describe("RoundDetail", () => {
       server.use(
         http.get("/api/rounds/1", () => HttpResponse.json(draftRound())),
         http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+        http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
         http.get("/api/rounds/1/menu-items", () => HttpResponse.json([])),
         http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
       );
@@ -323,6 +340,7 @@ describe("RoundDetail", () => {
       server.use(
         http.get("/api/rounds/1", () => HttpResponse.json(draftRound({ status: "open" }))),
         http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+        http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
         http.get("/api/rounds/1/menu-items", () => HttpResponse.json([])),
         http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
       );
@@ -340,6 +358,7 @@ describe("RoundDetail", () => {
       server.use(
         http.get("/api/rounds/1", () => HttpResponse.json(draftRound())),
         http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+        http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
         http.get("/api/rounds/1/menu-items", () => HttpResponse.json([])),
         http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
         http.patch("/api/rounds/1", async ({ request }) => {
@@ -375,6 +394,7 @@ describe("RoundDetail", () => {
       server.use(
         http.get("/api/rounds/1", () => HttpResponse.json(draftRound())),
         http.get("/api/restaurants", () => HttpResponse.json(foodRestaurants)),
+        http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
         http.get("/api/rounds/1/menu-items", () => HttpResponse.json([])),
         http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
         http.get("/api/restaurants/3/menu-items", () => HttpResponse.json([])),
@@ -408,6 +428,7 @@ describe("RoundDetail", () => {
       server.use(
         http.get("/api/rounds/1", () => HttpResponse.json(draftRound({ drinkRestaurantId: 2 }))),
         http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+        http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
         http.get("/api/rounds/1/menu-items", () => HttpResponse.json([])),
         http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
         http.get("/api/restaurants/2/menu-items", () => HttpResponse.json([])),
@@ -436,6 +457,7 @@ describe("RoundDetail", () => {
       server.use(
         http.get("/api/rounds/1", () => HttpResponse.json(draftRound())),
         http.get("/api/restaurants", () => HttpResponse.json(foodRestaurants)),
+        http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
         http.get("/api/rounds/1/menu-items", () => HttpResponse.json([])),
         http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
         http.get("/api/restaurants/3/menu-items", () => HttpResponse.json([])),
@@ -464,6 +486,7 @@ describe("RoundDetail", () => {
       server.use(
         http.get("/api/rounds/1", () => HttpResponse.json(draftRound())),
         http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+        http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
         http.get("/api/rounds/1/menu-items", () => HttpResponse.json([])),
         http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
         http.patch("/api/rounds/1", () =>
@@ -486,6 +509,7 @@ describe("RoundDetail", () => {
       server.use(
         http.get("/api/rounds/1", () => HttpResponse.json(draftRound())),
         http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+        http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
         http.get("/api/rounds/1/menu-items", () => HttpResponse.json([])),
         http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
         http.patch("/api/rounds/1", () => {
@@ -502,6 +526,85 @@ describe("RoundDetail", () => {
 
       expect(await screen.findByText("Food restaurant is required.")).toBeInTheDocument();
       expect(patchCalled).toBe(false);
+    });
+  });
+
+  describe("submissions", () => {
+    it("shows a message when there are no submissions", async () => {
+      server.use(
+        http.get("/api/rounds/1", () => HttpResponse.json(draftRound())),
+        http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+        http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
+        http.get("/api/rounds/1/menu-items", () => HttpResponse.json([])),
+        http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
+      );
+
+      renderDetail("1");
+
+      expect(await screen.findByText("No submissions yet.")).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Export CSV" })).not.toBeInTheDocument();
+    });
+
+    it("lists submitted employee names, food, and drink picks in a table", async () => {
+      server.use(
+        http.get("/api/rounds/1", () => HttpResponse.json(draftRound())),
+        http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+        http.get("/api/rounds/1/submissions", () =>
+          HttpResponse.json([
+            {
+              id: 1,
+              employeeName: "An Nguyen",
+              foodName: "Pho Bo",
+              foodNote: "No cilantro",
+              drinkName: "Tra Da",
+              drinkNote: null,
+            },
+          ]),
+        ),
+        http.get("/api/rounds/1/menu-items", () => HttpResponse.json([])),
+        http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
+      );
+
+      renderDetail("1");
+
+      expect(await screen.findByText("An Nguyen")).toBeInTheDocument();
+      expect(screen.getByText("Pho Bo")).toBeInTheDocument();
+      expect(screen.getByText("No cilantro")).toBeInTheDocument();
+      expect(screen.getByText("Tra Da")).toBeInTheDocument();
+    });
+
+    it("exports submissions as a CSV via the Export CSV button", async () => {
+      const user = userEvent.setup();
+
+      server.use(
+        http.get("/api/rounds/1", () => HttpResponse.json(draftRound())),
+        http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+        http.get("/api/rounds/1/submissions", () =>
+          HttpResponse.json([
+            {
+              id: 1,
+              employeeName: "An Nguyen",
+              foodName: "Pho Bo",
+              foodNote: "No cilantro",
+              drinkName: null,
+              drinkNote: null,
+            },
+          ]),
+        ),
+        http.get("/api/rounds/1/menu-items", () => HttpResponse.json([])),
+        http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
+      );
+
+      renderDetail("1");
+
+      await user.click(await screen.findByRole("button", { name: "Export CSV" }));
+
+      expect(downloadCsv).toHaveBeenCalledTimes(1);
+      const [filename, csv] = vi.mocked(downloadCsv).mock.calls[0]!;
+      expect(filename).toBe("round-1-submissions.csv");
+      expect(csv).toContain("An Nguyen");
+      expect(csv).toContain("Pho Bo");
+      expect(csv).toContain("No cilantro");
     });
   });
 });
