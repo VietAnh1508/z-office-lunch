@@ -1,5 +1,5 @@
-import { UtensilsCrossed } from "lucide-react";
-import { Link, NavLink, Outlet } from "react-router";
+import { NavLink, Outlet } from "react-router";
+import { AppHeader } from "@/components/AppHeader";
 import { cn } from "@/lib/utils";
 
 const NAV_LINKS = [
@@ -11,15 +11,8 @@ const NAV_LINKS = [
 export function AdminLayout() {
   return (
     <div className="flex min-h-svh flex-col bg-background">
-      <header className="sticky top-0 z-10 border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/80">
-        <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
-          <Link
-            to="/"
-            className="flex items-center gap-2 font-heading text-sm font-semibold tracking-tight text-foreground"
-          >
-            <UtensilsCrossed className="size-4 text-primary" aria-hidden="true" />
-            Office Lunch
-          </Link>
+      <AppHeader
+        nav={
           <nav
             aria-label="Admin sections"
             className="-mx-2 flex items-center gap-1 overflow-x-auto text-sm"
@@ -39,8 +32,8 @@ export function AdminLayout() {
               </NavLink>
             ))}
           </nav>
-        </div>
-      </header>
+        }
+      />
       <main className="flex-1">
         <Outlet />
       </main>
