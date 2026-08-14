@@ -24,4 +24,13 @@ export const ERROR_MESSAGES = {
   roundCloseNotOpen: "round is not open",
   roundDeleteNotDraft: "round is not draft",
   roundEditNotDraft: "round is not draft",
+  employeeIdRequired: "employeeId is required",
+  foodRoundMenuItemIdRequired: "foodRoundMenuItemId is required",
+  drinkRoundMenuItemIdInvalid: "drinkRoundMenuItemId must be a valid round menu item id",
+  roundNotOpenForSubmission: "round is not open",
+  roundDeadlinePassed: "the deadline for this round has passed",
+  foodRoundMenuItemInvalid: "foodRoundMenuItemId must belong to this round's food restaurant",
+  drinkRoundMenuItemInvalid: "drinkRoundMenuItemId must belong to this round's drink restaurant",
+  submissionNoDrinkRestaurant: "this round has no drink restaurant",
+  submissionDuplicate: "you have already submitted for this round",
 } as const;

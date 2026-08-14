@@ -1,11 +1,13 @@
 import { eq } from "drizzle-orm";
-import { createDb, roundMenuItems, rounds } from "db";
+import { createDb, roundMenuItems, rounds, submissions } from "db";
 import {
   TEST_DATABASE_URL,
+  seedEmployee,
   seedMenuItem,
   seedRestaurant,
   seedRound,
   seedRoundMenuItem,
+  seedSubmission,
   truncateAll,
 } from "db/testing";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
@@ -1273,6 +1275,319 @@ describe("rounds routes", () => {
 
     it("GET /api/rounds/public returns a structured 500 when the database is unreachable", async () => {
       const res = await app.request("/api/rounds/public", {}, unreachableEnv);
+
+      expect(res.status).toBe(500);
+      const body = (await res.json()) as { error?: string };
+      expect(body.error).toBeTruthy();
+    });
+  });
+
+  describe("submissions", () => {
+    type Submission = typeof submissions.$inferSelect;
+
+    async function seedOpenFoodRound(overrides: Partial<typeof rounds.$inferInsert> = {}) {
+      const food = await seedRestaurant(db, { name: "Pho 24", type: "food" });
+      const foodMenuItem = await seedMenuItem(db, { restaurantId: food!.id, name: "Pho Bo" });
+      const round = await seedRound(db, {
+        foodRestaurantId: food!.id,
+        status: "open",
+        deadline: new Date("2999-01-01T00:00:00.000Z"),
+        ...overrides,
+      });
+      const foodRoundMenuItem = await seedRoundMenuItem(db, {
+        roundId: round!.id,
+        menuItemId: foodMenuItem!.id,
+      });
+      return { food, foodMenuItem, round: round!, foodRoundMenuItem: foodRoundMenuItem! };
+    }
+
+    it("valid POST creates a submission for the food item only", async () => {
+      const { round, foodRoundMenuItem } = await seedOpenFoodRound();
+      const employee = await seedEmployee(db, { fullName: "An Nguyen" });
+
+      const res = await app.request(
+        `/api/rounds/${round.id}/submissions`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            employeeId: employee!.id,
+            foodRoundMenuItemId: foodRoundMenuItem.id,
+            foodNote: "No cilantro",
+          }),
+        },
+        testEnv,
+      );
+
+      expect(res.status).toBe(201);
+      const created = (await res.json()) as Submission;
+      expect(created.roundId).toBe(round.id);
+      expect(created.employeeId).toBe(employee!.id);
+      expect(created.foodRoundMenuItemId).toBe(foodRoundMenuItem.id);
+      expect(created.foodNote).toBe("No cilantro");
+      expect(created.drinkRoundMenuItemId).toBeNull();
+    });
+
+    it("valid POST with drink fields persists both food and drink picks", async () => {
+      const { round, foodRoundMenuItem } = await seedOpenFoodRound();
+      const drink = await seedRestaurant(db, { name: "Tra Da Corner", type: "drink" });
+      const drinkMenuItem = await seedMenuItem(db, { restaurantId: drink!.id, name: "Tra Da" });
+      await db
+        .update(rounds)
+        .set({ drinkRestaurantId: drink!.id })
+        .where(eq(rounds.id, round.id));
+      const drinkRoundMenuItem = await seedRoundMenuItem(db, {
+        roundId: round.id,
+        menuItemId: drinkMenuItem!.id,
+      });
+      const employee = await seedEmployee(db);
+
+      const res = await app.request(
+        `/api/rounds/${round.id}/submissions`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            employeeId: employee!.id,
+            foodRoundMenuItemId: foodRoundMenuItem.id,
+            drinkRoundMenuItemId: drinkRoundMenuItem!.id,
+            drinkNote: "Less ice",
+          }),
+        },
+        testEnv,
+      );
+
+      expect(res.status).toBe(201);
+      const created = (await res.json()) as Submission;
+      expect(created.drinkRoundMenuItemId).toBe(drinkRoundMenuItem!.id);
+      expect(created.drinkNote).toBe("Less ice");
+    });
+
+    it("POST without employeeId returns 400", async () => {
+      const { round, foodRoundMenuItem } = await seedOpenFoodRound();
+
+      const res = await app.request(
+        `/api/rounds/${round.id}/submissions`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ foodRoundMenuItemId: foodRoundMenuItem.id }),
+        },
+        testEnv,
+      );
+
+      expect(res.status).toBe(400);
+      const body = (await res.json()) as { error?: string };
+      expect(body.error).toBe(ERROR_MESSAGES.employeeIdRequired);
+    });
+
+    it("POST without foodRoundMenuItemId returns 400", async () => {
+      const { round } = await seedOpenFoodRound();
+      const employee = await seedEmployee(db);
+
+      const res = await app.request(
+        `/api/rounds/${round.id}/submissions`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ employeeId: employee!.id }),
+        },
+        testEnv,
+      );
+
+      expect(res.status).toBe(400);
+      const body = (await res.json()) as { error?: string };
+      expect(body.error).toBe(ERROR_MESSAGES.foodRoundMenuItemIdRequired);
+    });
+
+    it("POST on a nonexistent round returns 404", async () => {
+      const employee = await seedEmployee(db);
+
+      const res = await app.request(
+        "/api/rounds/999999/submissions",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ employeeId: employee!.id, foodRoundMenuItemId: 1 }),
+        },
+        testEnv,
+      );
+
+      expect(res.status).toBe(404);
+      const body = (await res.json()) as { error?: string };
+      expect(body.error).toBe(ERROR_MESSAGES.roundNotFound);
+    });
+
+    it("POST with a nonexistent employeeId returns 404", async () => {
+      const { round, foodRoundMenuItem } = await seedOpenFoodRound();
+
+      const res = await app.request(
+        `/api/rounds/${round.id}/submissions`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            employeeId: 999999,
+            foodRoundMenuItemId: foodRoundMenuItem.id,
+          }),
+        },
+        testEnv,
+      );
+
+      expect(res.status).toBe(404);
+      const body = (await res.json()) as { error?: string };
+      expect(body.error).toBe(ERROR_MESSAGES.employeeNotFound);
+    });
+
+    it("POST rejected with 400 when the round is still draft", async () => {
+      const food = await seedRestaurant(db, { type: "food" });
+      const round = await seedRound(db, { foodRestaurantId: food!.id, status: "draft" });
+      const employee = await seedEmployee(db);
+
+      const res = await app.request(
+        `/api/rounds/${round!.id}/submissions`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ employeeId: employee!.id, foodRoundMenuItemId: 1 }),
+        },
+        testEnv,
+      );
+
+      expect(res.status).toBe(400);
+      const body = (await res.json()) as { error?: string };
+      expect(body.error).toBe(ERROR_MESSAGES.roundNotOpenForSubmission);
+    });
+
+    it("POST rejected with 400 when the round is closed", async () => {
+      const { round, foodRoundMenuItem } = await seedOpenFoodRound({ status: "closed" });
+      const employee = await seedEmployee(db);
+
+      const res = await app.request(
+        `/api/rounds/${round.id}/submissions`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            employeeId: employee!.id,
+            foodRoundMenuItemId: foodRoundMenuItem.id,
+          }),
+        },
+        testEnv,
+      );
+
+      expect(res.status).toBe(400);
+      const body = (await res.json()) as { error?: string };
+      expect(body.error).toBe(ERROR_MESSAGES.roundNotOpenForSubmission);
+    });
+
+    it("POST rejected with 400 when the deadline has passed, even though status is still open", async () => {
+      const { round, foodRoundMenuItem } = await seedOpenFoodRound({
+        deadline: new Date("2000-01-01T00:00:00.000Z"),
+      });
+      const employee = await seedEmployee(db);
+
+      const res = await app.request(
+        `/api/rounds/${round.id}/submissions`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            employeeId: employee!.id,
+            foodRoundMenuItemId: foodRoundMenuItem.id,
+          }),
+        },
+        testEnv,
+      );
+
+      expect(res.status).toBe(400);
+      const body = (await res.json()) as { error?: string };
+      expect(body.error).toBe(ERROR_MESSAGES.roundDeadlinePassed);
+    });
+
+    it("POST rejected with 409 on a duplicate (roundId, employeeId) submission", async () => {
+      const { round, foodRoundMenuItem } = await seedOpenFoodRound();
+      const employee = await seedEmployee(db);
+      await seedSubmission(db, {
+        roundId: round.id,
+        employeeId: employee!.id,
+        foodRoundMenuItemId: foodRoundMenuItem.id,
+      });
+
+      const res = await app.request(
+        `/api/rounds/${round.id}/submissions`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            employeeId: employee!.id,
+            foodRoundMenuItemId: foodRoundMenuItem.id,
+          }),
+        },
+        testEnv,
+      );
+
+      expect(res.status).toBe(409);
+      const body = (await res.json()) as { error?: string };
+      expect(body.error).toBe(ERROR_MESSAGES.submissionDuplicate);
+    });
+
+    it("POST rejected with 400 when drinkRoundMenuItemId is given but the round has no drinkRestaurantId", async () => {
+      const { round, foodRoundMenuItem } = await seedOpenFoodRound();
+      const employee = await seedEmployee(db);
+
+      const res = await app.request(
+        `/api/rounds/${round.id}/submissions`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            employeeId: employee!.id,
+            foodRoundMenuItemId: foodRoundMenuItem.id,
+            drinkRoundMenuItemId: foodRoundMenuItem.id,
+          }),
+        },
+        testEnv,
+      );
+
+      expect(res.status).toBe(400);
+      const body = (await res.json()) as { error?: string };
+      expect(body.error).toBe(ERROR_MESSAGES.submissionNoDrinkRestaurant);
+    });
+
+    it("POST rejected with 404 when foodRoundMenuItemId belongs to a different round", async () => {
+      const { foodRoundMenuItem } = await seedOpenFoodRound();
+      const { round: otherRound } = await seedOpenFoodRound();
+      const employee = await seedEmployee(db);
+
+      const res = await app.request(
+        `/api/rounds/${otherRound.id}/submissions`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            employeeId: employee!.id,
+            foodRoundMenuItemId: foodRoundMenuItem.id,
+          }),
+        },
+        testEnv,
+      );
+
+      expect(res.status).toBe(404);
+      const body = (await res.json()) as { error?: string };
+      expect(body.error).toBe(ERROR_MESSAGES.roundMenuItemNotFound);
+    });
+
+    it("POST returns a structured 500 when the database is unreachable", async () => {
+      const res = await app.request(
+        "/api/rounds/1/submissions",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ employeeId: 1, foodRoundMenuItemId: 1 }),
+        },
+        unreachableEnv,
+      );
 
       expect(res.status).toBe(500);
       const body = (await res.json()) as { error?: string };
