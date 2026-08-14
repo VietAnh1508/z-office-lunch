@@ -149,7 +149,10 @@ describe("Restaurants", () => {
     await screen.findByText("No restaurants yet.");
 
     await user.type(screen.getByLabelText("Name", { exact: false }), "Tra Da Corner");
-    await user.selectOptions(screen.getByLabelText("Type", { exact: false }), "drink");
+    await user.selectOptions(
+      screen.getByLabelText("Type", { selector: "#restaurant-type" }),
+      "drink",
+    );
     await user.click(screen.getByRole("button", { name: "Add restaurant" }));
 
     await waitFor(() => {
