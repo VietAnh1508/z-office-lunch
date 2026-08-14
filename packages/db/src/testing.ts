@@ -96,3 +96,18 @@ export async function seedRoundMenuItem(
     .returning();
   return row;
 }
+
+export async function seedSubmission(
+  db: Db,
+  overrides: Partial<typeof schema.submissions.$inferInsert> & {
+    roundId: number;
+    employeeId: number;
+    foodRoundMenuItemId: number;
+  },
+) {
+  const [row] = await db
+    .insert(schema.submissions)
+    .values({ ...overrides })
+    .returning();
+  return row;
+}
