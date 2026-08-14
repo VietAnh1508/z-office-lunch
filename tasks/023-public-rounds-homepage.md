@@ -1,7 +1,7 @@
 ---
 id: 023
 title: Public rounds-list homepage (Open/Closed sections)
-status: approved
+status: in_review
 depends_on: [022]
 parallelizable_with: []
 tdd: required
@@ -65,17 +65,40 @@ After tests pass, run `pnpm dev`, visit `/`, confirm real open/closed rounds ren
 
 (Filled in by /implement-task.)
 
-- red commit: <sha> — `pnpm -r typecheck && pnpm --filter web build && pnpm test` -> N failing
-- green commit: <sha> — `pnpm -r typecheck && pnpm --filter web build && pnpm test` -> all passing
+- red commit: 6345794 — `pnpm -r typecheck && pnpm --filter web build && pnpm test` -> 1 failing
+- green commit: bee847a — `pnpm -r typecheck && pnpm --filter web build && pnpm test` -> all passing (188 tests, 19 files)
 
 ## Plan Deviations
 
 (Filled in by /implement-task, honestly, before requesting review — write "None." if genuinely nothing applies, don't skip this section silently. Only list genuine deviations — if a step was carried out as the Plan described, it doesn't belong here, even if it's worth doing again.)
 
-- Where did the actual implementation differ from the Plan above, and why?
-- Any wrong assumption, dead end, or approach abandoned partway through?
-- Anything the user had to correct or redirect mid-task?
+- The Plan's test list called the "Open"/"Closed" labels "section headings," which read as `getByRole("heading", ...)`. `CardTitle` (`@/components/ui/card`) renders a plain `<div data-slot="card-title">`, not a semantic heading element — matches every other Card-based screen in the codebase (`Round.tsx`, `RoundList.tsx`), none of which use `getByRole("heading")` against it either. Switched the section-title assertions to `getByText`/`within` scoped by `[data-slot="card"]` instead of `getByRole("heading")`.
+- First draft of the "renders label, both restaurant names, deadline, ... " test asserted the formatted deadline with a plain `getByText(formattedDeadline)`. That failed: `Deadline {new Date(...).toLocaleString()}` renders as two separate JSX text nodes ("Deadline " and the date) inside one `<p>`, so RTL's default text matcher (which matches per-node) couldn't find it. Fixed by matching on the `<p>`'s full `textContent` via a matcher function instead of changing the component (the split-node rendering itself is fine, it's just how JSX renders adjacent expressions).
+- Discovered the deadline-matcher test bug only after the red commit was already made (running the full `test_command` for the first time surfaced it, not the initial "confirm expected failure" run, since that run failed on the missing module before ever reaching this assertion). Restructured the red/green split via `git reset --soft` + reflagging which files were staged, rather than leaving a test-only fix inside the green commit, so the red commit's test content matches what actually gets run at green.
+- Not called for by the Plan, but the code-reviewer agent caught that `e2e/smoke.spec.ts`'s "SPA shell loads" test asserted `getByRole("button", { name: "Office Lunch" })`, which only existed on the deleted placeholder `Home` component — that e2e spec would have started failing the next time `pnpm test:e2e` ran, even though it's outside this task's own `test_command`. Updated it to assert the new "Open"/"Closed" section text instead and confirmed with `pnpm test:e2e` (Postgres brought up via `pnpm db:up` first) that this spec now passes; folded the one-line fix into the green commit since it hadn't been pushed yet. Two unrelated, pre-existing e2e failures (`admin-restaurants.spec.ts`'s Type-select strict-mode violation, and an apparently-flaky `admin-round-detail.spec.ts` run) are untouched by this task and out of scope.
 
 ## Review Notes
 
 (Output of the feature-dev:code-reviewer agent, appended by /implement-task.)
+
+Reviewed the red→green diff (`apps/web/src/App.tsx`, `apps/web/src/routes/public/BrowseRounds.tsx`, `apps/web/src/routes/public/usePublicRound.ts`) against the task's Acceptance Criteria/Plan, the real `GET /rounds/public` handler (`apps/api/src/routes/rounds.ts:104-128`), and `RoundList.tsx`'s established conventions.
+
+Verified against the real API contract (not just the MSW mock):
+- Route path is `/rounds/public`, registered before `/:id` and `/:id/public` — no shadowing.
+- Response is a bare array (`c.json(rows)`), matching `api.get<PublicRoundListItem[]>(...)` — no wrapper envelope.
+- Field names match exactly: `id`, `label`, `status`, `deadline`, `foodRestaurantName`, `drinkRestaurantName` (nullable via `leftJoin`).
+- `.where(inArray(rounds.status, ["open", "closed"]))` excludes drafts server-side, and `.orderBy(rounds.deadline)` gives ascending order — so the component's non-re-sorting `filter()` calls correctly preserve API order per AC #2.
+
+Conclusion: the frontend implementation is correct and consistent with its backend contract, and matches `RoundList.tsx`'s established patterns (Card/ul/li shape, `!= null` restaurant-name guard, deadline formatting, `RoundStatusBadge` reuse).
+
+### Critical
+
+**Existing e2e smoke test now fails — `e2e/smoke.spec.ts:9-12`** (confidence 90)
+
+The diff deletes the `Home` component (and its "Office Lunch" button) from `App.tsx` and replaces the index route with `BrowseRounds`, which renders no such button, so the "SPA shell loads" smoke test (`getByRole("button", { name: "Office Lunch" })`) would fail the next time `pnpm test:e2e` ran. Not caught by this task's own `test_command`, since that doesn't run e2e.
+
+**Fixed**: updated `e2e/smoke.spec.ts` to assert the "Open"/"Closed" section text instead, and confirmed with a live `pnpm test:e2e` run (Postgres brought up first) that the spec now passes. Folded into the green commit.
+
+### No other high-confidence issues
+
+Everything else in the diff — the `usePublicRound.ts` type/hook additions, `BrowseRounds.tsx`'s loading/error/grouping logic, and the `App.tsx` cleanup — matches the task plan, the acceptance criteria, and existing codebase conventions with no bugs found. The `mutation-feedback.md`/`form-validation.md` rules don't apply here (no mutations or forms in this read-only page).
