@@ -1,4 +1,5 @@
 import { and, eq, inArray, ne, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { menuItems, restaurants, roundMenuItems, rounds } from "db";
 import { Hono } from "hono";
 import type { Bindings } from "../bindings";
@@ -6,6 +7,9 @@ import { ERROR_MESSAGES } from "../lib/errors";
 import { getDb } from "../lib/get-db";
 
 export const roundsRoute = new Hono<{ Bindings: Bindings }>();
+
+const foodRestaurantAlias = alias(restaurants, "food_restaurant");
+const drinkRestaurantAlias = alias(restaurants, "drink_restaurant");
 
 roundsRoute.post("/", async (c) => {
   const body = await c.req.json().catch(() => ({}));
@@ -91,6 +95,32 @@ roundsRoute.get("/", async (c) => {
     return c.json(rows);
   } catch (e) {
     console.error(JSON.stringify({ message: "failed to list rounds", error: String(e) }));
+    return c.json({ error: ERROR_MESSAGES.internal }, 500);
+  } finally {
+    await db.$client.end();
+  }
+});
+
+roundsRoute.get("/public", async (c) => {
+  const db = getDb(c);
+  try {
+    const rows = await db
+      .select({
+        id: rounds.id,
+        label: rounds.label,
+        status: rounds.status,
+        deadline: rounds.deadline,
+        foodRestaurantName: foodRestaurantAlias.name,
+        drinkRestaurantName: drinkRestaurantAlias.name,
+      })
+      .from(rounds)
+      .innerJoin(foodRestaurantAlias, eq(rounds.foodRestaurantId, foodRestaurantAlias.id))
+      .leftJoin(drinkRestaurantAlias, eq(rounds.drinkRestaurantId, drinkRestaurantAlias.id))
+      .where(inArray(rounds.status, ["open", "closed"]))
+      .orderBy(rounds.deadline);
+    return c.json(rows);
+  } catch (e) {
+    console.error(JSON.stringify({ message: "failed to list public rounds", error: String(e) }));
     return c.json({ error: ERROR_MESSAGES.internal }, 500);
   } finally {
     await db.$client.end();
