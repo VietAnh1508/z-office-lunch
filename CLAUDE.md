@@ -19,6 +19,7 @@ We're building the AI workflow harness (this file, the commands, the task templa
 - `tasks/` — one markdown file per unit of work. Frontmatter `status` field is the source of truth for what's done, in progress, or waiting on review. Nothing else tracks status — don't add a separate progress log, it will drift out of sync with these files. Run `pnpm tasks:status` (`scripts/task-status.mjs`) to compute what's in-flight or ready from `depends_on` instead of scanning frontmatter by eye.
 - `docs/architecture.md` — app data model and stack rationale, once decided. Written once, updated only when the architecture actually changes, not per task.
 - `.claude/commands/plan-task.md`, `.claude/commands/implement-task.md` — the two custom commands that drive the loop below.
+- `.claude/commands/fix-bug.md`, `.claude/commands/quick-change.md` — the ad-hoc, no-task-file commands for the Quick fixes flow (see below).
 - `.claude/commands/retrospective.md` — run periodically (not part of the per-task loop) to scan `done` tasks' Implementation Log, Plan Deviations, and Review Notes for environment/tooling gaps, workflow drift, and recurring patterns across tasks; reports findings and proposes fixes, doesn't apply them unasked.
 - `.claude/rules/` — path-scoped conventions (frontmatter `paths` glob) that surface only when working in a matching subtree, e.g. `api-error-handling.md` for `apps/api/**/*.ts`. Prefer this over a nested `CLAUDE.md` for a single, narrow convention; use a nested `CLAUDE.md` once an area needs broader context.
 
@@ -30,6 +31,20 @@ We're building the AI workflow harness (this file, the commands, the task templa
 4. Repeat from step 1 for the next idea, or step 2 for the next already-approved task.
 
 Execution is strictly sequential — one task at a time — by design, so there's always exactly one open PR to review at a time.
+
+### Quick fixes (ad-hoc, no task file)
+
+For small stuff that doesn't warrant a task — a one-line bug fix, a UI label/copy change, a typo, a small config tweak — skip `/plan-task` and `/implement-task` entirely. Use `/fix-bug <description>` for an actual bug, or `/quick-change <description>` for a small non-bug change; describing it in plain chat works too, but the commands make the mode explicit. Either way:
+
+1. You describe the problem, no task file gets written.
+2. Claude still goes through the loop, just lighter-weight and on whatever branch is currently checked out (usually `main`) — no new branch, no PR:
+   - **Explore** the relevant code to understand what's actually there.
+   - **Find the root cause** — don't patch a symptom before knowing why it happens.
+   - **Implement** with TDD for bug fixes specifically: write a test that reproduces the wrong behavior and confirm it fails, then fix the code.
+   - **Test** — rerun that test (and the surrounding suite where relevant) to confirm it now passes and nothing else broke.
+3. Claude does **not** commit. It leaves the diff in the working tree — test included — for you to review with `git diff`, and you commit it yourself (or ask Claude to, explicitly) once you're happy with it.
+
+Use judgment on the boundary: if the fix touches the data model, spans multiple files/areas, or needs the kind of design decision `/plan-task` exists to capture, it's not a quick fix — write a task for it instead.
 
 ### Pre-authorization
 
