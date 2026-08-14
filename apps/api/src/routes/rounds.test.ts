@@ -1244,6 +1244,9 @@ describe("rounds routes", () => {
       const body = (await res.json()) as PublicRound[];
       expect(body[0]?.foodRestaurantName).toBe("Pho 24");
       expect(body[0]?.drinkRestaurantName).toBe("Tra Da Corner");
+      expect(typeof body[0]?.id).toBe("number");
+      expect(body[0]?.status).toBe("open");
+      expect(body[0]?.deadline).toBeTruthy();
     });
 
     it("GET /api/rounds/public returns drinkRestaurantName: null when the round has no drink restaurant", async () => {
