@@ -8,5 +8,6 @@ test("API health check reaches Postgres through the Hyperdrive binding", async (
 
 test("SPA shell loads", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("button", { name: "Office Lunch" })).toBeVisible();
+  await expect(page.getByText("Open")).toBeVisible();
+  await expect(page.getByText("Closed")).toBeVisible();
 });

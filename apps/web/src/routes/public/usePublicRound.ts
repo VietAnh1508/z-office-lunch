@@ -16,13 +16,30 @@ export type PublicRound = {
   drinkItems?: PublicRoundItem[];
 };
 
+export type PublicRoundListItem = {
+  id: number;
+  label: string;
+  status: "open" | "closed";
+  deadline: string;
+  foodRestaurantName: string;
+  drinkRestaurantName: string | null;
+};
+
 export const publicRoundKeys = {
   detail: (roundId: number) => ["public-rounds", roundId] as const,
+  list: () => ["public-rounds", "list"] as const,
 };
 
 export function usePublicRound(roundId: number) {
   return useQuery({
     queryKey: publicRoundKeys.detail(roundId),
     queryFn: () => api.get<PublicRound>(`/rounds/${roundId}/public`),
+  });
+}
+
+export function usePublicRounds() {
+  return useQuery({
+    queryKey: publicRoundKeys.list(),
+    queryFn: () => api.get<PublicRoundListItem[]>("/rounds/public"),
   });
 }
