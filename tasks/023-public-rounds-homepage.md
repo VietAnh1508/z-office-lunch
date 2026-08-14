@@ -1,7 +1,7 @@
 ---
 id: 023
 title: Public rounds-list homepage (Open/Closed sections)
-status: in_review
+status: done
 depends_on: [022]
 parallelizable_with: []
 tdd: required
@@ -15,13 +15,13 @@ Replace the placeholder `Home` component (`apps/web/src/App.tsx`) with a real pu
 
 ## Acceptance Criteria
 
-- [ ] Visiting `/` renders two section headings, "Open" and "Closed", **always**, even when a section has zero rounds — an empty section shows "No rounds" rather than being omitted (this is the detail most likely to get shortcut-broken with a `{rounds.length > 0 && ...}` guard)
-- [ ] Rounds are grouped into their matching section by `status` and appear in the order returned by the API (ascending deadline) — no client-side re-sort
-- [ ] Each round row shows: its label (as a link to `/r/:id`), a status badge (reusing `RoundStatusBadge` from `@/routes/admin/RoundStatusBadge` as-is), the food restaurant name, the drink restaurant name appended (`" + "`-joined) only when present, and a formatted deadline
-- [ ] A round with no drink restaurant renders cleanly — no stray "+ null"/"+ undefined" text
-- [ ] Loading state shows `"Loading rounds…"`; a request failure shows `"Something went wrong loading rounds. Please try again."` (no special 404 handling needed — the list endpoint never 404s)
-- [ ] `Home` and its now-unused imports (`UtensilsCrossed`, `Button`, `useNavigate`) are removed from `App.tsx`; the index route renders the new component instead
-- [ ] `/admin/rounds` and the rest of `/admin/*` are unchanged
+- [x] Visiting `/` renders two section headings, "Open" and "Closed", **always**, even when a section has zero rounds — an empty section shows "No rounds" rather than being omitted (this is the detail most likely to get shortcut-broken with a `{rounds.length > 0 && ...}` guard)
+- [x] Rounds are grouped into their matching section by `status` and appear in the order returned by the API (ascending deadline) — no client-side re-sort
+- [x] Each round row shows: its label (as a link to `/r/:id`), a status badge (reusing `RoundStatusBadge` from `@/routes/admin/RoundStatusBadge` as-is), the food restaurant name, the drink restaurant name appended (`" + "`-joined) only when present, and a formatted deadline
+- [x] A round with no drink restaurant renders cleanly — no stray "+ null"/"+ undefined" text
+- [x] Loading state shows `"Loading rounds…"`; a request failure shows `"Something went wrong loading rounds. Please try again."` (no special 404 handling needed — the list endpoint never 404s)
+- [x] `Home` and its now-unused imports (`UtensilsCrossed`, `Button`, `useNavigate`) are removed from `App.tsx`; the index route renders the new component instead
+- [x] `/admin/rounds` and the rest of `/admin/*` are unchanged
 
 ## Plan
 
