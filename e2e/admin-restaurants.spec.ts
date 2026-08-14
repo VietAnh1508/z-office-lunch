@@ -33,7 +33,10 @@ test("admin can create a drink restaurant and see its type label", async ({ page
 
   const restaurantName = `Drink Restaurant ${Date.now()}`;
   await page.getByLabel("Name", { exact: false }).fill(restaurantName);
-  await page.getByLabel("Type", { exact: false }).selectOption("drink");
+  // Not getByLabel("Type") — the list's own type filter (added after this
+  // test was written) is labelled "Type" too, so that locator now matches
+  // two elements. Scope to the create form's select directly instead.
+  await page.locator("#restaurant-type").selectOption("drink");
   await page.getByRole("button", { name: "Add restaurant" }).click();
 
   await expect(page.getByText("Restaurant added")).toBeVisible();

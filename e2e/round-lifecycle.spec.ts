@@ -1,5 +1,100 @@
 import { expect, test } from "@playwright/test";
 
+// These three tests each open one round, and the app only allows one round
+// open at a time app-wide (409 if you try to open a second). Keeping them
+// together in a single file — rather than split across files as before —
+// means Playwright's default fullyParallel:false runs them sequentially in
+// one worker, so their "Open" steps can't race a concurrent worker's own
+// open round and time out waiting for a "Round opened" toast that never
+// comes. See public-round-submission's own two-tests-merged-into-one for the
+// same reasoning at the single-file level.
+
+test("admin curates a round's menu items and opens then closes it", async ({ page }) => {
+  const restaurantName = `Round Detail Test Restaurant ${Date.now()}`;
+  const roundLabel = `Round Detail Test ${Date.now()}`;
+
+  await page.goto("/admin/restaurants");
+  await page.getByLabel("Name", { exact: false }).fill(restaurantName);
+  await page.getByRole("button", { name: "Add restaurant" }).click();
+  await page.getByRole("link", { name: restaurantName }).click();
+  await expect(page.getByRole("heading", { name: restaurantName })).toBeVisible();
+
+  await page.getByLabel("Name", { exact: false }).fill("Pho Bo");
+  await page.getByRole("button", { name: "Add menu item" }).click();
+  await expect(page.getByText("Menu item added")).toBeVisible();
+
+  await page.goto("/admin/rounds");
+  await page.getByLabel("Label", { exact: false }).fill(roundLabel);
+  await page.getByLabel("Food restaurant", { exact: false }).selectOption({ label: restaurantName });
+  await page.getByLabel("Deadline", { exact: false }).fill("2026-08-10T12:00");
+  await page.getByRole("button", { name: "Add round" }).click();
+
+  await page.getByRole("link", { name: roundLabel }).click();
+  await expect(page.getByRole("heading", { name: roundLabel })).toBeVisible();
+
+  await page.getByLabel("Pho Bo").click();
+  await expect(page.getByText("Menu item added to round")).toBeVisible();
+  await expect(page.getByLabel("Pho Bo")).toBeChecked();
+
+  await page.getByRole("button", { name: "Open" }).click();
+  await expect(page.getByText("Round opened")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Close" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Close" }).click();
+  await expect(page.getByText("Round closed")).toBeVisible();
+  await expect(page.getByText("This round is closed.")).toBeVisible();
+});
+
+test("employee-facing public round link reflects open then closed state", async ({ page }) => {
+  const restaurantName = `Public Round Test Restaurant ${Date.now()}`;
+  const roundLabel = `Public Round Test ${Date.now()}`;
+
+  await page.goto("/admin/restaurants");
+  await page.getByLabel("Name", { exact: false }).fill(restaurantName);
+  await page.getByRole("button", { name: "Add restaurant" }).click();
+  await page.getByRole("link", { name: restaurantName }).click();
+  await expect(page.getByRole("heading", { name: restaurantName })).toBeVisible();
+
+  await page.getByLabel("Name", { exact: false }).fill("Pho Bo");
+  await page.getByRole("button", { name: "Add menu item" }).click();
+  await expect(page.getByText("Menu item added")).toBeVisible();
+
+  await page.goto("/admin/rounds");
+  await page.getByLabel("Label", { exact: false }).fill(roundLabel);
+  await page.getByLabel("Food restaurant", { exact: false }).selectOption({ label: restaurantName });
+  // Far in the future so the public page's "deadline passed" branch doesn't
+  // trigger while this spec exercises the "open, before deadline" state.
+  await page.getByLabel("Deadline", { exact: false }).fill("2030-01-01T12:00");
+  await page.getByRole("button", { name: "Add round" }).click();
+
+  await page.getByRole("link", { name: roundLabel }).click();
+  await expect(page.getByRole("heading", { name: roundLabel })).toBeVisible();
+  const roundUrl = page.url();
+  const roundId = roundUrl.substring(roundUrl.lastIndexOf("/") + 1);
+
+  await page.getByLabel("Pho Bo").click();
+  await expect(page.getByText("Menu item added to round")).toBeVisible();
+
+  await page.getByRole("button", { name: "Open" }).click();
+  await expect(page.getByText("Round opened")).toBeVisible();
+
+  await page.goto(`/r/${roundId}`);
+  await expect(page.getByRole("heading", { name: roundLabel })).toBeVisible();
+  // The submission form's own flow (task 009) is covered end-to-end in the
+  // submission test below — this test only cares that the food item made it
+  // into the picker, not that a select's <option> is "visible".
+  await expect(page.getByLabel("Food item", { exact: false })).toContainText("Pho Bo");
+  await expect(page.getByText("This round is closed.")).not.toBeVisible();
+
+  await page.goto(`/admin/rounds/${roundId}`);
+  await page.getByRole("button", { name: "Close" }).click();
+  await expect(page.getByText("Round closed")).toBeVisible();
+
+  await page.goto(`/r/${roundId}`);
+  await expect(page.getByRole("heading", { name: roundLabel })).toBeVisible();
+  await expect(page.getByText("This round is closed.")).toBeVisible();
+});
+
 // A single test opens one round and exercises both the happy path (food +
 // drink) and the duplicate-submission rejection against it, rather than each
 // getting its own round — only one round can be open at a time app-wide, so
