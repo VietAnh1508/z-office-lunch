@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
-    "dev:e2e": "wrangler dev --env-file=.env.test",
+    "dev:e2e": "wrangler dev --env-file=.env.test --port 8788",
     "typecheck": "tsc --noEmit",
     "deploy": "wrangler deploy"
   },

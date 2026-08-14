@@ -67,10 +67,11 @@ For frontend iteration, use `pnpm dev:hot` (`scripts/dev-hot.sh`) instead: same 
 
 Non-obvious bits the scripts themselves don't tell you:
 
-- `dev:api`, `dev:web`, `test`, and `test:e2e` don't go through `scripts/dev-setup.sh`, so they skip its setup — Postgres must already be up (`db:up`, which needs a container runtime already running) before using them directly. `dev:api` and `test:e2e` also need `apps/api/.env` to already exist (copy from `.env.example`).
-- Plain `pnpm test` (Vitest) hard-requires Postgres too, not just `test:e2e` — its `globalSetup` (`packages/db/src/vitest-global-setup.ts`) connects to create/migrate the `office_lunch_test` database before any test file runs.
-- Without `apps/api/.env`, `wrangler dev` hard-fails on startup rather than silently hitting the wrong database — that's Wrangler's own Hyperdrive local-override check, not a bug.
-- Cloudflare resource bindings (Hyperdrive id, R2 bucket name) in `apps/api/wrangler.jsonc` are placeholders (`REPLACE_ME` / `replace-me`) until real Neon/R2 resources are provisioned for staging/production. Local dev doesn't need them — it uses the `.env` override above instead.
+- Before running `dev:api`, `dev:web`, `test`, or `test:e2e` directly (not via `pnpm dev`/`dev:hot`): make sure Postgres is up (`pnpm db:up`) and `apps/api/.env` exists (copy from `.env.example`).
+- To run a subset of tests, pass a path to the root `pnpm test` command, e.g. `pnpm test -- apps/api/src/routes/rounds.test.ts`. Don't use `pnpm --filter <pkg> test` — it silently no-ops.
+- If `wrangler dev` fails to start, check `apps/api/.env` exists first — that's expected, not a bug.
+- Ignore the `REPLACE_ME`/`replace-me` placeholders in `apps/api/wrangler.jsonc` (Hyperdrive id, R2 bucket) — local dev doesn't need them filled in.
+- `pnpm dev`/`dev:hot` and `pnpm test:e2e` can run at the same time in separate terminals — they use different ports (`:8787` vs `:8788`) and different databases.
 
 ## Fresh-session bootstrap
 
