@@ -86,9 +86,18 @@ test("employee submits food and drink picks, then a second submission is rejecte
 
   await expect(page.getByText("you have already submitted for this round")).toBeVisible();
 
+  // Admin can see the submission (resolved names, not raw ids) and export it.
+  await page.goto(`/admin/rounds/${roundId}`);
+  await expect(page.getByRole("cell", { name: employeeName })).toBeVisible();
+  await expect(page.getByRole("cell", { name: "Less ice" })).toBeVisible();
+
+  const downloadPromise = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Export CSV" }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe(`round-${roundId}-submissions.csv`);
+
   // Only one round can be open at a time app-wide — leaving this one open
   // would block every other spec's own "Open" step for the rest of the run.
-  await page.goto(`/admin/rounds/${roundId}`);
   await page.getByRole("button", { name: "Close" }).click();
   await expect(page.getByText("Round closed")).toBeVisible();
 });

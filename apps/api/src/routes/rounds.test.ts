@@ -1593,5 +1593,94 @@ describe("rounds routes", () => {
       const body = (await res.json()) as { error?: string };
       expect(body.error).toBeTruthy();
     });
+
+    describe("GET submissions", () => {
+      type SubmissionRow = {
+        id: number;
+        employeeName: string;
+        foodName: string;
+        foodNote: string | null;
+        drinkName: string | null;
+        drinkNote: string | null;
+      };
+
+      it("GET returns resolved names, excluding price and raw FKs", async () => {
+        const { round, foodRoundMenuItem } = await seedOpenFoodRound();
+        const employee = await seedEmployee(db, { fullName: "An Nguyen" });
+        await seedSubmission(db, {
+          roundId: round.id,
+          employeeId: employee!.id,
+          foodRoundMenuItemId: foodRoundMenuItem.id,
+          foodNote: "No cilantro",
+        });
+
+        const res = await app.request(`/api/rounds/${round.id}/submissions`, {}, testEnv);
+
+        expect(res.status).toBe(200);
+        const body = (await res.json()) as SubmissionRow[];
+        expect(body).toHaveLength(1);
+        expect(body[0]?.employeeName).toBe("An Nguyen");
+        expect(body[0]?.foodName).toBe("Pho Bo");
+        expect(body[0]?.foodNote).toBe("No cilantro");
+        expect(body[0]?.drinkName).toBeNull();
+        expect(body[0]?.drinkNote).toBeNull();
+        expect(JSON.stringify(body)).not.toContain("price");
+        expect(JSON.stringify(body)).not.toContain("RoundMenuItemId");
+        expect(JSON.stringify(body)).not.toContain("employeeId");
+      });
+
+      it("GET includes drinkName and drinkNote when a drink was submitted", async () => {
+        const { round, foodRoundMenuItem } = await seedOpenFoodRound();
+        const drink = await seedRestaurant(db, { name: "Tra Da Corner", type: "drink" });
+        const drinkMenuItem = await seedMenuItem(db, { restaurantId: drink!.id, name: "Tra Da" });
+        await db
+          .update(rounds)
+          .set({ drinkRestaurantId: drink!.id })
+          .where(eq(rounds.id, round.id));
+        const drinkRoundMenuItem = await seedRoundMenuItem(db, {
+          roundId: round.id,
+          menuItemId: drinkMenuItem!.id,
+        });
+        const employee = await seedEmployee(db);
+        await seedSubmission(db, {
+          roundId: round.id,
+          employeeId: employee!.id,
+          foodRoundMenuItemId: foodRoundMenuItem.id,
+          drinkRoundMenuItemId: drinkRoundMenuItem!.id,
+          drinkNote: "Less ice",
+        });
+
+        const res = await app.request(`/api/rounds/${round.id}/submissions`, {}, testEnv);
+
+        expect(res.status).toBe(200);
+        const body = (await res.json()) as SubmissionRow[];
+        expect(body[0]?.drinkName).toBe("Tra Da");
+        expect(body[0]?.drinkNote).toBe("Less ice");
+      });
+
+      it("GET returns [] for a round with no submissions", async () => {
+        const { round } = await seedOpenFoodRound();
+
+        const res = await app.request(`/api/rounds/${round.id}/submissions`, {}, testEnv);
+
+        expect(res.status).toBe(200);
+        expect(await res.json()).toEqual([]);
+      });
+
+      it("GET returns [] for a non-integer round id", async () => {
+        const res = await app.request("/api/rounds/abc/submissions", {}, testEnv);
+
+        expect(res.status).toBe(200);
+        expect(await res.json()).toEqual([]);
+      });
+
+      it("GET returns a structured 500 when the database is unreachable", async () => {
+        const res = await app.request("/api/rounds/1/submissions", {}, unreachableEnv);
+
+        expect(res.status).toBe(500);
+        const body = (await res.json()) as { error?: string };
+        expect(body.error).toBeTruthy();
+      });
+    });
   });
 });
