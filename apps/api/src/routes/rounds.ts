@@ -15,6 +15,27 @@ const drinkRoundMenuItemAlias = alias(roundMenuItems, "drink_round_menu_item");
 const foodMenuItemAlias = alias(menuItems, "food_menu_item");
 const drinkMenuItemAlias = alias(menuItems, "drink_menu_item");
 
+type Tx = Parameters<Parameters<ReturnType<typeof getDb>["transaction"]>[0]>[0];
+
+// Auto-curates a restaurant's currently active menu items into a round. Fires
+// at round create and at a restaurant change on a draft round's PATCH -- not
+// when a restaurant's menu items change later, that stays manual. A
+// restaurant with zero active items is a no-op, not an error: `.insert()`
+// throws on an empty `.values([])`, so the empty case is guarded explicitly.
+async function insertActiveMenuItems(tx: Tx, roundId: number, restaurantId: number) {
+  const activeItems = await tx
+    .select({ id: menuItems.id })
+    .from(menuItems)
+    .where(and(eq(menuItems.restaurantId, restaurantId), eq(menuItems.active, true)));
+  if (activeItems.length === 0) {
+    return;
+  }
+  await tx
+    .insert(roundMenuItems)
+    .values(activeItems.map((item) => ({ roundId, menuItemId: item.id })))
+    .onConflictDoNothing();
+}
+
 roundsRoute.post("/", async (c) => {
   const body = await c.req.json().catch(() => ({}));
   const label = typeof body.label === "string" ? body.label.trim() : "";
@@ -73,16 +94,25 @@ roundsRoute.post("/", async (c) => {
       }
     }
 
-    const [row] = await db
-      .insert(rounds)
-      .values({
-        label,
-        foodRestaurantId,
-        drinkRestaurantId,
-        deadline,
-        status: "draft",
-      })
-      .returning();
+    const [row] = await db.transaction(async (tx) => {
+      const [inserted] = await tx
+        .insert(rounds)
+        .values({
+          label,
+          foodRestaurantId,
+          drinkRestaurantId,
+          deadline,
+          status: "draft",
+        })
+        .returning();
+
+      await insertActiveMenuItems(tx, inserted!.id, foodRestaurantId);
+      if (drinkRestaurantId !== null) {
+        await insertActiveMenuItems(tx, inserted!.id, drinkRestaurantId);
+      }
+
+      return [inserted];
+    });
     return c.json(row, 201);
   } catch (e) {
     console.error(JSON.stringify({ message: "failed to create round", error: String(e) }));
@@ -395,6 +425,23 @@ roundsRoute.patch("/:id", async (c) => {
       }
       if (drinkChanged && round.drinkRestaurantId !== null) {
         await purgeStaleItems(round.drinkRestaurantId);
+      }
+
+      // A restaurant change re-runs auto-curation from scratch for that side,
+      // including re-inserting any item the admin had previously opted out of
+      // curating. So A->B->A (two sequential changes back to the original
+      // restaurant) resurrects an opt-out made against A before the first
+      // change -- intended per this task's scope, not a regression.
+      if (foodChanged) {
+        await insertActiveMenuItems(tx, id, foodRestaurantId);
+      }
+      // Purge and insert are gated independently on the drink side: purge
+      // needs a previous drink restaurant to clean up after (`round.drinkRestaurantId
+      // !== null` above), while insert needs a new one to curate into
+      // (`drinkRestaurantId !== null` here) -- a value->null clear has
+      // nothing to insert, a null->value set has nothing to purge.
+      if (drinkChanged && drinkRestaurantId !== null) {
+        await insertActiveMenuItems(tx, id, drinkRestaurantId);
       }
 
       return tx

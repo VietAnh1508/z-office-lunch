@@ -32,6 +32,15 @@ test("admin curates a round's menu items and opens then closes it", async ({ pag
   await page.getByRole("link", { name: roundLabel }).click();
   await expect(page.getByRole("heading", { name: roundLabel })).toBeVisible();
 
+  // The food restaurant's active menu item is auto-curated on round create
+  // (task 025) — no manual click needed to check it.
+  await expect(page.getByLabel("Pho Bo")).toBeChecked();
+
+  // The per-item checkbox still supports manual opt-out/opt-in against an
+  // already-curated item.
+  await page.getByLabel("Pho Bo").click();
+  await expect(page.getByText("Menu item removed from round")).toBeVisible();
+  await expect(page.getByLabel("Pho Bo")).not.toBeChecked();
   await page.getByLabel("Pho Bo").click();
   await expect(page.getByText("Menu item added to round")).toBeVisible();
   await expect(page.getByLabel("Pho Bo")).toBeChecked();
@@ -72,8 +81,8 @@ test("employee-facing public round link reflects open then closed state", async 
   const roundUrl = page.url();
   const roundId = roundUrl.substring(roundUrl.lastIndexOf("/") + 1);
 
-  await page.getByLabel("Pho Bo").click();
-  await expect(page.getByText("Menu item added to round")).toBeVisible();
+  // Auto-curated on round create (task 025) — already checked, no manual click.
+  await expect(page.getByLabel("Pho Bo")).toBeChecked();
 
   await page.getByRole("button", { name: "Open" }).click();
   await expect(page.getByText("Round opened")).toBeVisible();
@@ -149,10 +158,10 @@ test("employee submits food and drink picks, then a second submission is rejecte
   const roundUrl = page.url();
   const roundId = roundUrl.substring(roundUrl.lastIndexOf("/") + 1);
 
-  await page.getByLabel("Pho Bo").click();
-  await expect(page.getByText("Menu item added to round")).toBeVisible();
-  await page.getByLabel("Tra Da").click();
-  await expect(page.getByText("Menu item added to round")).toBeVisible();
+  // Both restaurants' active menu items are auto-curated on round create
+  // (task 025) — already checked, no manual clicks needed.
+  await expect(page.getByLabel("Pho Bo")).toBeChecked();
+  await expect(page.getByLabel("Tra Da")).toBeChecked();
 
   await page.getByRole("button", { name: "Open" }).click();
   await expect(page.getByText("Round opened")).toBeVisible();

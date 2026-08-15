@@ -79,6 +79,125 @@ describe("rounds routes", () => {
     expect(created.drinkRestaurantId).toBe(drink!.id);
   });
 
+  describe("auto-curation on round create", () => {
+    it("POST auto-curates all active food menu items into round_menu_items", async () => {
+      const food = await seedRestaurant(db, { type: "food" });
+      const itemA = await seedMenuItem(db, { restaurantId: food!.id, name: "Pho Bo" });
+      const itemB = await seedMenuItem(db, { restaurantId: food!.id, name: "Bun Cha" });
+
+      const res = await app.request(
+        "/api/rounds",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            label: "Week 1",
+            foodRestaurantId: food!.id,
+            deadline: "2026-08-10T12:00:00.000Z",
+          }),
+        },
+        testEnv,
+      );
+
+      expect(res.status).toBe(201);
+      const created = (await res.json()) as Round;
+      const curated = await db
+        .select()
+        .from(roundMenuItems)
+        .where(eq(roundMenuItems.roundId, created.id));
+      expect(curated.map((c) => c.menuItemId).sort((a, b) => a - b)).toEqual(
+        [itemA!.id, itemB!.id].sort((a, b) => a - b),
+      );
+    });
+
+    it("POST skips inactive food menu items", async () => {
+      const food = await seedRestaurant(db, { type: "food" });
+      const activeItem = await seedMenuItem(db, { restaurantId: food!.id, name: "Pho Bo" });
+      await seedMenuItem(db, { restaurantId: food!.id, name: "Discontinued", active: false });
+
+      const res = await app.request(
+        "/api/rounds",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            label: "Week 1",
+            foodRestaurantId: food!.id,
+            deadline: "2026-08-10T12:00:00.000Z",
+          }),
+        },
+        testEnv,
+      );
+
+      expect(res.status).toBe(201);
+      const created = (await res.json()) as Round;
+      const curated = await db
+        .select()
+        .from(roundMenuItems)
+        .where(eq(roundMenuItems.roundId, created.id));
+      expect(curated).toHaveLength(1);
+      expect(curated[0]?.menuItemId).toBe(activeItem!.id);
+    });
+
+    it("POST with a drinkRestaurantId also auto-curates that restaurant's active items", async () => {
+      const food = await seedRestaurant(db, { type: "food" });
+      const foodItem = await seedMenuItem(db, { restaurantId: food!.id, name: "Pho Bo" });
+      const drink = await seedRestaurant(db, { name: "Tra Da Corner", type: "drink" });
+      const drinkItem = await seedMenuItem(db, { restaurantId: drink!.id, name: "Tra Da" });
+
+      const res = await app.request(
+        "/api/rounds",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            label: "Week 1",
+            foodRestaurantId: food!.id,
+            drinkRestaurantId: drink!.id,
+            deadline: "2026-08-10T12:00:00.000Z",
+          }),
+        },
+        testEnv,
+      );
+
+      expect(res.status).toBe(201);
+      const created = (await res.json()) as Round;
+      const curated = await db
+        .select()
+        .from(roundMenuItems)
+        .where(eq(roundMenuItems.roundId, created.id));
+      expect(curated.map((c) => c.menuItemId).sort((a, b) => a - b)).toEqual(
+        [foodItem!.id, drinkItem!.id].sort((a, b) => a - b),
+      );
+    });
+
+    it("POST for a restaurant with zero active menu items still succeeds, curating nothing", async () => {
+      const food = await seedRestaurant(db, { type: "food" });
+
+      const res = await app.request(
+        "/api/rounds",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            label: "Week 1",
+            foodRestaurantId: food!.id,
+            deadline: "2026-08-10T12:00:00.000Z",
+          }),
+        },
+        testEnv,
+      );
+
+      expect(res.status).toBe(201);
+      const created = (await res.json()) as Round;
+      const curated = await db
+        .select()
+        .from(roundMenuItems)
+        .where(eq(roundMenuItems.roundId, created.id));
+      expect(curated).toHaveLength(0);
+    });
+  });
+
   it("POST without label returns 400", async () => {
     const food = await seedRestaurant(db, { type: "food" });
 
@@ -1082,6 +1201,217 @@ describe("rounds routes", () => {
       );
 
       expect(res.status).toBe(400);
+    });
+
+    describe("auto-curation on restaurant change", () => {
+      it("PATCH changing foodRestaurantId auto-curates the new restaurant's active items", async () => {
+        const food = await seedRestaurant(db, { name: "Pho 24", type: "food" });
+        const otherFood = await seedRestaurant(db, { name: "Bun Cha", type: "food" });
+        const otherFoodItem = await seedMenuItem(db, {
+          restaurantId: otherFood!.id,
+          name: "Bun Cha",
+        });
+        const round = await seedRound(db, { foodRestaurantId: food!.id });
+
+        const res = await app.request(
+          `/api/rounds/${round!.id}`,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              deadline: round!.deadline.toISOString(),
+              foodRestaurantId: otherFood!.id,
+            }),
+          },
+          testEnv,
+        );
+
+        expect(res.status).toBe(200);
+        const curated = await db
+          .select()
+          .from(roundMenuItems)
+          .where(eq(roundMenuItems.roundId, round!.id));
+        expect(curated).toHaveLength(1);
+        expect(curated[0]?.menuItemId).toBe(otherFoodItem!.id);
+      });
+
+      it("PATCH changing drinkRestaurantId auto-curates the new restaurant's active items", async () => {
+        const food = await seedRestaurant(db, { type: "food" });
+        const drink = await seedRestaurant(db, { name: "Tra Da Corner", type: "drink" });
+        const otherDrink = await seedRestaurant(db, { name: "Coconut Coffee", type: "drink" });
+        const otherDrinkItem = await seedMenuItem(db, {
+          restaurantId: otherDrink!.id,
+          name: "Coconut Coffee",
+        });
+        const round = await seedRound(db, {
+          foodRestaurantId: food!.id,
+          drinkRestaurantId: drink!.id,
+        });
+
+        const res = await app.request(
+          `/api/rounds/${round!.id}`,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              deadline: round!.deadline.toISOString(),
+              foodRestaurantId: food!.id,
+              drinkRestaurantId: otherDrink!.id,
+            }),
+          },
+          testEnv,
+        );
+
+        expect(res.status).toBe(200);
+        const curated = await db
+          .select()
+          .from(roundMenuItems)
+          .where(eq(roundMenuItems.roundId, round!.id));
+        expect(curated).toHaveLength(1);
+        expect(curated[0]?.menuItemId).toBe(otherDrinkItem!.id);
+      });
+
+      it("PATCH clearing drinkRestaurantId (value→null) purges and curates nothing", async () => {
+        const food = await seedRestaurant(db, { type: "food" });
+        const drink = await seedRestaurant(db, { name: "Tra Da Corner", type: "drink" });
+        const drinkItem = await seedMenuItem(db, { restaurantId: drink!.id, name: "Tra Da" });
+        const round = await seedRound(db, {
+          foodRestaurantId: food!.id,
+          drinkRestaurantId: drink!.id,
+        });
+        await seedRoundMenuItem(db, { roundId: round!.id, menuItemId: drinkItem!.id });
+
+        const res = await app.request(
+          `/api/rounds/${round!.id}`,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              deadline: round!.deadline.toISOString(),
+              foodRestaurantId: food!.id,
+            }),
+          },
+          testEnv,
+        );
+
+        expect(res.status).toBe(200);
+        const curated = await db
+          .select()
+          .from(roundMenuItems)
+          .where(eq(roundMenuItems.roundId, round!.id));
+        expect(curated).toHaveLength(0);
+      });
+
+      it("PATCH setting drinkRestaurantId for the first time (null→value) auto-curates its active items, leaving food untouched", async () => {
+        const food = await seedRestaurant(db, { type: "food" });
+        const foodItem = await seedMenuItem(db, { restaurantId: food!.id, name: "Pho Bo" });
+        const drink = await seedRestaurant(db, { name: "Tra Da Corner", type: "drink" });
+        const drinkItem = await seedMenuItem(db, { restaurantId: drink!.id, name: "Tra Da" });
+        const round = await seedRound(db, { foodRestaurantId: food!.id });
+        const curatedFood = await seedRoundMenuItem(db, {
+          roundId: round!.id,
+          menuItemId: foodItem!.id,
+        });
+
+        const res = await app.request(
+          `/api/rounds/${round!.id}`,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              deadline: round!.deadline.toISOString(),
+              foodRestaurantId: food!.id,
+              drinkRestaurantId: drink!.id,
+            }),
+          },
+          testEnv,
+        );
+
+        expect(res.status).toBe(200);
+        const curated = await db
+          .select()
+          .from(roundMenuItems)
+          .where(eq(roundMenuItems.roundId, round!.id));
+        expect(curated.map((c) => c.menuItemId).sort((a, b) => a - b)).toEqual(
+          [foodItem!.id, drinkItem!.id].sort((a, b) => a - b),
+        );
+        expect(curated.some((c) => c.id === curatedFood!.id)).toBe(true);
+      });
+
+      it("PATCH with a deadline-only change auto-curates nothing on either side", async () => {
+        const food = await seedRestaurant(db, { type: "food" });
+        // Added to the restaurant after round creation -- auto-curation only
+        // fires on round create or a restaurant change, not when a restaurant's
+        // menu items change later, so a deadline-only PATCH must not pick it up.
+        await seedMenuItem(db, { restaurantId: food!.id, name: "New Item" });
+        const round = await seedRound(db, { foodRestaurantId: food!.id });
+
+        const res = await app.request(
+          `/api/rounds/${round!.id}`,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              deadline: "2026-09-01T12:00:00.000Z",
+              foodRestaurantId: food!.id,
+            }),
+          },
+          testEnv,
+        );
+
+        expect(res.status).toBe(200);
+        const curated = await db
+          .select()
+          .from(roundMenuItems)
+          .where(eq(roundMenuItems.roundId, round!.id));
+        expect(curated).toHaveLength(0);
+      });
+
+      it("PATCH A→B then B→A re-triggers full auto-curation, re-inserting a previously unchecked item", async () => {
+        const foodA = await seedRestaurant(db, { name: "Pho 24", type: "food" });
+        const itemA1 = await seedMenuItem(db, { restaurantId: foodA!.id, name: "Pho Bo" });
+        const itemA2 = await seedMenuItem(db, { restaurantId: foodA!.id, name: "Pho Ga" });
+        const foodB = await seedRestaurant(db, { name: "Bun Cha", type: "food" });
+        const round = await seedRound(db, { foodRestaurantId: foodA!.id });
+        // Simulates the state right after round creation auto-curated both A
+        // items and the admin then manually opted itemA2 back out, before the
+        // restaurant is ever changed.
+        await seedRoundMenuItem(db, { roundId: round!.id, menuItemId: itemA1!.id });
+
+        await app.request(
+          `/api/rounds/${round!.id}`,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              deadline: round!.deadline.toISOString(),
+              foodRestaurantId: foodB!.id,
+            }),
+          },
+          testEnv,
+        );
+        const res = await app.request(
+          `/api/rounds/${round!.id}`,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              deadline: round!.deadline.toISOString(),
+              foodRestaurantId: foodA!.id,
+            }),
+          },
+          testEnv,
+        );
+
+        expect(res.status).toBe(200);
+        const curated = await db
+          .select()
+          .from(roundMenuItems)
+          .where(eq(roundMenuItems.roundId, round!.id));
+        expect(curated.map((c) => c.menuItemId).sort((a, b) => a - b)).toEqual(
+          [itemA1!.id, itemA2!.id].sort((a, b) => a - b),
+        );
+      });
     });
   });
 
