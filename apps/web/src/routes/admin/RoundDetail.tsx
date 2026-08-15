@@ -29,7 +29,8 @@ import {
   useRemoveRoundMenuItem,
   useRoundMenuItems,
 } from "./useRoundMenuItems";
-import { useRoundSubmissions } from "./useRoundSubmissions";
+import { SUBMISSION_COLUMNS, SubmissionsTable } from "../shared/SubmissionsTable";
+import { useRoundSubmissions } from "../shared/useRoundSubmissions";
 import { useDeleteRound, useRound, useUpdateRound, useUpdateRoundStatus } from "./useRounds";
 import type { Round } from "./useRounds";
 
@@ -41,8 +42,6 @@ function toDatetimeLocalValue(isoDeadline: string): string {
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
-
-const SUBMISSION_COLUMNS = ["Employee", "Food", "Food note", "Drink", "Drink note"];
 
 function EditRoundForm({
   round,
@@ -378,41 +377,7 @@ export function RoundDetail() {
           )}
         </CardHeader>
         <CardContent>
-          {!submissions || submissions.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No submissions yet.</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b text-left text-muted-foreground">
-                    {SUBMISSION_COLUMNS.map((column, index) => (
-                      <th
-                        key={column}
-                        className={
-                          index === SUBMISSION_COLUMNS.length - 1
-                            ? "py-1.5 font-medium"
-                            : "py-1.5 pr-4 font-medium"
-                        }
-                      >
-                        {column}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {submissions.map((submission) => (
-                    <tr key={submission.id}>
-                      <td className="py-1.5 pr-4">{submission.employeeName}</td>
-                      <td className="py-1.5 pr-4">{submission.foodName}</td>
-                      <td className="py-1.5 pr-4">{submission.foodNote}</td>
-                      <td className="py-1.5 pr-4">{submission.drinkName}</td>
-                      <td className="py-1.5">{submission.drinkNote}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+          <SubmissionsTable submissions={submissions} />
         </CardContent>
       </Card>
     </div>

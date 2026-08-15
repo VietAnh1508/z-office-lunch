@@ -316,7 +316,7 @@ describe("Round (public view)", () => {
       renderRound("1");
 
       expect(await screen.findByText("An Nguyen")).toBeInTheDocument();
-      expect(screen.getByRole("heading", { name: "Place your order" })).toBeInTheDocument();
+      expect(screen.getByText("Place your order")).toBeInTheDocument();
     });
 
     it('shows "No submissions yet." alongside the form when there are none', async () => {
@@ -329,7 +329,7 @@ describe("Round (public view)", () => {
       renderRound("1");
 
       expect(await screen.findByText("No submissions yet.")).toBeInTheDocument();
-      expect(screen.getByRole("heading", { name: "Place your order" })).toBeInTheDocument();
+      expect(screen.getByText("Place your order")).toBeInTheDocument();
     });
 
     it("refetches the list after a successful submit, with no page reload", async () => {

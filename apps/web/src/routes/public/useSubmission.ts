@@ -1,7 +1,8 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { toastApiError } from "@/lib/toast";
+import { roundSubmissionKeys } from "../shared/useRoundSubmissions";
 
 export type ActiveEmployee = {
   id: number;
@@ -34,10 +35,14 @@ export function useActiveEmployees() {
 }
 
 export function useCreateSubmission(roundId: number) {
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: CreateSubmissionInput) =>
       api.post<Submission>(`/rounds/${roundId}/submissions`, input),
-    onSuccess: () => toast.success("Submission recorded"),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: roundSubmissionKeys.list(roundId) });
+      toast.success("Submission recorded");
+    },
     onError: (error) => toastApiError(error, "Could not submit."),
   });
 }

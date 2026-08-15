@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ApiError } from "@/lib/api";
+import { SubmissionsTable } from "../shared/SubmissionsTable";
+import { useRoundSubmissions } from "../shared/useRoundSubmissions";
 import { EmployeeCombobox } from "./EmployeeCombobox";
 import { useActiveEmployees, useCreateSubmission } from "./useSubmission";
 import { usePublicRound } from "./usePublicRound";
@@ -149,6 +151,21 @@ function SubmissionForm({ roundId, round }: { roundId: number; round: PublicRoun
   );
 }
 
+function SubmissionsCard({ roundId }: { roundId: number }) {
+  const { data: submissions } = useRoundSubmissions(roundId);
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Submissions</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <SubmissionsTable submissions={submissions} />
+      </CardContent>
+    </Card>
+  );
+}
+
 export function Round() {
   const { roundId } = useParams<{ roundId: string }>();
   const id = Number(roundId);
@@ -203,6 +220,7 @@ export function Round() {
       </div>
 
       <SubmissionForm roundId={id} round={round} />
+      <SubmissionsCard roundId={id} />
     </div>
   );
 }
