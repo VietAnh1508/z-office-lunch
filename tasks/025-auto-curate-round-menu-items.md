@@ -1,7 +1,7 @@
 ---
 id: 025
 title: Auto-curate active menu items on round create/restaurant-change
-status: in_review
+status: done
 depends_on: []
 parallelizable_with: []
 tdd: required
