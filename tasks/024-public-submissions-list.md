@@ -1,7 +1,7 @@
 ---
 id: 024
 title: Show all submitted orders on the public round page
-status: in_review
+status: done
 depends_on: [010]
 parallelizable_with: []
 tdd: required
