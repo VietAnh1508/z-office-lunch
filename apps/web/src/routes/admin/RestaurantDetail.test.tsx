@@ -95,6 +95,37 @@ describe("RestaurantDetail", () => {
     expect(screen.getByLabelText("Price", { exact: false })).toHaveValue("");
   });
 
+  it("shows an inline error and does not submit when price is negative", async () => {
+    const user = userEvent.setup();
+    let postCalled = false;
+
+    server.use(
+      http.get("/api/restaurants", () =>
+        HttpResponse.json([
+          { id: 1, name: "Pho 24", type: "food", contactInfo: null, menuSourceNote: null },
+        ]),
+      ),
+      http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
+      http.post("/api/restaurants/1/menu-items", () => {
+        postCalled = true;
+        return HttpResponse.json({}, { status: 201 });
+      }),
+    );
+
+    renderDetail("1");
+
+    await screen.findByText("No menu items yet.");
+
+    await user.type(screen.getByLabelText("Name", { exact: false }), "Banh Mi");
+    await user.type(screen.getByLabelText("Price", { exact: false }), "-500");
+    await user.click(screen.getByRole("button", { name: "Add menu item" }));
+
+    expect(
+      await screen.findByText("Price must be a valid non-negative number."),
+    ).toBeInTheDocument();
+    expect(postCalled).toBe(false);
+  });
+
   it("shows a fallback error toast when creating a menu item fails with a network error", async () => {
     const user = userEvent.setup();
 

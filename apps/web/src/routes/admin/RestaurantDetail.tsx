@@ -24,16 +24,30 @@ export function RestaurantDetail() {
 
   const name = useRequiredField("Name is required.");
   const [price, setPrice] = useState("");
+  const [priceError, setPriceError] = useState<string | null>(null);
+
+  function validatePrice(): boolean {
+    const trimmed = price.trim();
+    if (trimmed !== "" && !(Number.isFinite(Number(trimmed)) && Number(trimmed) >= 0)) {
+      setPriceError("Price must be a valid non-negative number.");
+      return false;
+    }
+    setPriceError(null);
+    return true;
+  }
 
   function handleSubmit(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!name.validate()) return;
+    const isNameValid = name.validate();
+    const isPriceValid = validatePrice();
+    if (!isNameValid || !isPriceValid) return;
     createMenuItem.mutate(
       { name: name.value, price: price || undefined },
       {
         onSuccess: () => {
           name.reset();
           setPrice("");
+          setPriceError(null);
         },
       },
     );
@@ -82,8 +96,13 @@ export function RestaurantDetail() {
                 <Input
                   id="menu-item-price"
                   value={price}
-                  onChange={(e) => setPrice(e.target.value)}
+                  onChange={(e) => {
+                    setPrice(e.target.value);
+                    setPriceError(null);
+                  }}
+                  aria-invalid={priceError !== null}
                 />
+                {priceError && <p className="text-sm text-destructive">{priceError}</p>}
               </div>
               <Button type="submit" disabled={createMenuItem.isPending}>
                 Add menu item
