@@ -172,6 +172,10 @@ test("employee submits food and drink picks, then a second submission is rejecte
   await page.getByRole("button", { name: "Submit" }).click();
   await expect(page.getByText("Thanks! Your order has been recorded.")).toBeVisible();
 
+  // The public page's own submissions list picks up the new row without a
+  // page reload (task 024).
+  await expect(page.getByRole("cell", { name: employeeName })).toBeVisible();
+
   // Second submission for the same round + employee: rejected, not upserted.
   await page.goto(`/r/${roundId}`);
   await page.getByRole("combobox", { name: "Your name", exact: false }).fill(employeeName);

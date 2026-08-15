@@ -118,6 +118,7 @@ describe("Round (public view)", () => {
     server.use(
       http.get("/api/rounds/1/public", () => HttpResponse.json(OPEN_ROUND_FOOD_ONLY)),
       http.get("/api/employees", () => HttpResponse.json(EMPLOYEES)),
+      http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
     );
 
     renderRound("1");
@@ -132,6 +133,7 @@ describe("Round (public view)", () => {
     server.use(
       http.get("/api/rounds/1/public", () => HttpResponse.json(OPEN_ROUND_WITH_DRINK)),
       http.get("/api/employees", () => HttpResponse.json(EMPLOYEES)),
+      http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
     );
 
     renderRound("1");
@@ -148,6 +150,7 @@ describe("Round (public view)", () => {
       http.get("/api/employees", () =>
         HttpResponse.json([...EMPLOYEES, { id: 2, fullName: "Binh Tran" }]),
       ),
+      http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
     );
 
     renderRound("1");
@@ -169,6 +172,7 @@ describe("Round (public view)", () => {
     server.use(
       http.get("/api/rounds/1/public", () => HttpResponse.json(OPEN_ROUND_FOOD_ONLY)),
       http.get("/api/employees", () => HttpResponse.json(EMPLOYEES)),
+      http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
     );
 
     renderRound("1");
@@ -192,6 +196,7 @@ describe("Round (public view)", () => {
     server.use(
       http.get("/api/rounds/1/public", () => HttpResponse.json(OPEN_ROUND_FOOD_ONLY)),
       http.get("/api/employees", () => HttpResponse.json(EMPLOYEES)),
+      http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
     );
 
     renderRound("1");
@@ -209,6 +214,7 @@ describe("Round (public view)", () => {
     server.use(
       http.get("/api/rounds/1/public", () => HttpResponse.json(OPEN_ROUND_FOOD_ONLY)),
       http.get("/api/employees", () => HttpResponse.json(EMPLOYEES)),
+      http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
       http.post("/api/rounds/1/submissions", async ({ request }) => {
         submittedBody = (await request.json()) as Record<string, unknown>;
         return HttpResponse.json({ id: 1, roundId: 1, ...submittedBody }, { status: 201 });
@@ -236,6 +242,7 @@ describe("Round (public view)", () => {
     server.use(
       http.get("/api/rounds/1/public", () => HttpResponse.json(OPEN_ROUND_WITH_DRINK)),
       http.get("/api/employees", () => HttpResponse.json(EMPLOYEES)),
+      http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
       http.post("/api/rounds/1/submissions", async ({ request }) => {
         submittedBody = (await request.json()) as Record<string, unknown>;
         return HttpResponse.json({ id: 1, roundId: 1, ...submittedBody }, { status: 201 });
@@ -266,6 +273,7 @@ describe("Round (public view)", () => {
     server.use(
       http.get("/api/rounds/1/public", () => HttpResponse.json(OPEN_ROUND_FOOD_ONLY)),
       http.get("/api/employees", () => HttpResponse.json(EMPLOYEES)),
+      http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
       http.post("/api/rounds/1/submissions", () =>
         HttpResponse.json({ error: "you have already submitted for this round" }, { status: 409 }),
       ),
@@ -284,5 +292,85 @@ describe("Round (public view)", () => {
     expect(
       screen.queryByText("Thanks! Your order has been recorded."),
     ).not.toBeInTheDocument();
+  });
+
+  describe("submissions list", () => {
+    it("renders existing submissions in a table alongside the form", async () => {
+      server.use(
+        http.get("/api/rounds/1/public", () => HttpResponse.json(OPEN_ROUND_FOOD_ONLY)),
+        http.get("/api/employees", () => HttpResponse.json(EMPLOYEES)),
+        http.get("/api/rounds/1/submissions", () =>
+          HttpResponse.json([
+            {
+              id: 1,
+              employeeName: "An Nguyen",
+              foodName: "Pho Bo",
+              foodNote: null,
+              drinkName: null,
+              drinkNote: null,
+            },
+          ]),
+        ),
+      );
+
+      renderRound("1");
+
+      expect(await screen.findByText("An Nguyen")).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "Place your order" })).toBeInTheDocument();
+    });
+
+    it('shows "No submissions yet." alongside the form when there are none', async () => {
+      server.use(
+        http.get("/api/rounds/1/public", () => HttpResponse.json(OPEN_ROUND_FOOD_ONLY)),
+        http.get("/api/employees", () => HttpResponse.json(EMPLOYEES)),
+        http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
+      );
+
+      renderRound("1");
+
+      expect(await screen.findByText("No submissions yet.")).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "Place your order" })).toBeInTheDocument();
+    });
+
+    it("refetches the list after a successful submit, with no page reload", async () => {
+      const user = userEvent.setup();
+      let submissionsCallCount = 0;
+      server.use(
+        http.get("/api/rounds/1/public", () => HttpResponse.json(OPEN_ROUND_FOOD_ONLY)),
+        http.get("/api/employees", () => HttpResponse.json(EMPLOYEES)),
+        http.get("/api/rounds/1/submissions", () => {
+          submissionsCallCount += 1;
+          if (submissionsCallCount === 1) {
+            return HttpResponse.json([]);
+          }
+          return HttpResponse.json([
+            {
+              id: 1,
+              employeeName: "An Nguyen",
+              foodName: "Pho Bo",
+              foodNote: null,
+              drinkName: null,
+              drinkNote: null,
+            },
+          ]);
+        }),
+        http.post("/api/rounds/1/submissions", async ({ request }) => {
+          const body = (await request.json()) as Record<string, unknown>;
+          return HttpResponse.json({ id: 1, roundId: 1, ...body }, { status: 201 });
+        }),
+      );
+
+      renderRound("1");
+      await screen.findByText("No submissions yet.");
+
+      await pickEmployee(user, "An Nguyen");
+      await user.selectOptions(screen.getByLabelText("Food item", { exact: false }), "10");
+      await user.click(screen.getByRole("button", { name: "Submit" }));
+
+      expect(
+        await screen.findByText("Thanks! Your order has been recorded."),
+      ).toBeInTheDocument();
+      expect(await screen.findByText("An Nguyen")).toBeInTheDocument();
+    });
   });
 });
