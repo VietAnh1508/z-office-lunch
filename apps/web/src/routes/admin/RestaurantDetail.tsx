@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { useRequiredField } from "@/hooks/useRequiredField";
 import { formatPrice } from "@/lib/format-price";
@@ -157,6 +158,8 @@ export function RestaurantDetail() {
       </div>
 
       <RestaurantDetailsForm key={restaurant.id} restaurant={restaurant} />
+
+      <Separator />
 
       <div className="grid gap-6 lg:grid-cols-[20rem_1fr] lg:items-start">
         <Card>
