@@ -20,6 +20,7 @@ export const restaurants = pgTable("restaurants", {
   contactInfo: text("contact_info"),
   note: text("note"),
   menuUrl: text("menu_url"),
+  menuImage: text("menu_image"),
 });
 
 export const menuItems = pgTable("menu_items", {
