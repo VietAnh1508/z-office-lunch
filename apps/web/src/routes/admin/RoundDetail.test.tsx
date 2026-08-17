@@ -11,8 +11,8 @@ import { RoundDetail } from "./RoundDetail";
 vi.mock("@/lib/download", () => ({ downloadCsv: vi.fn() }));
 
 const RESTAURANTS = [
-  { id: 1, name: "Pho 24", type: "food", contactInfo: null, menuSourceNote: null },
-  { id: 2, name: "Tra Da Corner", type: "drink", contactInfo: null, menuSourceNote: null },
+  { id: 1, name: "Pho 24", type: "food", contactInfo: null, note: null, menuUrl: null },
+  { id: 2, name: "Tra Da Corner", type: "drink", contactInfo: null, note: null, menuUrl: null },
 ];
 
 function draftRound(overrides: Partial<Record<string, unknown>> = {}) {
@@ -388,7 +388,7 @@ describe("RoundDetail", () => {
       let patchBody: Record<string, unknown> | null = null;
       const foodRestaurants = [
         ...RESTAURANTS,
-        { id: 3, name: "Bun Cha", type: "food", contactInfo: null, menuSourceNote: null },
+        { id: 3, name: "Bun Cha", type: "food", contactInfo: null, note: null, menuUrl: null },
       ];
 
       server.use(
@@ -451,7 +451,7 @@ describe("RoundDetail", () => {
       let patchCalled = false;
       const foodRestaurants = [
         ...RESTAURANTS,
-        { id: 3, name: "Bun Cha", type: "food", contactInfo: null, menuSourceNote: null },
+        { id: 3, name: "Bun Cha", type: "food", contactInfo: null, note: null, menuUrl: null },
       ];
 
       server.use(

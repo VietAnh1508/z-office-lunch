@@ -20,7 +20,7 @@ describe("Restaurants", () => {
     server.use(
       http.get("/api/restaurants", () =>
         HttpResponse.json([
-          { id: 1, name: "Pizza Place", type: "food", contactInfo: "555-1234", menuSourceNote: null },
+          { id: 1, name: "Pizza Place", type: "food", contactInfo: "555-1234", note: null, menuUrl: null },
         ]),
       ),
     );
@@ -38,8 +38,9 @@ describe("Restaurants", () => {
       name: string;
       type: string;
       contactInfo: string | null;
-      menuSourceNote: null;
-    }> = [{ id: 1, name: "Pizza Place", type: "food", contactInfo: "555-1234", menuSourceNote: null }];
+      note: string | null;
+      menuUrl: string | null;
+    }> = [{ id: 1, name: "Pizza Place", type: "food", contactInfo: "555-1234", note: null, menuUrl: null }];
 
     server.use(
       http.get("/api/restaurants", () => HttpResponse.json(restaurants)),
@@ -50,7 +51,7 @@ describe("Restaurants", () => {
           name: body.name,
           type: body.type,
           contactInfo: body.contactInfo ?? null,
-          menuSourceNote: null,
+          note: null, menuUrl: null,
         };
         restaurants = [...restaurants, created];
         return HttpResponse.json(created, { status: 201 });
@@ -123,7 +124,8 @@ describe("Restaurants", () => {
       name: string;
       type: string;
       contactInfo: string | null;
-      menuSourceNote: null;
+      note: string | null;
+      menuUrl: string | null;
     }> = [];
     let capturedBody: { name: string; type: string; contactInfo?: string } | null = null;
 
@@ -137,7 +139,7 @@ describe("Restaurants", () => {
           name: body.name,
           type: body.type,
           contactInfo: body.contactInfo ?? null,
-          menuSourceNote: null,
+          note: null, menuUrl: null,
         };
         restaurants = [...restaurants, created];
         return HttpResponse.json(created, { status: 201 });
@@ -173,14 +175,14 @@ describe("Restaurants", () => {
         getCallCount += 1;
         if (getCallCount === 1) {
           return HttpResponse.json([
-            { id: 1, name: "Pizza Place", type: "food", contactInfo: null, menuSourceNote: null },
+            { id: 1, name: "Pizza Place", type: "food", contactInfo: null, note: null, menuUrl: null },
           ]);
         }
         return HttpResponse.json({ error: "internal error" }, { status: 500 });
       }),
       http.post("/api/restaurants", () =>
         HttpResponse.json(
-          { id: 2, name: "Sushi Spot", type: "food", contactInfo: null, menuSourceNote: null },
+          { id: 2, name: "Sushi Spot", type: "food", contactInfo: null, note: null, menuUrl: null },
           { status: 201 },
         ),
       ),
@@ -209,7 +211,7 @@ describe("Restaurants", () => {
       http.post("/api/restaurants", () => {
         postCount += 1;
         return HttpResponse.json(
-          { id: 1, name: "Sushi Spot", type: "food", contactInfo: null, menuSourceNote: null },
+          { id: 1, name: "Sushi Spot", type: "food", contactInfo: null, note: null, menuUrl: null },
           { status: 201 },
         );
       }),
@@ -229,5 +231,72 @@ describe("Restaurants", () => {
 
     expect(screen.queryByText("Name is required.")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Name", { exact: false })).toHaveAttribute("aria-invalid", "false");
+  });
+
+  it("submits Note and Menu website with the create form when filled in", async () => {
+    const user = userEvent.setup();
+    let capturedBody: Record<string, unknown> | null = null;
+
+    server.use(
+      http.get("/api/restaurants", () => HttpResponse.json([])),
+      http.post("/api/restaurants", async ({ request }) => {
+        capturedBody = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json(
+          { id: 1, name: "Sushi Spot", type: "food", contactInfo: null, note: null, menuUrl: null },
+          { status: 201 },
+        );
+      }),
+    );
+
+    renderRestaurants();
+
+    await screen.findByText("No restaurants yet.");
+
+    await user.type(screen.getByLabelText("Name", { exact: false }), "Sushi Spot");
+    await user.type(screen.getByLabelText("Note", { exact: false }), "Cash only");
+    await user.type(
+      screen.getByLabelText("Menu website", { exact: false }),
+      "https://sushispot.example.com/menu",
+    );
+    await user.click(screen.getByRole("button", { name: "Add restaurant" }));
+
+    await waitFor(() => {
+      expect(capturedBody).not.toBeNull();
+    });
+    expect(capturedBody).toEqual(
+      expect.objectContaining({
+        note: "Cash only",
+        menuUrl: "https://sushispot.example.com/menu",
+      }),
+    );
+  });
+
+  it("omits Note and Menu website from the create request when left blank", async () => {
+    const user = userEvent.setup();
+    let capturedBody: Record<string, unknown> | null = null;
+
+    server.use(
+      http.get("/api/restaurants", () => HttpResponse.json([])),
+      http.post("/api/restaurants", async ({ request }) => {
+        capturedBody = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json(
+          { id: 1, name: "Sushi Spot", type: "food", contactInfo: null, note: null, menuUrl: null },
+          { status: 201 },
+        );
+      }),
+    );
+
+    renderRestaurants();
+
+    await screen.findByText("No restaurants yet.");
+
+    await user.type(screen.getByLabelText("Name", { exact: false }), "Sushi Spot");
+    await user.click(screen.getByRole("button", { name: "Add restaurant" }));
+
+    await waitFor(() => {
+      expect(capturedBody).not.toBeNull();
+    });
+    expect(capturedBody).not.toHaveProperty("note");
+    expect(capturedBody).not.toHaveProperty("menuUrl");
   });
 });

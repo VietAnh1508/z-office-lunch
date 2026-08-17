@@ -8,8 +8,8 @@ import { server } from "@/test/mocks/server";
 import { Rounds } from "./Rounds";
 
 const RESTAURANTS = [
-  { id: 1, name: "Pho 24", type: "food", contactInfo: null, menuSourceNote: null },
-  { id: 2, name: "Tra Da Corner", type: "drink", contactInfo: null, menuSourceNote: null },
+  { id: 1, name: "Pho 24", type: "food", contactInfo: null, note: null, menuUrl: null },
+  { id: 2, name: "Tra Da Corner", type: "drink", contactInfo: null, note: null, menuUrl: null },
 ];
 
 function renderRounds() {

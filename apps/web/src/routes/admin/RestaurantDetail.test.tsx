@@ -22,7 +22,7 @@ describe("RestaurantDetail", () => {
     server.use(
       http.get("/api/restaurants", () =>
         HttpResponse.json([
-          { id: 1, name: "Pho 24", type: "food", contactInfo: null, menuSourceNote: null },
+          { id: 1, name: "Pho 24", type: "food", contactInfo: null, note: null, menuUrl: null },
         ]),
       ),
       http.get("/api/restaurants/1/menu-items", () =>
@@ -61,7 +61,7 @@ describe("RestaurantDetail", () => {
     server.use(
       http.get("/api/restaurants", () =>
         HttpResponse.json([
-          { id: 1, name: "Pho 24", type: "food", contactInfo: null, menuSourceNote: null },
+          { id: 1, name: "Pho 24", type: "food", contactInfo: null, note: null, menuUrl: null },
         ]),
       ),
       http.get("/api/restaurants/1/menu-items", () => HttpResponse.json(items)),
@@ -102,7 +102,7 @@ describe("RestaurantDetail", () => {
     server.use(
       http.get("/api/restaurants", () =>
         HttpResponse.json([
-          { id: 1, name: "Pho 24", type: "food", contactInfo: null, menuSourceNote: null },
+          { id: 1, name: "Pho 24", type: "food", contactInfo: null, note: null, menuUrl: null },
         ]),
       ),
       http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
@@ -132,7 +132,7 @@ describe("RestaurantDetail", () => {
     server.use(
       http.get("/api/restaurants", () =>
         HttpResponse.json([
-          { id: 1, name: "Pho 24", type: "food", contactInfo: null, menuSourceNote: null },
+          { id: 1, name: "Pho 24", type: "food", contactInfo: null, note: null, menuUrl: null },
         ]),
       ),
       http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
@@ -155,7 +155,7 @@ describe("RestaurantDetail", () => {
     server.use(
       http.get("/api/restaurants", () =>
         HttpResponse.json([
-          { id: 1, name: "Pho 24", type: "food", contactInfo: null, menuSourceNote: null },
+          { id: 1, name: "Pho 24", type: "food", contactInfo: null, note: null, menuUrl: null },
         ]),
       ),
       http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
@@ -181,7 +181,7 @@ describe("RestaurantDetail", () => {
     server.use(
       http.get("/api/restaurants", () =>
         HttpResponse.json([
-          { id: 1, name: "Pho 24", type: "food", contactInfo: null, menuSourceNote: null },
+          { id: 1, name: "Pho 24", type: "food", contactInfo: null, note: null, menuUrl: null },
         ]),
       ),
       http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([item])),
@@ -215,7 +215,7 @@ describe("RestaurantDetail", () => {
     server.use(
       http.get("/api/restaurants", () =>
         HttpResponse.json([
-          { id: 1, name: "Pho 24", type: "food", contactInfo: null, menuSourceNote: null },
+          { id: 1, name: "Pho 24", type: "food", contactInfo: null, note: null, menuUrl: null },
         ]),
       ),
       http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([item])),
@@ -238,7 +238,7 @@ describe("RestaurantDetail", () => {
     server.use(
       http.get("/api/restaurants", () =>
         HttpResponse.json([
-          { id: 1, name: "Pho 24", type: "food", contactInfo: null, menuSourceNote: null },
+          { id: 1, name: "Pho 24", type: "food", contactInfo: null, note: null, menuUrl: null },
         ]),
       ),
       http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([item])),
@@ -254,5 +254,185 @@ describe("RestaurantDetail", () => {
     await user.click(screen.getByRole("button", { name: "Deactivate" }));
 
     expect(await screen.findByText("Menu item not found")).toBeInTheDocument();
+  });
+
+  describe("Details form", () => {
+    it("renders pre-filled with the restaurant's existing name/contactInfo/note/menuUrl", async () => {
+      server.use(
+        http.get("/api/restaurants", () =>
+          HttpResponse.json([
+            {
+              id: 1,
+              name: "Pho 24",
+              type: "food",
+              contactInfo: "090-123-4567",
+              note: "Cash only",
+              menuUrl: "https://pho24.example.com/menu",
+            },
+          ]),
+        ),
+        http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
+      );
+
+      renderDetail("1");
+
+      expect(await screen.findByLabelText("Name", { exact: false })).toHaveValue("Pho 24");
+      expect(screen.getByLabelText("Contact info", { exact: false })).toHaveValue("090-123-4567");
+      expect(screen.getByLabelText("Note", { exact: false })).toHaveValue("Cash only");
+      expect(screen.getByLabelText("Menu website", { exact: false })).toHaveValue(
+        "https://pho24.example.com/menu",
+      );
+    });
+
+    it("renders blank inputs when contactInfo/note/menuUrl are null", async () => {
+      server.use(
+        http.get("/api/restaurants", () =>
+          HttpResponse.json([
+            { id: 1, name: "Pho 24", type: "food", contactInfo: null, note: null, menuUrl: null },
+          ]),
+        ),
+        http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
+      );
+
+      renderDetail("1");
+
+      expect(await screen.findByLabelText("Name", { exact: false })).toHaveValue("Pho 24");
+      expect(screen.getByLabelText("Contact info", { exact: false })).toHaveValue("");
+      expect(screen.getByLabelText("Note", { exact: false })).toHaveValue("");
+      expect(screen.getByLabelText("Menu website", { exact: false })).toHaveValue("");
+    });
+
+    it("does not render an Open menu link when menuUrl is null", async () => {
+      server.use(
+        http.get("/api/restaurants", () =>
+          HttpResponse.json([
+            { id: 1, name: "Pho 24", type: "food", contactInfo: null, note: null, menuUrl: null },
+          ]),
+        ),
+        http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
+      );
+
+      renderDetail("1");
+
+      await screen.findByLabelText("Name", { exact: false });
+      expect(screen.queryByRole("link", { name: "Open menu ↗" })).not.toBeInTheDocument();
+    });
+
+    it("renders an Open menu link with the correct href when menuUrl is set", async () => {
+      server.use(
+        http.get("/api/restaurants", () =>
+          HttpResponse.json([
+            {
+              id: 1,
+              name: "Pho 24",
+              type: "food",
+              contactInfo: null,
+              note: null,
+              menuUrl: "https://pho24.example.com/menu",
+            },
+          ]),
+        ),
+        http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
+      );
+
+      renderDetail("1");
+
+      expect(await screen.findByRole("link", { name: "Open menu ↗" })).toHaveAttribute(
+        "href",
+        "https://pho24.example.com/menu",
+      );
+    });
+
+    it("saves changes via PATCH and shows a success toast, updating the page header on a name change", async () => {
+      const user = userEvent.setup();
+      let patchBody: Record<string, unknown> | null = null;
+      let restaurant = {
+        id: 1,
+        name: "Pho 24",
+        type: "food",
+        contactInfo: "090-123-4567",
+        note: "Cash only",
+        menuUrl: "https://pho24.example.com/menu",
+      };
+
+      server.use(
+        http.get("/api/restaurants", () => HttpResponse.json([restaurant])),
+        http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
+        http.patch("/api/restaurants/1", async ({ request }) => {
+          patchBody = (await request.json()) as Record<string, unknown>;
+          restaurant = { ...restaurant, ...patchBody, id: 1, type: "food" };
+          return HttpResponse.json(restaurant);
+        }),
+      );
+
+      renderDetail("1");
+
+      const nameInput = await screen.findByLabelText("Name", { exact: false });
+      await user.clear(nameInput);
+      await user.type(nameInput, "Pho 25");
+      await user.click(screen.getByRole("button", { name: "Save" }));
+
+      await waitFor(() => {
+        expect(patchBody).not.toBeNull();
+      });
+      expect(patchBody).toMatchObject({
+        name: "Pho 25",
+        contactInfo: "090-123-4567",
+        note: "Cash only",
+        menuUrl: "https://pho24.example.com/menu",
+      });
+      expect(await screen.findByText("Restaurant updated")).toBeInTheDocument();
+      expect(await screen.findByRole("heading", { name: "Pho 25" })).toBeInTheDocument();
+    });
+
+    it("shows an inline error and sends no request when Name is cleared", async () => {
+      const user = userEvent.setup();
+      let patchCalled = false;
+
+      server.use(
+        http.get("/api/restaurants", () =>
+          HttpResponse.json([
+            { id: 1, name: "Pho 24", type: "food", contactInfo: null, note: null, menuUrl: null },
+          ]),
+        ),
+        http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
+        http.patch("/api/restaurants/1", () => {
+          patchCalled = true;
+          return HttpResponse.json({ id: 1, name: "Pho 24", type: "food" });
+        }),
+      );
+
+      renderDetail("1");
+
+      const nameInput = await screen.findByLabelText("Name", { exact: false });
+      await user.clear(nameInput);
+      await user.click(screen.getByRole("button", { name: "Save" }));
+
+      expect(await screen.findByText("Name is required.")).toBeInTheDocument();
+      expect(patchCalled).toBe(false);
+    });
+
+    it("shows an error toast when the save fails", async () => {
+      const user = userEvent.setup();
+
+      server.use(
+        http.get("/api/restaurants", () =>
+          HttpResponse.json([
+            { id: 1, name: "Pho 24", type: "food", contactInfo: null, note: null, menuUrl: null },
+          ]),
+        ),
+        http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
+        http.patch("/api/restaurants/1", () =>
+          HttpResponse.json({ error: "restaurant not found" }, { status: 404 }),
+        ),
+      );
+
+      renderDetail("1");
+
+      await screen.findByLabelText("Name", { exact: false });
+      await user.click(screen.getByRole("button", { name: "Save" }));
+
+      expect(await screen.findByText("restaurant not found")).toBeInTheDocument();
+    });
   });
 });
