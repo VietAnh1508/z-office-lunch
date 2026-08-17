@@ -1,7 +1,7 @@
 ---
 id: 026
 title: Editable restaurant details (name, contact info, note, menu link)
-status: in_review
+status: done
 depends_on: []
 parallelizable_with: []
 tdd: required
