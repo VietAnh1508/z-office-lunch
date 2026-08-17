@@ -5,11 +5,91 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
 import { useRequiredField } from "@/hooks/useRequiredField";
 import { formatPrice } from "@/lib/format-price";
 import { RestaurantTypeBadge } from "./RestaurantTypeBadge";
-import { useRestaurants } from "./useRestaurants";
+import type { Restaurant } from "./useRestaurants";
+import { useRestaurants, useUpdateRestaurant } from "./useRestaurants";
 import { useCreateMenuItem, useMenuItems, useToggleMenuItemActive } from "./useMenuItems";
+
+function RestaurantDetailsForm({ restaurant }: { restaurant: Restaurant }) {
+  const updateRestaurant = useUpdateRestaurant(restaurant.id);
+  const name = useRequiredField("Name is required.", restaurant.name);
+  const [contactInfo, setContactInfo] = useState(restaurant.contactInfo ?? "");
+  const [note, setNote] = useState(restaurant.note ?? "");
+  const [menuUrl, setMenuUrl] = useState(restaurant.menuUrl ?? "");
+
+  function handleSubmit(e: SubmitEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!name.validate()) return;
+    updateRestaurant.mutate({
+      name: name.value,
+      contactInfo: contactInfo || null,
+      note: note || null,
+      menuUrl: menuUrl || null,
+    });
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Details</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <form className="flex flex-col gap-3" onSubmit={handleSubmit} noValidate>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="restaurant-detail-name">
+              Name <span className="text-destructive">*</span>
+            </Label>
+            <Input id="restaurant-detail-name" {...name.inputProps} />
+            {name.error && <p className="text-sm text-destructive">{name.error}</p>}
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="restaurant-detail-contact-info">Contact info</Label>
+            <Input
+              id="restaurant-detail-contact-info"
+              value={contactInfo}
+              onChange={(e) => setContactInfo(e.target.value)}
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="restaurant-detail-note">Note</Label>
+            <Textarea
+              id="restaurant-detail-note"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="restaurant-detail-menu-url">Menu website</Label>
+            <div className="flex items-center gap-2">
+              <Input
+                id="restaurant-detail-menu-url"
+                value={menuUrl}
+                onChange={(e) => setMenuUrl(e.target.value)}
+              />
+              {restaurant.menuUrl && (
+                <a
+                  href={restaurant.menuUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="shrink-0 text-sm text-muted-foreground hover:text-foreground hover:underline"
+                >
+                  Open menu ↗
+                </a>
+              )}
+            </div>
+          </div>
+          <Button type="submit" disabled={updateRestaurant.isPending} className="self-start">
+            Save
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
+  );
+}
 
 export function RestaurantDetail() {
   const { id } = useParams<{ id: string }>();
@@ -76,6 +156,10 @@ export function RestaurantDetail() {
           <RestaurantTypeBadge type={restaurant.type} />
         </div>
       </div>
+
+      <RestaurantDetailsForm key={restaurant.id} restaurant={restaurant} />
+
+      <Separator />
 
       <div className="grid gap-6 lg:grid-cols-[20rem_1fr] lg:items-start">
         <Card>

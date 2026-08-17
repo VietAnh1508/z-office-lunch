@@ -1,7 +1,7 @@
 ---
 id: 026
 title: Editable restaurant details (name, contact info, note, menu link)
-status: approved
+status: in_review
 depends_on: []
 parallelizable_with: []
 tdd: required
@@ -130,19 +130,32 @@ Let admins edit a restaurant after creation — today every restaurant field is 
 
 ## Implementation Log
 
-(Filled in by /implement-task.)
-
-- red commit: <sha> — `<test_command>` -> N failing
-- green commit: <sha> — `<test_command>` -> all passing
+- red commit: `9bd912d` — `pnpm -r typecheck && pnpm --filter web build && pnpm test` -> fails at typecheck (apps/api: 10 errors in `restaurants.test.ts` referencing `Restaurant.note`/`menuUrl` ahead of the schema change), as expected
+- green commit: `2c97a5e` — `pnpm -r typecheck && pnpm --filter web build && pnpm test` -> all passing (typecheck clean across all 3 packages, web build succeeds, 256/256 vitest tests pass); also ran `pnpm test:e2e` (11/11 passing)
 
 ## Plan Deviations
 
-(Filled in by /implement-task, honestly, before requesting review — write "None." if genuinely nothing applies, don't skip this section silently. Only list genuine deviations — if a step was carried out as the Plan described, it doesn't belong here, even if it's worth doing again.)
-
-- Where did the actual implementation differ from the Plan above, and why?
-- Any wrong assumption, dead end, or approach abandoned partway through?
-- Anything the user had to correct or redirect mid-task?
+- Adding the "Details" form's `Name` field to `RestaurantDetail.tsx` put two accessible-label-"Name" fields on the same page (the pre-existing "Add menu item" form's `Name` field and the new one), which broke `screen.getByLabelText("Name", ...)` in 5 pre-existing `RestaurantDetail.test.tsx` cases ("Found multiple elements") and 3 pre-existing e2e specs (`admin-restaurant-detail.spec.ts`, `round-lifecycle.spec.ts` x2) with a Playwright strict-mode violation. Not called for by the Plan (which only listed new test cases, not fixes to old ones). Disambiguated by adding an id-`selector` to the affected `getByLabelText` calls in the unit tests, and switching the affected e2e locators to the pre-existing `#menu-item-name` id locator (already used elsewhere in `round-lifecycle.spec.ts` for the same field, so this keeps the file internally consistent) instead of `getByLabel`. The code-reviewer noted this trades an accessible-role locator for a raw CSS id in e2e — true, but `exact: true` wouldn't have resolved it since both forms' `Name` fields render as "Name *" (both required), so the id locator was the more reliable fix.
+- Everything else was implemented as planned; the DB rename/add migration, `PATCH` route, and frontend forms all match the Plan's specifics (field names, validation order, `optionalText` helper, `key={restaurant.id}` remount) without adjustment.
+- After review, the user asked (in chat, after the PR was already open) for a visual separator between the new Details card and the existing "Add menu item"/"Menu items" cards on the same page — not in the task's Goal/Acceptance Criteria/Plan. Folded into this same PR at the user's request, since it's a small, directly-related follow-up to the exact page this task built: added a shadcn-style `Separator` component (`apps/web/src/components/ui/separator.tsx`, wrapping `radix-ui`'s `Separator` primitive, same pattern as `label.tsx`) and placed it between the two sections in `RestaurantDetail.tsx` (commit `2786b92`). Verified visually via the Chrome dev tool against `/admin/restaurants/:id`, plus a full `pnpm -r typecheck`/`pnpm --filter web lint`/component-test re-run — no new test coverage needed since it's a pure layout change with no new behavior.
 
 ## Review Notes
 
-(Output of the feature-dev:code-reviewer agent, appended by /implement-task.)
+`feature-dev:code-reviewer` reviewed the red→green diff (979 lines). Full output:
+
+> This diff is clean and matches its task plan (`tasks/026-editable-restaurant-details.md`) almost line-for-line. I checked all the specific risk areas called out:
+>
+> - **Validation order in `PATCH /:id`** (`apps/api/src/routes/restaurants.ts:46-78`): non-integer `:id` returns 404 before `c.req.json()` is ever called; missing/blank `name` returns 400 before `getDb(c)` is invoked. Order matches the acceptance criteria exactly.
+> - **`type` cannot leak into the update**: `body.type` is never read anywhere in the PATCH handler, and `.update(restaurants).set({ name, contactInfo, note, menuUrl })` is an explicit key list, not a spread — so a request body containing `type` is silently ignored. Confirmed by test `apps/api/src/routes/restaurants.test.ts:253-269`.
+> - **`optionalText` blank/null/string-passthrough behavior**: correct and consistent between `POST` and `PATCH` for `note`/`menuUrl` (and `contactInfo` on `PATCH` only, per plan line 43's explicit scoping of `POST`'s `contactInfo` out of this change).
+> - **Frontend `Open menu ↗` link** (`apps/web/src/routes/admin/RestaurantDetail.tsx:72-81`): correctly reads `restaurant.menuUrl` (the prop, sourced from the `useRestaurants()` list-query cache) rather than local `menuUrl` state, so it only updates once `useUpdateRestaurant`'s `onSuccess` invalidates the list query and it refetches. `key={restaurant.id}` on `<RestaurantDetailsForm>` is exactly what makes per-restaurant initial-value seeding (`useRequiredField("Name is required.", restaurant.name)`, and the three `useState`s) correct across client-side navigation between restaurants without a full remount.
+> - **Migration SQL** (`packages/db/migrations/0003_fluffy_dexter_bennett.sql`): `RENAME COLUMN "menu_source_note" TO "note"` preserves existing data, and `ADD COLUMN "menu_url" text` is a nullable addition — no data loss, matches the schema diff.
+> - **No leftover `menuSourceNote` references** in live code — remaining grep hits are historical migration snapshots/journal and the task file, both expected.
+> - Backend test coverage (`apps/api/src/routes/restaurants.test.ts`) actually covers every case listed in the plan's Tests section, including the `type`-untouched case and the DB-unreachable 500 case — verified this isn't just aspirational.
+> - The `SELECT`-then-`UPDATE ... RETURNING` pattern in the new PATCH route (rather than relying on `UPDATE ... RETURNING` returning zero rows) looked like a possible simplification, but it's actually the established house pattern — confirmed identical structure in `apps/api/src/routes/employees.ts`'s PATCH handlers. Not a finding.
+>
+> No issues at confidence ≥ 80.
+>
+> **Worth a mention below the reporting threshold (not blocking):**
+> - Task bookkeeping: `Plan Deviations` section was still the unfilled template and `status` was still `in_progress` at review time — addressed above/via this commit.
+> - E2E locator style: the updated specs switch from `page.getByLabel("Name", { exact: false })` to `page.locator("#menu-item-name")`, trading an accessible-role locator for a raw CSS id. Addressed in Plan Deviations above — `exact: true` doesn't disambiguate since both forms' `Name` fields render as "Name *".

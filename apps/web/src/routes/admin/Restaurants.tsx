@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { useRequiredField } from "@/hooks/useRequiredField";
 import { type SubmitEvent, useState } from "react";
 import { Link } from "react-router";
@@ -23,6 +24,8 @@ export function Restaurants() {
   const name = useRequiredField("Name is required.");
   const [type, setType] = useState<"food" | "drink">("food");
   const [contactInfo, setContactInfo] = useState("");
+  const [note, setNote] = useState("");
+  const [menuUrl, setMenuUrl] = useState("");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
 
   const filteredRestaurants =
@@ -34,12 +37,20 @@ export function Restaurants() {
     e.preventDefault();
     if (!name.validate()) return;
     createRestaurant.mutate(
-      { name: name.value, type, contactInfo: contactInfo || undefined },
+      {
+        name: name.value,
+        type,
+        contactInfo: contactInfo || undefined,
+        note: note || undefined,
+        menuUrl: menuUrl || undefined,
+      },
       {
         onSuccess: () => {
           name.reset();
           setType("food");
           setContactInfo("");
+          setNote("");
+          setMenuUrl("");
         },
       },
     );
@@ -86,6 +97,22 @@ export function Restaurants() {
                   id="restaurant-contact-info"
                   value={contactInfo}
                   onChange={(e) => setContactInfo(e.target.value)}
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="restaurant-note">Note</Label>
+                <Textarea
+                  id="restaurant-note"
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="restaurant-menu-url">Menu website</Label>
+                <Input
+                  id="restaurant-menu-url"
+                  value={menuUrl}
+                  onChange={(e) => setMenuUrl(e.target.value)}
                 />
               </div>
               <Button type="submit" disabled={createRestaurant.isPending}>

@@ -10,7 +10,7 @@ test("admin can add a menu item to a restaurant and toggle it inactive", async (
   await page.getByRole("link", { name: restaurantName }).click();
   await expect(page.getByRole("heading", { name: restaurantName })).toBeVisible();
 
-  await page.getByLabel("Name", { exact: false }).fill("Banh Mi");
+  await page.locator("#menu-item-name").fill("Banh Mi");
   await page.getByLabel("Price", { exact: false }).fill("25000");
   await page.getByRole("button", { name: "Add menu item" }).click();
 
