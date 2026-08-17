@@ -1,7 +1,7 @@
 ---
 id: 027
 title: Restaurant menu image upload
-status: in_review
+status: done
 depends_on: [026]
 parallelizable_with: []
 tdd: required
