@@ -10,6 +10,7 @@ export type Restaurant = {
   contactInfo: string | null;
   note: string | null;
   menuUrl: string | null;
+  menuImage: string | null;
 };
 
 type CreateRestaurantInput = {
@@ -62,5 +63,35 @@ export function useUpdateRestaurant(id: number) {
       toast.success("Restaurant updated");
     },
     onError: (error) => toastApiError(error, "Could not update restaurant."),
+  });
+}
+
+export function useUploadRestaurantMenuImage(id: number) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (file: File) => {
+      const formData = new FormData();
+      formData.append("menuImage", file);
+      return api.upload<Restaurant>(`/restaurants/${id}/menu-image`, formData);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: restaurantKeys.list() });
+      toast.success("Menu image uploaded");
+    },
+    onError: (error) => toastApiError(error, "Could not upload menu image."),
+  });
+}
+
+export function useDeleteRestaurantMenuImage(id: number) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => api.delete<Restaurant>(`/restaurants/${id}/menu-image`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: restaurantKeys.list() });
+      toast.success("Menu image removed");
+    },
+    onError: (error) => toastApiError(error, "Could not remove menu image."),
   });
 }

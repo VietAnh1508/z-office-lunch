@@ -1,7 +1,7 @@
 ---
 id: 027
 title: Restaurant menu image upload
-status: approved
+status: in_review
 depends_on: [026]
 parallelizable_with: []
 tdd: required
@@ -132,19 +132,50 @@ Let admins upload a photo of a restaurant's physical menu, stored in the already
 
 ## Implementation Log
 
-(Filled in by /implement-task.)
-
-- red commit: <sha> — `<test_command>` -> N failing
-- green commit: <sha> — `<test_command>` -> all passing
+- red commit: `71d9108` — `pnpm -r typecheck && pnpm --filter web build && pnpm test` -> 14 failing (all 404s from the not-yet-implemented menu-image routes, plus 3 frontend failures from the not-yet-added upload/preview/remove UI)
+- green commit: `12af190` — `pnpm -r typecheck && pnpm --filter web build && pnpm test` -> all passing (typecheck clean across all 3 packages, web build succeeds, 272/272 vitest tests pass); also ran `pnpm test:e2e` (11/11 passing, confirming the shared `RestaurantDetailsForm` change didn't break the existing menu-item/restaurant-detail e2e flows) and `pnpm lint` (clean; the 3 pre-existing `only-export-components` warnings are in files this task doesn't touch)
 
 ## Plan Deviations
 
-(Filled in by /implement-task, honestly, before requesting review — write "None." if genuinely nothing applies, don't skip this section silently. Only list genuine deviations — if a step was carried out as the Plan described, it doesn't belong here, even if it's worth doing again.)
-
-- Where did the actual implementation differ from the Plan above, and why?
-- Any wrong assumption, dead end, or approach abandoned partway through?
-- Anything the user had to correct or redirect mid-task?
+- DB schema/migration (`packages/db/src/schema.ts`, the migration files) and the `errors.ts` constant additions were committed in the green commit rather than the red one, even though the Plan lists them ahead of the Tests section. This matches the precedent set by task 026's red/green split (schema changes land in green): the test files don't import `errors.ts` (they assert on literal `error` strings in response bodies) and the schema/migration were only needed so the DB column existed for the route implementation to touch, not for the tests to fail correctly — with only the route implementation missing, every new test already failed with the expected 404 regardless of whether the schema change was staged.
+- The code-reviewer flagged that the initial upload trigger — a `<label htmlFor>` styled via `buttonVariants` to look like a button, sitting behind a `sr-only` `<Label>` for the same input — was keyboard-inaccessible (labels aren't part of the tab order and don't respond to keyboard activation) and had two knock-on issues (duplicate `htmlFor`/`id` producing a doubled accessible name, and `disabled` having no effect on a `<label>` so `uploadMenuImage.isPending` wasn't gating it like the other two mutations' buttons do). Fixed by switching to a real `<Button onClick={() => inputRef.current?.click()}>` behind a `useRef`, dropping the button-styled label and keeping only the `sr-only` `<Label>` on the input — confirmed this didn't require any test changes (`getByLabelText` still resolves via the remaining label).
 
 ## Review Notes
 
-(Output of the feature-dev:code-reviewer agent, appended by /implement-task.)
+Output of the `feature-dev:code-reviewer` agent (run against the red→green diff, before the accessibility fix above was applied — the fix addresses the first "Important" finding):
+
+> ## Review: Task 027 — Restaurant menu image upload
+>
+> Reviewing the diff described (API routes in `apps/api/src/routes/restaurants.ts`, `apps/api/src/lib/errors.ts`, frontend in `apps/web/src/routes/admin/RestaurantDetail.tsx`, `apps/web/src/routes/admin/useRestaurants.ts`, `apps/web/src/lib/api.ts`, schema in `packages/db/src/schema.ts`). I cross-checked this against `tasks/027-restaurant-menu-image-upload.md`'s detailed Plan (the implementation follows it almost line-for-line), `.claude/rules/api-error-handling.md`, and `.claude/rules/mutation-feedback.md`.
+>
+> **`api-error-handling.md` and `mutation-feedback.md` compliance: clean.** Every DB-touching handler has the standard try/catch/finally with `db.$client.end()`, structured `console.error` logging, and `ERROR_MESSAGES`-sourced strings. Both new mutations follow the toast pattern exactly (`onSuccess` → invalidate + static `toast.success`, `onError` → `toastApiError` with a fallback, local `onSuccess` at the call site only for the preview side effect).
+>
+> ### Important
+>
+> **Keyboard-inaccessible upload trigger** — `apps/web/src/routes/admin/RestaurantDetail.tsx:112-132`. Confidence: 85.
+>
+> The actual `<input type="file">` is `className="hidden"` (`display: none`), and the visible "Upload menu image" control is a plain `<label htmlFor="restaurant-detail-menu-image">` styled via `buttonVariants` to look like a button.
+>
+> A `<label>` has no implicit `tabindex` and is never part of the keyboard tab order. The browser's native "clicking a label forwards the click to its associated control" behavior only fires on an actual mouse/touch click event — it doesn't fire from a keydown on a focused element, because the label never receives focus to begin with. Net effect: a keyboard-only or screen-reader user cannot open the file picker at all; the control is visually present but operable only by mouse.
+>
+> This also explains two secondary symptoms with the same root cause, worth fixing together rather than separately:
+> - Two elements target the same id via `htmlFor`/`id` (the `sr-only` `<Label>` and this button-styled `<label>`) — accessible-name computation will concatenate them into something like "Upload menu image Upload menu image".
+> - `disabled` has no effect on a `<label>`, so `uploadMenuImage.isPending` is never used to gate the trigger — inconsistent with `updateRestaurant.isPending` and `deleteMenuImage.isPending`, which do gate their buttons.
+>
+> Fix: use a real `<Button type="button" disabled={uploadMenuImage.isPending} onClick={() => inputRef.current?.click()}>`, keep the input hidden behind a `useRef`, and drop the button-styled `<label>` — leave the `sr-only` `<Label>` as the input's only label. This keeps the current tests green: `getByLabelText("Upload menu image", { exact: false })` still resolves to the input via the remaining `sr-only` label, so no test changes are needed.
+>
+> **`apps/api/wrangler.jsonc`'s R2 binding still has a placeholder bucket name** — `bucket_name: "replace-me"` (not touched by this diff). Confidence: 80.
+>
+> This is the first task to actually call the `MENU_IMAGES` binding — it's been declared-but-dormant until now. CLAUDE.md's instruction to ignore `REPLACE_ME`/`replace-me` placeholders is scoped to local dev (`wrangler dev` simulates R2 locally regardless of the configured name), but nothing in this task's `test_command` exercises the real binding — unit tests inject `createFakeMenuImagesBucket()` and typecheck only checks the `R2Bucket` interface shape. If this is still a placeholder at deploy time, upload/serve/delete will all fail against a real R2 bucket with a fully green test suite and no local-dev signal. Worth confirming/filling in before this ships to production, even though it's outside this diff's file list.
+>
+> ### Not flagged (considered, below the 80 bar)
+>
+> - Client-declared `file.type` is trusted without magic-byte sniffing — but `image/svg+xml` isn't in the allowlist (removing the main stored-XSS vector), the GET route echoes back the recorded content type rather than letting the browser sniff, and this is exactly what the approved task plan specified.
+> - No auth on any route — pre-existing across the entire app, not introduced here.
+> - Best-effort R2 delete failures leaving orphaned objects — explicitly spec'd as best-effort/acceptable in the plan.
+> - `menuImage` local state (`useState(restaurant.menuImage)`) not resyncing after a background refetch — identical to the pre-existing `contactInfo`/`note`/`menuUrl` pattern from task 026, not new.
+> - `ETag` header set but `If-None-Match` never checked (always 200, never 304) — plan only asked for the header to be present.
+>
+> Migration files (`packages/db/migrations/0004_smooth_deathbird.sql` + matching `meta/0004_snapshot.json` + `_journal.json` entry) are all present and consistent, so no drizzle drift concern there.
+
+**Follow-up:** the keyboard-inaccessible upload trigger was fixed (see Plan Deviations) before opening the PR. The R2 bucket placeholder name is a pre-existing, deployment-time concern outside this diff's scope — flagged here for whoever handles the next production deploy, not actioned as part of this task.

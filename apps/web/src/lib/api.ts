@@ -12,7 +12,10 @@ export class ApiError extends Error {
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE_PATH}${path}`, {
     ...init,
-    headers: { "Content-Type": "application/json", ...init?.headers },
+    headers: {
+      ...(init?.body instanceof FormData ? {} : { "Content-Type": "application/json" }),
+      ...init?.headers,
+    },
   });
 
   if (!res.ok) {
@@ -30,4 +33,6 @@ export const api = {
   patch: <T>(path: string, body?: unknown) =>
     request<T>(path, { method: "PATCH", ...(body !== undefined ? { body: JSON.stringify(body) } : {}) }),
   delete: <T>(path: string) => request<T>(path, { method: "DELETE" }),
+  upload: <T>(path: string, formData: FormData) =>
+    request<T>(path, { method: "POST", body: formData }),
 };

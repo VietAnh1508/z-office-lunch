@@ -268,6 +268,7 @@ describe("RestaurantDetail", () => {
               contactInfo: "090-123-4567",
               note: "Cash only",
               menuUrl: "https://pho24.example.com/menu",
+              menuImage: null,
             },
           ]),
         ),
@@ -433,6 +434,104 @@ describe("RestaurantDetail", () => {
       await user.click(screen.getByRole("button", { name: "Save" }));
 
       expect(await screen.findByText("restaurant not found")).toBeInTheDocument();
+    });
+
+    it("uploads a menu image via the file picker and shows a preview + success toast", async () => {
+      const user = userEvent.setup();
+
+      server.use(
+        http.get("/api/restaurants", () =>
+          HttpResponse.json([
+            { id: 1, name: "Pho 24", type: "food", contactInfo: null, note: null, menuUrl: null, menuImage: null },
+          ]),
+        ),
+        http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
+        http.post("/api/restaurants/1/menu-image", () =>
+          HttpResponse.json({
+            id: 1,
+            name: "Pho 24",
+            type: "food",
+            contactInfo: null,
+            note: null,
+            menuUrl: null,
+            menuImage: "restaurants/1/abc",
+          }),
+        ),
+      );
+
+      renderDetail("1");
+
+      await screen.findByLabelText("Name", { exact: false, selector: "#restaurant-detail-name" });
+      const file = new File(["hello"], "menu.jpg", { type: "image/jpeg" });
+      const input = screen.getByLabelText("Upload menu image", { exact: false });
+      await user.upload(input, file);
+
+      expect(await screen.findByText("Menu image uploaded")).toBeInTheDocument();
+      expect(await screen.findByAltText("Menu")).toBeInTheDocument();
+    });
+
+    it("removes the menu image via the Remove image button and shows a success toast", async () => {
+      const user = userEvent.setup();
+
+      server.use(
+        http.get("/api/restaurants", () =>
+          HttpResponse.json([
+            {
+              id: 1,
+              name: "Pho 24",
+              type: "food",
+              contactInfo: null,
+              note: null,
+              menuUrl: null,
+              menuImage: "restaurants/1/abc",
+            },
+          ]),
+        ),
+        http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
+        http.delete("/api/restaurants/1/menu-image", () =>
+          HttpResponse.json({
+            id: 1,
+            name: "Pho 24",
+            type: "food",
+            contactInfo: null,
+            note: null,
+            menuUrl: null,
+            menuImage: null,
+          }),
+        ),
+      );
+
+      renderDetail("1");
+
+      expect(await screen.findByAltText("Menu")).toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: "Remove image" }));
+
+      expect(await screen.findByText("Menu image removed")).toBeInTheDocument();
+      expect(screen.queryByAltText("Menu")).not.toBeInTheDocument();
+    });
+
+    it("shows an error toast without a preview when the upload fails", async () => {
+      const user = userEvent.setup();
+
+      server.use(
+        http.get("/api/restaurants", () =>
+          HttpResponse.json([
+            { id: 1, name: "Pho 24", type: "food", contactInfo: null, note: null, menuUrl: null, menuImage: null },
+          ]),
+        ),
+        http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
+        http.post("/api/restaurants/1/menu-image", () => HttpResponse.error()),
+      );
+
+      renderDetail("1");
+
+      await screen.findByLabelText("Name", { exact: false, selector: "#restaurant-detail-name" });
+      const file = new File(["hello"], "menu.jpg", { type: "image/jpeg" });
+      const input = screen.getByLabelText("Upload menu image", { exact: false });
+      await user.upload(input, file);
+
+      expect(await screen.findByText("Could not upload menu image.")).toBeInTheDocument();
+      expect(screen.queryByAltText("Menu")).not.toBeInTheDocument();
     });
   });
 });

@@ -33,4 +33,8 @@ export const ERROR_MESSAGES = {
   drinkRoundMenuItemInvalid: "drinkRoundMenuItemId must belong to this round's drink restaurant",
   submissionNoDrinkRestaurant: "this round has no drink restaurant",
   submissionDuplicate: "you have already submitted for this round",
+  menuImageRequired: "menuImage file is required",
+  menuImageTypeInvalid: "menuImage must be a JPEG, PNG, or WebP image",
+  menuImageTooLarge: "menuImage must be 10MB or smaller",
+  menuImageNotFound: "this restaurant has no menu image",
 } as const;

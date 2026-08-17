@@ -1,5 +1,5 @@
 import { ArrowLeft, CircleCheck, CircleX } from "lucide-react";
-import { type SubmitEvent, useState } from "react";
+import { type ChangeEvent, type SubmitEvent, useRef, useState } from "react";
 import { Link, useParams } from "react-router";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,15 +11,24 @@ import { useRequiredField } from "@/hooks/useRequiredField";
 import { formatPrice } from "@/lib/format-price";
 import { RestaurantTypeBadge } from "./RestaurantTypeBadge";
 import type { Restaurant } from "./useRestaurants";
-import { useRestaurants, useUpdateRestaurant } from "./useRestaurants";
+import {
+  useDeleteRestaurantMenuImage,
+  useRestaurants,
+  useUpdateRestaurant,
+  useUploadRestaurantMenuImage,
+} from "./useRestaurants";
 import { useCreateMenuItem, useMenuItems, useToggleMenuItemActive } from "./useMenuItems";
 
 function RestaurantDetailsForm({ restaurant }: { restaurant: Restaurant }) {
   const updateRestaurant = useUpdateRestaurant(restaurant.id);
+  const uploadMenuImage = useUploadRestaurantMenuImage(restaurant.id);
+  const deleteMenuImage = useDeleteRestaurantMenuImage(restaurant.id);
   const name = useRequiredField("Name is required.", restaurant.name);
   const [contactInfo, setContactInfo] = useState(restaurant.contactInfo ?? "");
   const [note, setNote] = useState(restaurant.note ?? "");
   const [menuUrl, setMenuUrl] = useState(restaurant.menuUrl ?? "");
+  const [menuImage, setMenuImage] = useState(restaurant.menuImage);
+  const menuImageInputRef = useRef<HTMLInputElement>(null);
 
   function handleSubmit(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -29,6 +38,21 @@ function RestaurantDetailsForm({ restaurant }: { restaurant: Restaurant }) {
       contactInfo: contactInfo || null,
       note: note || null,
       menuUrl: menuUrl || null,
+    });
+  }
+
+  function handleMenuImageChange(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    uploadMenuImage.mutate(file, {
+      onSuccess: (updated) => setMenuImage(updated.menuImage),
+    });
+  }
+
+  function handleRemoveMenuImage() {
+    deleteMenuImage.mutate(undefined, {
+      onSuccess: (updated) => setMenuImage(updated.menuImage),
     });
   }
 
@@ -79,6 +103,47 @@ function RestaurantDetailsForm({ restaurant }: { restaurant: Restaurant }) {
                 >
                   Open menu ↗
                 </a>
+              )}
+            </div>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="restaurant-detail-menu-image" className="sr-only">
+              Upload menu image
+            </Label>
+            <input
+              ref={menuImageInputRef}
+              id="restaurant-detail-menu-image"
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="hidden"
+              onChange={handleMenuImageChange}
+            />
+            {menuImage && (
+              <img
+                src={`/api/restaurants/${restaurant.id}/menu-image?v=${menuImage}`}
+                alt="Menu"
+                className="max-w-xs rounded-lg border border-border"
+              />
+            )}
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={uploadMenuImage.isPending}
+                onClick={() => menuImageInputRef.current?.click()}
+                className="self-start"
+              >
+                Upload menu image
+              </Button>
+              {menuImage && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={handleRemoveMenuImage}
+                  disabled={deleteMenuImage.isPending}
+                >
+                  Remove image
+                </Button>
               )}
             </div>
           </div>
