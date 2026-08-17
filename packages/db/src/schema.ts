@@ -18,7 +18,8 @@ export const restaurants = pgTable("restaurants", {
   name: text("name").notNull(),
   type: restaurantType("type").notNull(),
   contactInfo: text("contact_info"),
-  menuSourceNote: text("menu_source_note"),
+  note: text("note"),
+  menuUrl: text("menu_url"),
 });
 
 export const menuItems = pgTable("menu_items", {

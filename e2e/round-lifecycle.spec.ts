@@ -19,7 +19,7 @@ test("admin curates a round's menu items and opens then closes it", async ({ pag
   await page.getByRole("link", { name: restaurantName }).click();
   await expect(page.getByRole("heading", { name: restaurantName })).toBeVisible();
 
-  await page.getByLabel("Name", { exact: false }).fill("Pho Bo");
+  await page.locator("#menu-item-name").fill("Pho Bo");
   await page.getByRole("button", { name: "Add menu item" }).click();
   await expect(page.getByText("Menu item added")).toBeVisible();
 
@@ -64,7 +64,7 @@ test("employee-facing public round link reflects open then closed state", async 
   await page.getByRole("link", { name: restaurantName }).click();
   await expect(page.getByRole("heading", { name: restaurantName })).toBeVisible();
 
-  await page.getByLabel("Name", { exact: false }).fill("Pho Bo");
+  await page.locator("#menu-item-name").fill("Pho Bo");
   await page.getByRole("button", { name: "Add menu item" }).click();
   await expect(page.getByText("Menu item added")).toBeVisible();
 

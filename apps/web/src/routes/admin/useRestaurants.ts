@@ -8,13 +8,23 @@ export type Restaurant = {
   name: string;
   type: "food" | "drink";
   contactInfo: string | null;
-  menuSourceNote: string | null;
+  note: string | null;
+  menuUrl: string | null;
 };
 
 type CreateRestaurantInput = {
   name: string;
   type: "food" | "drink";
   contactInfo?: string;
+  note?: string;
+  menuUrl?: string;
+};
+
+type UpdateRestaurantInput = {
+  name: string;
+  contactInfo: string | null;
+  note: string | null;
+  menuUrl: string | null;
 };
 
 export const restaurantKeys = {
@@ -39,5 +49,18 @@ export function useCreateRestaurant() {
       toast.success("Restaurant added");
     },
     onError: (error) => toastApiError(error, "Could not create restaurant."),
+  });
+}
+
+export function useUpdateRestaurant(id: number) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: UpdateRestaurantInput) => api.patch<Restaurant>(`/restaurants/${id}`, input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: restaurantKeys.list() });
+      toast.success("Restaurant updated");
+    },
+    onError: (error) => toastApiError(error, "Could not update restaurant."),
   });
 }
