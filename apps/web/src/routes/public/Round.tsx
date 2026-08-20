@@ -1,21 +1,123 @@
-import { type SubmitEvent, useState } from "react";
-import { useParams } from "react-router";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ApiError } from "@/lib/api";
+import { normalizeMenuUrl } from "@/lib/menu-url";
+import { cn } from "@/lib/utils";
+import { Maximize2 } from "lucide-react";
+import { type SubmitEvent, useState } from "react";
+import { useParams } from "react-router";
 import { SubmissionsTable } from "../shared/SubmissionsTable";
 import { useRoundSubmissions } from "../shared/useRoundSubmissions";
 import { EmployeeCombobox } from "./EmployeeCombobox";
-import { useActiveEmployees, useCreateSubmission } from "./useSubmission";
+import type { PublicRound, PublicRoundRestaurant } from "./usePublicRound";
 import { usePublicRound } from "./usePublicRound";
-import type { PublicRound } from "./usePublicRound";
+import { useActiveEmployees, useCreateSubmission } from "./useSubmission";
+
+function menuImageSrc(restaurant: PublicRoundRestaurant) {
+  return `/api/restaurants/${restaurant.id}/menu-image?v=${restaurant.menuImage}`;
+}
+
+function MenuLink({ restaurant }: { restaurant: PublicRoundRestaurant }) {
+  if (!restaurant.menuUrl) return null;
+  return (
+    <a
+      href={normalizeMenuUrl(restaurant.menuUrl)}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="text-sm text-muted-foreground hover:text-foreground hover:underline"
+    >
+      Open menu ↗
+    </a>
+  );
+}
+
+function MenuImage({
+  restaurant,
+  className,
+}: {
+  restaurant: PublicRoundRestaurant;
+  className?: string;
+}) {
+  if (!restaurant.menuImage) return null;
+  return (
+    <img
+      src={menuImageSrc(restaurant)}
+      alt={`${restaurant.name} menu`}
+      className={cn("rounded-lg border border-border", className)}
+    />
+  );
+}
+
+function MenuPanelCard({ restaurant }: { restaurant: PublicRoundRestaurant }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Menu {restaurant.name}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="relative">
+          <MenuImage restaurant={restaurant} />
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                aria-label="View full size"
+                className="absolute top-2 right-2 bg-background/80"
+              >
+                <Maximize2 />
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="w-auto max-w-none border-none bg-transparent p-0 shadow-none ring-0">
+              <DialogTitle className="sr-only">
+                {restaurant.name} menu
+              </DialogTitle>
+              <img
+                src={menuImageSrc(restaurant)}
+                alt={`${restaurant.name} menu`}
+                className="h-[90vh] w-[90vw] rounded-lg object-contain"
+              />
+            </DialogContent>
+          </Dialog>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function MenuPanel({ round }: { round: PublicRound }) {
+  const restaurants = [round.foodRestaurant, round.drinkRestaurant].filter(
+    (r): r is PublicRoundRestaurant => Boolean(r?.menuImage),
+  );
+  if (restaurants.length === 0) return null;
+  return (
+    <aside className="hidden lg:sticky lg:top-8 lg:flex lg:flex-col lg:gap-4 lg:self-start">
+      {restaurants.map((restaurant) => (
+        <MenuPanelCard key={restaurant.id} restaurant={restaurant} />
+      ))}
+    </aside>
+  );
+}
 
 const selectClassName =
   "h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20";
 
-function SubmissionForm({ roundId, round }: { roundId: number; round: PublicRound }) {
+function SubmissionForm({
+  roundId,
+  round,
+}: {
+  roundId: number;
+  round: PublicRound;
+}) {
   const { data: employees } = useActiveEmployees();
   const createSubmission = useCreateSubmission(roundId);
 
@@ -45,7 +147,8 @@ function SubmissionForm({ roundId, round }: { roundId: number; round: PublicRoun
         foodRoundMenuItemId: Number(foodItemId),
         foodNote: foodNote.trim() || undefined,
         drinkRoundMenuItemId: drinkItemId ? Number(drinkItemId) : undefined,
-        drinkNote: drinkItemId && drinkNote.trim() ? drinkNote.trim() : undefined,
+        drinkNote:
+          drinkItemId && drinkNote.trim() ? drinkNote.trim() : undefined,
       },
       { onSuccess: () => setSubmitted(true) },
     );
@@ -67,7 +170,11 @@ function SubmissionForm({ roundId, round }: { roundId: number; round: PublicRoun
         <CardTitle>Place your order</CardTitle>
       </CardHeader>
       <CardContent>
-        <form className="flex flex-col gap-4" onSubmit={handleSubmit} noValidate>
+        <form
+          className="flex flex-col gap-4"
+          onSubmit={handleSubmit}
+          noValidate
+        >
           <EmployeeCombobox
             employees={employees ?? []}
             value={employeeId}
@@ -99,8 +206,12 @@ function SubmissionForm({ roundId, round }: { roundId: number; round: PublicRoun
                 </option>
               ))}
             </select>
-            {foodItemError && <p className="text-sm text-destructive">{foodItemError}</p>}
+            {foodItemError && (
+              <p className="text-sm text-destructive">{foodItemError}</p>
+            )}
           </div>
+          <MenuLink restaurant={round.foodRestaurant} />
+          <MenuImage restaurant={round.foodRestaurant} className="lg:hidden" />
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="submission-food-note">Food note</Label>
             <Input
@@ -129,6 +240,11 @@ function SubmissionForm({ roundId, round }: { roundId: number; round: PublicRoun
                   ))}
                 </select>
               </div>
+              <MenuLink restaurant={round.drinkRestaurant!} />
+              <MenuImage
+                restaurant={round.drinkRestaurant!}
+                className="lg:hidden"
+              />
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="submission-drink-note">Drink note</Label>
                 <Input
@@ -142,7 +258,11 @@ function SubmissionForm({ roundId, round }: { roundId: number; round: PublicRoun
             </>
           )}
 
-          <Button type="submit" disabled={createSubmission.isPending} className="self-start">
+          <Button
+            type="submit"
+            disabled={createSubmission.isPending}
+            className="self-start"
+          >
             Submit
           </Button>
         </form>
@@ -188,7 +308,11 @@ export function Round() {
   // A draft round 404s identically to a nonexistent one — this generic
   // message must not leak which case it is either.
   if (isError || !round) {
-    return <p className="p-6 text-sm text-muted-foreground">This round isn't open yet.</p>;
+    return (
+      <p className="p-6 text-sm text-muted-foreground">
+        This round isn't open yet.
+      </p>
+    );
   }
 
   if (round.status === "closed") {
@@ -205,22 +329,41 @@ export function Round() {
     return (
       <div className="mx-auto flex max-w-xl flex-col gap-4 px-4 py-10 sm:px-6">
         <h1 className="text-2xl font-semibold tracking-tight">{round.label}</h1>
-        <p className="text-sm text-muted-foreground">The deadline for this round has passed.</p>
+        <p className="text-sm text-muted-foreground">
+          The deadline for this round has passed.
+        </p>
       </div>
     );
   }
 
+  const hasMenuPanel =
+    round.foodRestaurant.menuImage !== null ||
+    (round.drinkRestaurant?.menuImage ?? null) !== null;
+
   return (
-    <div className="mx-auto flex max-w-xl flex-col gap-6 px-4 py-8 sm:px-6 sm:py-10">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{round.label}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Deadline: {new Date(round.deadline).toLocaleString()}
-        </p>
+    <div
+      className={cn(
+        "mx-auto flex flex-col gap-6 px-4 py-8 sm:px-6 sm:py-10",
+        hasMenuPanel
+          ? "max-w-xl lg:grid lg:max-w-5xl lg:grid-cols-[1fr_20rem] lg:gap-8"
+          : "max-w-xl",
+      )}
+    >
+      <div className="flex flex-col gap-6">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">
+            {round.label}
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Deadline: {new Date(round.deadline).toLocaleString()}
+          </p>
+        </div>
+
+        <SubmissionForm roundId={id} round={round} />
+        <SubmissionsCard roundId={id} />
       </div>
 
-      <SubmissionForm roundId={id} round={round} />
-      <SubmissionsCard roundId={id} />
+      {hasMenuPanel && <MenuPanel round={round} />}
     </div>
   );
 }

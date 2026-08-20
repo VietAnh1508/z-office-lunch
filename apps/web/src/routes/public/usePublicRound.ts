@@ -8,12 +8,21 @@ export type PublicRoundItem = {
   name: string;
 };
 
+export type PublicRoundRestaurant = {
+  id: number;
+  name: string;
+  menuUrl: string | null;
+  menuImage: string | null;
+};
+
 export type PublicRound = {
   label: string;
   deadline: string;
   status: "open" | "closed";
   foodItems: PublicRoundItem[];
   drinkItems?: PublicRoundItem[];
+  foodRestaurant: PublicRoundRestaurant;
+  drinkRestaurant?: PublicRoundRestaurant;
 };
 
 export type PublicRoundListItem = {

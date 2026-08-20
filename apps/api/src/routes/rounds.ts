@@ -205,9 +205,26 @@ roundsRoute.get("/:id/public", async (c) => {
         .where(and(eq(roundMenuItems.roundId, round.id), eq(menuItems.restaurantId, restaurantId)))
         .orderBy(roundMenuItems.id);
 
+    const selectRestaurantMenu = (restaurantId: number) =>
+      db
+        .select({
+          id: restaurants.id,
+          name: restaurants.name,
+          menuUrl: restaurants.menuUrl,
+          menuImage: restaurants.menuImage,
+        })
+        .from(restaurants)
+        .where(eq(restaurants.id, restaurantId));
+
     const foodItems = await selectCuratedItems(round.foodRestaurantId);
     const drinkItems =
       round.drinkRestaurantId !== null ? await selectCuratedItems(round.drinkRestaurantId) : null;
+
+    const [foodRestaurant] = await selectRestaurantMenu(round.foodRestaurantId);
+    const drinkRestaurant =
+      round.drinkRestaurantId !== null
+        ? (await selectRestaurantMenu(round.drinkRestaurantId))[0]
+        : null;
 
     return c.json({
       label: round.label,
@@ -215,6 +232,8 @@ roundsRoute.get("/:id/public", async (c) => {
       status: round.status,
       foodItems,
       ...(drinkItems !== null ? { drinkItems } : {}),
+      foodRestaurant,
+      ...(drinkRestaurant ? { drinkRestaurant } : {}),
     });
   } catch (e) {
     console.error(JSON.stringify({ message: "failed to fetch public round", error: String(e) }));

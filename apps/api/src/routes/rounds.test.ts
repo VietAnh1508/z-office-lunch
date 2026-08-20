@@ -1441,8 +1441,12 @@ describe("rounds routes", () => {
       expect(await draftRes.json()).toEqual(await missingRes.json());
     });
 
-    it("GET /public for an open round with no drinkRestaurantId omits drinkItems entirely", async () => {
-      const food = await seedRestaurant(db, { type: "food" });
+    it("GET /public for an open round with no drinkRestaurantId omits drinkItems and drinkRestaurant entirely", async () => {
+      const food = await seedRestaurant(db, {
+        type: "food",
+        contactInfo: "012-345-6789",
+        note: "Cash only",
+      });
       const foodItem = await seedMenuItem(db, {
         restaurantId: food!.id,
         name: "Pho Bo",
@@ -1458,17 +1462,57 @@ describe("rounds routes", () => {
         label: string;
         foodItems: Array<{ id: number; name: string }>;
         drinkItems?: unknown[];
+        foodRestaurant: { id: number; name: string; menuUrl: string | null; menuImage: string | null };
+        drinkRestaurant?: unknown;
       };
       expect(body.label).toBe(round!.label);
       expect(body.foodItems).toHaveLength(1);
       expect(body.foodItems[0]?.name).toBe("Pho Bo");
       expect("drinkItems" in body).toBe(false);
-      expect(JSON.stringify(body)).not.toContain("price");
+      expect(body.foodRestaurant).toEqual({
+        id: food!.id,
+        name: food!.name,
+        menuUrl: null,
+        menuImage: null,
+      });
+      expect("drinkRestaurant" in body).toBe(false);
+      const json = JSON.stringify(body);
+      expect(json).not.toContain("price");
+      expect(json).not.toContain("contactInfo");
+      expect(json).not.toContain("Cash only");
+      expect(json).not.toContain("012-345-6789");
+      expect(json).not.toContain("note");
+      expect(json).not.toContain("createdAt");
+      expect(json).not.toContain('"type"');
     });
 
-    it("GET /public for an open round with a drinkRestaurantId includes curated drink items", async () => {
+    it("GET /public includes foodRestaurant's menuUrl and menuImage when set on the restaurant", async () => {
+      const food = await seedRestaurant(db, {
+        type: "food",
+        menuUrl: "https://example.com/menu",
+        menuImage: "some-r2-key",
+      });
+      const foodItem = await seedMenuItem(db, { restaurantId: food!.id, name: "Pho Bo" });
+      const round = await seedRound(db, { foodRestaurantId: food!.id, status: "open" });
+      await seedRoundMenuItem(db, { roundId: round!.id, menuItemId: foodItem!.id });
+
+      const res = await app.request(`/api/rounds/${round!.id}/public`, {}, testEnv);
+
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as {
+        foodRestaurant: { menuUrl: string | null; menuImage: string | null };
+      };
+      expect(body.foodRestaurant.menuUrl).toBe("https://example.com/menu");
+      expect(body.foodRestaurant.menuImage).toBe("some-r2-key");
+    });
+
+    it("GET /public for an open round with a drinkRestaurantId includes curated drink items and drinkRestaurant", async () => {
       const food = await seedRestaurant(db, { type: "food" });
-      const drink = await seedRestaurant(db, { name: "Tra Da Corner", type: "drink" });
+      const drink = await seedRestaurant(db, {
+        name: "Tra Da Corner",
+        type: "drink",
+        menuUrl: "https://tradacorner.example.com",
+      });
       const foodItem = await seedMenuItem(db, { restaurantId: food!.id, name: "Pho Bo" });
       const drinkItem = await seedMenuItem(db, { restaurantId: drink!.id, name: "Tra Da" });
       const round = await seedRound(db, {
@@ -1482,23 +1526,44 @@ describe("rounds routes", () => {
       const res = await app.request(`/api/rounds/${round!.id}/public`, {}, testEnv);
 
       expect(res.status).toBe(200);
-      const body = (await res.json()) as { drinkItems: Array<{ id: number; name: string }> };
+      const body = (await res.json()) as {
+        drinkItems: Array<{ id: number; name: string }>;
+        drinkRestaurant: { id: number; name: string; menuUrl: string | null; menuImage: string | null };
+      };
       expect(body.drinkItems).toHaveLength(1);
       expect(body.drinkItems[0]?.name).toBe("Tra Da");
+      expect(body.drinkRestaurant).toEqual({
+        id: drink!.id,
+        name: "Tra Da Corner",
+        menuUrl: "https://tradacorner.example.com",
+        menuImage: null,
+      });
     });
 
-    it("GET /public for a closed round still returns its items and status", async () => {
+    it("GET /public for a closed round still returns its items, status, foodRestaurant, and drinkRestaurant", async () => {
       const food = await seedRestaurant(db, { type: "food" });
+      const drink = await seedRestaurant(db, { name: "Tra Da Corner", type: "drink" });
       const foodItem = await seedMenuItem(db, { restaurantId: food!.id, name: "Pho Bo" });
-      const round = await seedRound(db, { foodRestaurantId: food!.id, status: "closed" });
+      const round = await seedRound(db, {
+        foodRestaurantId: food!.id,
+        drinkRestaurantId: drink!.id,
+        status: "closed",
+      });
       await seedRoundMenuItem(db, { roundId: round!.id, menuItemId: foodItem!.id });
 
       const res = await app.request(`/api/rounds/${round!.id}/public`, {}, testEnv);
 
       expect(res.status).toBe(200);
-      const body = (await res.json()) as { status: string; foodItems: unknown[] };
+      const body = (await res.json()) as {
+        status: string;
+        foodItems: unknown[];
+        foodRestaurant: { id: number };
+        drinkRestaurant: { id: number };
+      };
       expect(body.status).toBe("closed");
       expect(body.foodItems).toHaveLength(1);
+      expect(body.foodRestaurant.id).toBe(food!.id);
+      expect(body.drinkRestaurant.id).toBe(drink!.id);
     });
   });
 

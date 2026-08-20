@@ -7,12 +7,17 @@ import { renderWithProviders } from "@/test/render";
 import { server } from "@/test/mocks/server";
 import { Round } from "./Round";
 
+const FOOD_RESTAURANT = { id: 1, name: "Pho 24", menuUrl: null, menuImage: null };
+const DRINK_RESTAURANT = { id: 2, name: "Tra Da Corner", menuUrl: null, menuImage: null };
+
 const OPEN_ROUND_WITH_DRINK = {
   label: "Week 1",
   deadline: "2999-01-01T00:00:00.000Z",
   status: "open",
   foodItems: [{ id: 10, name: "Pho Bo" }],
   drinkItems: [{ id: 20, name: "Tra Da" }],
+  foodRestaurant: FOOD_RESTAURANT,
+  drinkRestaurant: DRINK_RESTAURANT,
 };
 
 const OPEN_ROUND_FOOD_ONLY = {
@@ -20,6 +25,7 @@ const OPEN_ROUND_FOOD_ONLY = {
   deadline: "2999-01-01T00:00:00.000Z",
   status: "open",
   foodItems: [{ id: 10, name: "Pho Bo" }],
+  foodRestaurant: FOOD_RESTAURANT,
 };
 
 const EMPLOYEES = [{ id: 1, fullName: "An Nguyen" }];
@@ -371,6 +377,163 @@ describe("Round (public view)", () => {
         await screen.findByText("Thanks! Your order has been recorded."),
       ).toBeInTheDocument();
       expect(await screen.findByText("An Nguyen")).toBeInTheDocument();
+    });
+  });
+
+  describe("menu reference", () => {
+    it("shows an 'Open menu' link under the food item picker when the food restaurant has a menuUrl", async () => {
+      server.use(
+        http.get("/api/rounds/1/public", () =>
+          HttpResponse.json({
+            ...OPEN_ROUND_FOOD_ONLY,
+            foodRestaurant: { ...FOOD_RESTAURANT, menuUrl: "example.com/menu" },
+          }),
+        ),
+        http.get("/api/employees", () => HttpResponse.json(EMPLOYEES)),
+        http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
+      );
+
+      renderRound("1");
+
+      const link = await screen.findByRole("link", { name: "Open menu ↗" });
+      expect(link).toHaveAttribute("href", "https://example.com/menu");
+      expect(link).toHaveAttribute("target", "_blank");
+      expect(link).toHaveAttribute("rel", "noopener noreferrer");
+    });
+
+    it("shows no menu link or image for a restaurant with neither set", async () => {
+      server.use(
+        http.get("/api/rounds/1/public", () => HttpResponse.json(OPEN_ROUND_FOOD_ONLY)),
+        http.get("/api/employees", () => HttpResponse.json(EMPLOYEES)),
+        http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
+      );
+
+      renderRound("1");
+      await screen.findByRole("option", { name: "Pho Bo" });
+
+      expect(screen.queryByRole("link", { name: /open menu/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole("img")).not.toBeInTheDocument();
+    });
+
+    it("shows both food and drink menu links when both restaurants have a menuUrl", async () => {
+      server.use(
+        http.get("/api/rounds/1/public", () =>
+          HttpResponse.json({
+            ...OPEN_ROUND_WITH_DRINK,
+            foodRestaurant: { ...FOOD_RESTAURANT, menuUrl: "https://pho24.example.com" },
+            drinkRestaurant: { ...DRINK_RESTAURANT, menuUrl: "https://tradacorner.example.com" },
+          }),
+        ),
+        http.get("/api/employees", () => HttpResponse.json(EMPLOYEES)),
+        http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
+      );
+
+      renderRound("1");
+
+      const links = await screen.findAllByRole("link", { name: "Open menu ↗" });
+      expect(links).toHaveLength(2);
+      expect(links[0]).toHaveAttribute("href", "https://pho24.example.com");
+      expect(links[1]).toHaveAttribute("href", "https://tradacorner.example.com");
+    });
+
+    it("renders the restaurant's menu image both inline and in the desktop side panel", async () => {
+      server.use(
+        http.get("/api/rounds/1/public", () =>
+          HttpResponse.json({
+            ...OPEN_ROUND_FOOD_ONLY,
+            foodRestaurant: { ...FOOD_RESTAURANT, menuImage: "abc123" },
+          }),
+        ),
+        http.get("/api/employees", () => HttpResponse.json(EMPLOYEES)),
+        http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
+      );
+
+      renderRound("1");
+
+      const images = await screen.findAllByAltText("Pho 24 menu");
+      expect(images).toHaveLength(2);
+      for (const img of images) {
+        expect(img).toHaveAttribute("src", "/api/restaurants/1/menu-image?v=abc123");
+      }
+      expect(screen.getByText("Menu Pho 24")).toBeInTheDocument();
+    });
+
+    it("opens a larger view of the panel image via the expand button, closable with the close button", async () => {
+      const user = userEvent.setup();
+      server.use(
+        http.get("/api/rounds/1/public", () =>
+          HttpResponse.json({
+            ...OPEN_ROUND_FOOD_ONLY,
+            foodRestaurant: { ...FOOD_RESTAURANT, menuImage: "abc123" },
+          }),
+        ),
+        http.get("/api/employees", () => HttpResponse.json(EMPLOYEES)),
+        http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
+      );
+
+      renderRound("1");
+      await screen.findAllByAltText("Pho 24 menu");
+
+      // Only the desktop side-panel copy gets an expand button, not the
+      // mobile inline copy — so there's exactly one, not two.
+      const expandButton = screen.getByRole("button", { name: "View full size" });
+      await user.click(expandButton);
+
+      const dialog = await screen.findByRole("dialog");
+      expect(dialog).toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: "Close" }));
+      await waitFor(() => {
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      });
+    });
+
+    it("closes the expanded image dialog on Escape", async () => {
+      const user = userEvent.setup();
+      server.use(
+        http.get("/api/rounds/1/public", () =>
+          HttpResponse.json({
+            ...OPEN_ROUND_FOOD_ONLY,
+            foodRestaurant: { ...FOOD_RESTAURANT, menuImage: "abc123" },
+          }),
+        ),
+        http.get("/api/employees", () => HttpResponse.json(EMPLOYEES)),
+        http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
+      );
+
+      renderRound("1");
+      await user.click(await screen.findByRole("button", { name: "View full size" }));
+      await screen.findByRole("dialog");
+
+      await user.keyboard("{Escape}");
+
+      await waitFor(() => {
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      });
+    });
+
+    it("does not render any menu link or image on a closed round even when the restaurant has both", async () => {
+      server.use(
+        http.get("/api/rounds/1/public", () =>
+          HttpResponse.json({
+            label: "Week 1",
+            deadline: "2000-01-01T00:00:00.000Z",
+            status: "closed",
+            foodItems: [],
+            foodRestaurant: {
+              ...FOOD_RESTAURANT,
+              menuUrl: "https://pho24.example.com",
+              menuImage: "abc123",
+            },
+          }),
+        ),
+      );
+
+      renderRound("1");
+
+      await screen.findByText("This round is closed.");
+      expect(screen.queryByRole("link", { name: /open menu/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole("img")).not.toBeInTheDocument();
     });
   });
 });
