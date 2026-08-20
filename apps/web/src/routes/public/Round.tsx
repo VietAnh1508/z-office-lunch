@@ -72,12 +72,12 @@ function MenuPanelCard({ restaurant }: { restaurant: PublicRoundRestaurant }) {
                 <Maximize2 />
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-none border-none bg-transparent p-0 shadow-none ring-0">
+            <DialogContent className="w-auto max-w-none border-none bg-transparent p-0 shadow-none ring-0">
               <DialogTitle className="sr-only">{restaurant.name} menu</DialogTitle>
               <img
                 src={menuImageSrc(restaurant)}
                 alt={`${restaurant.name} menu`}
-                className="max-h-[90vh] max-w-[90vw] rounded-lg object-contain"
+                className="h-[90vh] w-[90vw] rounded-lg object-contain"
               />
             </DialogContent>
           </Dialog>
