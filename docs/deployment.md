@@ -88,16 +88,36 @@ If any of these need recreating (lost/rotated), see the Cloudflare Hyperdrive/R2
 
 ## Redeploying
 
+Deploys are automatic via **Cloudflare Workers Builds** — connected directly to the GitHub repo
+(`VietAnh1508/z-office-lunch`) through the Cloudflare dashboard (Workers & Pages → the Worker →
+Settings → Build), not a workflow file in this repo. A push to `main` builds and deploys to
+production; pushes to any other branch (PRs included) run the same build but upload a preview
+*version* instead of deploying it, so they never touch production.
+
+Dashboard configuration, for reference if it ever needs recreating:
+
+- **Root directory**: `apps/api`
+- **Build command**: `cd ../.. && pnpm install --frozen-lockfile && pnpm build` — steps back up
+  to the monorepo root to install workspace deps and build the SPA into `apps/web/dist`, which
+  `apps/api/wrangler.jsonc`'s `assets.directory` serves.
+- **Deploy command** (production branch, i.e. `main`, only): `pnpm exec wrangler deploy`
+- **Version command** (non-production branches): `npx wrangler versions upload` — uploads a
+  preview version without promoting it to production.
+- **Build watch paths**: `apps/api/**`, `apps/web/**`, `packages/**` (excludes `node_modules/**`,
+  `.git/`) — a push touching only e.g. `docs/` or `tasks/` doesn't trigger a build.
+- Builds authenticate with a scoped Cloudflare API token (`z-office-lunch-build-token`) that
+  Workers Builds holds on Cloudflare's side — not a secret stored in this repo or in GitHub.
+
+Manual deploy from a local machine still works as a fallback (e.g. to ship a change without
+waiting on a push, or if Workers Builds is misbehaving):
+
 ```
 pnpm deploy
 ```
 
-This chains `pnpm build` (builds the SPA into `apps/web/dist`, which `apps/api/wrangler.jsonc`'s
-`assets.directory` serves from) and `wrangler deploy`. Don't run `pnpm --filter api deploy`
-directly — it skips the build and would ship stale or missing static assets.
-
-No CI/CD yet — deploys are manual, run from a local machine authenticated via
-`wrangler login`. Worth a follow-up task if redeploys become frequent enough to want automating.
+This chains `pnpm build` (builds the SPA into `apps/web/dist`) and `wrangler deploy`, run under
+a local `wrangler login` session. Don't run `pnpm --filter api deploy` directly — it skips the
+build and would ship stale or missing static assets.
 
 ## Running migrations against Neon
 
@@ -119,7 +139,8 @@ Hyperdrive stores the credential on Cloudflare's side, so the Worker itself neve
 ## Known follow-ups
 
 - No Cloudflare Access / auth in front of the Worker — see topology note above.
-- No CI/CD — deploys and migrations are run manually from a local machine.
+- Migrations are still run manually from a local machine (see above) — deploys are automated
+  (Cloudflare Workers Builds) but there's no equivalent for running migrations against Neon yet.
 - pg's `sslmode=require` on the Neon connection string triggers a deprecation warning during
   migrations (a future `pg`/`pg-connection-string` major version changes its semantics) —
   not currently broken, just worth knowing about before that upgrade lands.
