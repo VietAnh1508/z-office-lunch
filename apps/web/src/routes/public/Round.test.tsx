@@ -455,7 +455,7 @@ describe("Round (public view)", () => {
       for (const img of images) {
         expect(img).toHaveAttribute("src", "/api/restaurants/1/menu-image?v=abc123");
       }
-      expect(screen.getByText("Pho 24")).toBeInTheDocument();
+      expect(screen.getByText("Menu Pho 24")).toBeInTheDocument();
     });
 
     it("opens a larger view of the panel image via the expand button, closable with the close button", async () => {
