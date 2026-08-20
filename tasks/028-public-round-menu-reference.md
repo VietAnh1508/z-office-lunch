@@ -1,7 +1,7 @@
 ---
 id: 028
 title: Show restaurant menu link/image on the public round page
-status: in_progress
+status: in_review
 depends_on: []
 parallelizable_with: []
 tdd: required
@@ -71,19 +71,27 @@ Fetch `foodRestaurant` unconditionally and `drinkRestaurant` gated on `round.dri
 
 ## Implementation Log
 
-(Filled in by /implement-task.)
-
-- red commit: <sha> — `<test_command>` -> N failing
-- green commit: <sha> — `<test_command>` -> all passing
+- red commit: 08b8edb — `pnpm test -- apps/api/src/routes/rounds.test.ts apps/web/src/lib/menu-url.test.ts apps/web/src/routes/public/Round.test.tsx` -> 9 failing (4 API: `foodRestaurant`/`drinkRestaurant` not yet in the public round response; 1 web util: module not yet created; 5 web page: menu link/image markup not yet wired into `Round.tsx`)
+- green commit: edd4891 — same `test_command` -> all 285 passing (full `pnpm test` also 285/285); `pnpm lint` clean on touched files (3 pre-existing `only-export-components` warnings in untouched files); `tsc --noEmit` on `apps/web` clean. Amended in place after the code-reviewer pass to fold in its two findings (see Review Notes) — re-ran the full test/lint pass after amending, still green.
 
 ## Plan Deviations
 
-(Filled in by /implement-task, honestly, before requesting review — write "None." if genuinely nothing applies, don't skip this section silently. Only list genuine deviations — if a step was carried out as the Plan described, it doesn't belong here, even if it's worth doing again.)
-
-- Where did the actual implementation differ from the Plan above, and why?
-- Any wrong assumption, dead end, or approach abandoned partway through?
-- Anything the user had to correct or redirect mid-task?
+- The task doc file itself (`tasks/028-...md`, `status: in_progress`) was committed together with the failing tests in the red commit, at the user's explicit direction, rather than left uncommitted until the bookkeeping commit in step 10. Everything else about the red/green split followed the Plan and the command's usual steps.
+- Otherwise implemented as planned: same file list, same helper shape (`selectRestaurantMenu`), same component breakdown (`MenuLink`/`MenuImage`/`MenuPanel`/`dialog.tsx` following `alert-dialog.tsx`'s structural pattern), same grid-activation approach in `Round()`.
 
 ## Review Notes
 
-(Output of the feature-dev:code-reviewer agent, appended by /implement-task.)
+Output of the `feature-dev:code-reviewer` agent (reviewed the red→green diff, `08b8edb..314bce0`):
+
+### Important (both fixed, folded into the green commit)
+
+- **Container lost its `max-w-xl` cap between `sm` and `lg` once a menu image exists.** `Round.tsx`'s `hasMenuPanel` branch only set a width cap at `lg:max-w-5xl`, so on tablets/small laptops (~577px–1023px) the page went full-bleed instead of staying at the pre-existing 576px cap. Fixed by keeping `max-w-xl` in both branches and letting `lg:` override it.
+- **Import order broke the file's established convention.** `@/lib/menu-url` (alphabetically before `@/lib/utils`) was added after `cn`'s import instead of before it. Reordered.
+
+### Not flagged (checked, below the confidence bar, left out)
+
+- Non-null assertions on `round.drinkRestaurant!` — the invariant holds (both `drinkItems`/`drinkRestaurant` are fetched under the same `drinkRestaurantId !== null` guard on the API side), just a style smell.
+- `dialog.tsx` omits `DialogDescription`/`DialogHeader`/`DialogFooter` — out of scope per the task's explicit export list; Radix's missing-description warning is non-blocking.
+- Sequential (non-`Promise.all`) restaurant queries in `rounds.ts` — real but negligible on a low-traffic public route.
+- `menuImageSrc`'s un-encoded `?v=${menuImage}` key and reliance on `normalizeMenuUrl` to neutralize a `javascript:` scheme — both match existing precedent in `RestaurantDetail.tsx`.
+- No height cap on the mobile inline `MenuImage` (admin side caps at `max-w-xs`, this doesn't cap height at all) — a portrait phone photo could push the drink picker/Submit button below the fold. Flagged as a legitimate design question the acceptance criteria don't answer, not blocking.
