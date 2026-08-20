@@ -1,7 +1,7 @@
 ---
 id: 028
 title: Show restaurant menu link/image on the public round page
-status: in_review
+status: done
 depends_on: []
 parallelizable_with: []
 tdd: required
