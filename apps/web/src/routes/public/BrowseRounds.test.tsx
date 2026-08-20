@@ -15,14 +15,17 @@ function renderBrowseRounds() {
 }
 
 describe("BrowseRounds (public homepage)", () => {
-  it("renders both section titles and two 'No rounds' texts when there are no rounds", async () => {
+  it("renders both section titles and their empty-state messages when there are no rounds", async () => {
     server.use(http.get("/api/rounds/public", () => HttpResponse.json([])));
 
     renderBrowseRounds();
 
-    expect(await screen.findByText("Open")).toBeInTheDocument();
-    expect(screen.getByText("Closed")).toBeInTheDocument();
-    expect(screen.getAllByText("No rounds")).toHaveLength(2);
+    expect(await screen.findByText("Current office lunches")).toBeInTheDocument();
+    expect(screen.getByText("Past office lunches")).toBeInTheDocument();
+    expect(
+      screen.getByText("No office lunch is open for orders right now."),
+    ).toBeInTheDocument();
+    expect(screen.getByText("No past office lunches yet.")).toBeInTheDocument();
   });
 
   it("groups rounds under their matching section title", async () => {
@@ -51,8 +54,8 @@ describe("BrowseRounds (public homepage)", () => {
 
     renderBrowseRounds();
 
-    const openTitle = await screen.findByText("Open");
-    const closedTitle = screen.getByText("Closed");
+    const openTitle = await screen.findByText("Current office lunches");
+    const closedTitle = screen.getByText("Past office lunches");
     const openCard = openTitle.closest('[data-slot="card"]') as HTMLElement;
     const closedCard = closedTitle.closest('[data-slot="card"]') as HTMLElement;
 

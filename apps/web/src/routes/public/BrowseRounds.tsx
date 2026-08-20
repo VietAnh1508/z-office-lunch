@@ -1,5 +1,11 @@
 import { Link } from "react-router";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { RoundStatusBadge } from "@/routes/admin/RoundStatusBadge";
 import { usePublicRounds } from "./usePublicRound";
 import type { PublicRoundListItem } from "./usePublicRound";
@@ -24,15 +30,26 @@ function RoundRow({ round }: { round: PublicRoundListItem }) {
   );
 }
 
-function RoundSection({ title, rounds }: { title: string; rounds: PublicRoundListItem[] }) {
+function RoundSection({
+  title,
+  description,
+  emptyMessage,
+  rounds,
+}: {
+  title: string;
+  description: string;
+  emptyMessage: string;
+  rounds: PublicRoundListItem[];
+}) {
   return (
     <Card>
       <CardHeader>
         <CardTitle>{title}</CardTitle>
+        {rounds.length > 0 && <CardDescription>{description}</CardDescription>}
       </CardHeader>
       <CardContent>
         {rounds.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No rounds</p>
+          <p className="text-sm text-muted-foreground">{emptyMessage}</p>
         ) : (
           <ul className="flex flex-col divide-y divide-border">
             {rounds.map((round) => (
@@ -65,8 +82,18 @@ export function BrowseRounds() {
 
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-6 px-4 py-8 sm:px-6 sm:py-10">
-      <RoundSection title="Open" rounds={openRounds} />
-      <RoundSection title="Closed" rounds={closedRounds} />
+      <RoundSection
+        title="Current office lunches"
+        description="Still open for ordering — join in before the deadline."
+        emptyMessage="No office lunch is open for orders right now."
+        rounds={openRounds}
+      />
+      <RoundSection
+        title="Past office lunches"
+        description="Closed for ordering."
+        emptyMessage="No past office lunches yet."
+        rounds={closedRounds}
+      />
     </div>
   );
 }
