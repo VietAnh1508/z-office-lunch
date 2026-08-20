@@ -18,6 +18,7 @@ We're building the AI workflow harness (this file, the commands, the task templa
 
 - `tasks/` — one markdown file per unit of work. Frontmatter `status` field is the source of truth for what's done, in progress, or waiting on review. Nothing else tracks status — don't add a separate progress log, it will drift out of sync with these files. Run `pnpm tasks:status` (`scripts/task-status.mjs`) to compute what's in-flight or ready from `depends_on` instead of scanning frontmatter by eye.
 - `docs/architecture.md` — app data model and stack rationale, once decided. Written once, updated only when the architecture actually changes, not per task.
+- `docs/deployment.md` — live URL, provisioned cloud resources (Cloudflare Worker/Hyperdrive/R2, Neon), how to redeploy and run migrations against production.
 - `.claude/commands/plan-task.md`, `.claude/commands/implement-task.md` — the two custom commands that drive the loop below.
 - `.claude/commands/fix-bug.md`, `.claude/commands/quick-change.md` — the ad-hoc, no-task-file commands for the Quick fixes flow (see below).
 - `.claude/commands/retrospective.md` — run periodically (not part of the per-task loop) to scan `done` tasks' Implementation Log, Plan Deviations, and Review Notes for environment/tooling gaps, workflow drift, and recurring patterns across tasks; reports findings and proposes fixes, doesn't apply them unasked.

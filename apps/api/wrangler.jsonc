@@ -13,13 +13,13 @@
   "hyperdrive": [
     {
       "binding": "HYPERDRIVE",
-      "id": "REPLACE_ME"
+      "id": "59de2634f51b4b46894226f550915bd4"
     }
   ],
   "r2_buckets": [
     {
       "binding": "MENU_IMAGES",
-      "bucket_name": "replace-me"
+      "bucket_name": "z-office-lunch-menu-images"
     }
   ]
 }

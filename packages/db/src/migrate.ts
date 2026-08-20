@@ -16,6 +16,7 @@ const isMain = process.argv[1] !== undefined && fileURLToPath(import.meta.url) =
 if (isMain) {
   const connectionString =
     process.env.DATABASE_URL ?? "postgres://postgres:postgres@localhost:5432/office_lunch";
+  console.log(`Migrating database at ${new URL(connectionString).host}`);
   await runMigrations(connectionString);
   console.log("Migrations applied.");
   process.exit(0);
