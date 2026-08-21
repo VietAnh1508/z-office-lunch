@@ -1723,6 +1723,51 @@ describe("rounds routes", () => {
       expect(created.drinkRoundMenuItemId).toBeNull();
     });
 
+    describe("round menu item deletion nulls a referencing submission", () => {
+      it("nulls foodRoundMenuItemId when the referenced round menu item is deleted", async () => {
+        const { round, foodRoundMenuItem } = await seedOpenFoodRound();
+        const employee = await seedEmployee(db);
+        const submission = await seedSubmission(db, {
+          roundId: round.id,
+          employeeId: employee!.id,
+          foodRoundMenuItemId: foodRoundMenuItem.id,
+        });
+
+        await db.delete(roundMenuItems).where(eq(roundMenuItems.id, foodRoundMenuItem.id));
+
+        const [updated] = await db
+          .select()
+          .from(submissions)
+          .where(eq(submissions.id, submission!.id));
+        expect(updated?.foodRoundMenuItemId).toBeNull();
+      });
+
+      it("nulls drinkRoundMenuItemId when the referenced round menu item is deleted", async () => {
+        const { round, foodRoundMenuItem } = await seedOpenFoodRound();
+        const drink = await seedRestaurant(db, { name: "Tra Da Corner", type: "drink" });
+        const drinkMenuItem = await seedMenuItem(db, { restaurantId: drink!.id, name: "Tra Da" });
+        const drinkRoundMenuItem = await seedRoundMenuItem(db, {
+          roundId: round.id,
+          menuItemId: drinkMenuItem!.id,
+        });
+        const employee = await seedEmployee(db);
+        const submission = await seedSubmission(db, {
+          roundId: round.id,
+          employeeId: employee!.id,
+          foodRoundMenuItemId: foodRoundMenuItem.id,
+          drinkRoundMenuItemId: drinkRoundMenuItem!.id,
+        });
+
+        await db.delete(roundMenuItems).where(eq(roundMenuItems.id, drinkRoundMenuItem!.id));
+
+        const [updated] = await db
+          .select()
+          .from(submissions)
+          .where(eq(submissions.id, submission!.id));
+        expect(updated?.drinkRoundMenuItemId).toBeNull();
+      });
+    });
+
     it("valid POST with drink fields persists both food and drink picks", async () => {
       const { round, foodRoundMenuItem } = await seedOpenFoodRound();
       const drink = await seedRestaurant(db, { name: "Tra Da Corner", type: "drink" });
@@ -2051,6 +2096,30 @@ describe("rounds routes", () => {
         const body = (await res.json()) as SubmissionRow[];
         expect(body[0]?.drinkName).toBe("Tra Da");
         expect(body[0]?.drinkNote).toBe("Less ice");
+      });
+
+      it("GET still includes a submission whose foodRoundMenuItemId was nulled, with foodName: null", async () => {
+        const { round, foodRoundMenuItem } = await seedOpenFoodRound();
+        const employee = await seedEmployee(db, { fullName: "An Nguyen" });
+        const submission = await seedSubmission(db, {
+          roundId: round.id,
+          employeeId: employee!.id,
+          foodRoundMenuItemId: foodRoundMenuItem.id,
+        });
+        // Simulates post-cascade state directly -- no route can produce this
+        // deletion yet (that's tasks 030/031).
+        await db
+          .update(submissions)
+          .set({ foodRoundMenuItemId: null })
+          .where(eq(submissions.id, submission!.id));
+
+        const res = await app.request(`/api/rounds/${round.id}/submissions`, {}, testEnv);
+
+        expect(res.status).toBe(200);
+        const body = (await res.json()) as SubmissionRow[];
+        expect(body).toHaveLength(1);
+        expect(body[0]?.employeeName).toBe("An Nguyen");
+        expect(body[0]?.foodName).toBeNull();
       });
 
       it("GET returns [] for a round with no submissions", async () => {
