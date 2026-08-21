@@ -274,15 +274,16 @@ describe("Round (public view)", () => {
     });
   });
 
-  it("shows the API's error message as a toast on a duplicate submission", async () => {
+  it("succeeds when submitting again for the same employee (resubmission)", async () => {
     const user = userEvent.setup();
     server.use(
       http.get("/api/rounds/1/public", () => HttpResponse.json(OPEN_ROUND_FOOD_ONLY)),
       http.get("/api/employees", () => HttpResponse.json(EMPLOYEES)),
       http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
-      http.post("/api/rounds/1/submissions", () =>
-        HttpResponse.json({ error: "you have already submitted for this round" }, { status: 409 }),
-      ),
+      http.post("/api/rounds/1/submissions", async ({ request }) => {
+        const body = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({ id: 1, roundId: 1, ...body }, { status: 200 });
+      }),
     );
 
     renderRound("1");
@@ -293,11 +294,8 @@ describe("Round (public view)", () => {
     await user.click(screen.getByRole("button", { name: "Submit" }));
 
     expect(
-      await screen.findByText("you have already submitted for this round"),
+      await screen.findByText("Thanks! Your order has been recorded."),
     ).toBeInTheDocument();
-    expect(
-      screen.queryByText("Thanks! Your order has been recorded."),
-    ).not.toBeInTheDocument();
   });
 
   describe("submissions list", () => {

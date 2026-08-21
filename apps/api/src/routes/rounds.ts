@@ -694,8 +694,14 @@ roundsRoute.post("/:id/submissions", async (c) => {
       .select()
       .from(submissions)
       .where(and(eq(submissions.roundId, roundId), eq(submissions.employeeId, employeeId)));
+
     if (existing) {
-      return c.json({ error: ERROR_MESSAGES.submissionDuplicate }, 409);
+      const [row] = await db
+        .update(submissions)
+        .set({ foodRoundMenuItemId, foodNote, drinkRoundMenuItemId, drinkNote, updatedAt: new Date() })
+        .where(eq(submissions.id, existing.id))
+        .returning();
+      return c.json(row);
     }
 
     const [row] = await db

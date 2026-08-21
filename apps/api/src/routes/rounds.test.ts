@@ -2317,13 +2317,32 @@ describe("rounds routes", () => {
       expect(body.error).toBe(ERROR_MESSAGES.roundDeadlinePassed);
     });
 
-    it("POST rejected with 409 on a duplicate (roundId, employeeId) submission", async () => {
-      const { round, foodRoundMenuItem } = await seedOpenFoodRound();
+    it("POST for an existing (roundId, employeeId) submission overwrites it", async () => {
+      const { round, food, foodRoundMenuItem } = await seedOpenFoodRound();
+      const secondFoodMenuItem = await seedMenuItem(db, {
+        restaurantId: food!.id,
+        name: "Pho Ga",
+      });
+      const secondFoodRoundMenuItem = await seedRoundMenuItem(db, {
+        roundId: round.id,
+        menuItemId: secondFoodMenuItem!.id,
+      });
+      const drink = await seedRestaurant(db, { name: "Tra Da Corner", type: "drink" });
+      const drinkMenuItem = await seedMenuItem(db, { restaurantId: drink!.id, name: "Tra Da" });
+      await db
+        .update(rounds)
+        .set({ drinkRestaurantId: drink!.id })
+        .where(eq(rounds.id, round.id));
+      const drinkRoundMenuItem = await seedRoundMenuItem(db, {
+        roundId: round.id,
+        menuItemId: drinkMenuItem!.id,
+      });
       const employee = await seedEmployee(db);
       await seedSubmission(db, {
         roundId: round.id,
         employeeId: employee!.id,
         foodRoundMenuItemId: foodRoundMenuItem.id,
+        foodNote: "No cilantro",
       });
 
       const res = await app.request(
@@ -2333,15 +2352,27 @@ describe("rounds routes", () => {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             employeeId: employee!.id,
-            foodRoundMenuItemId: foodRoundMenuItem.id,
+            foodRoundMenuItemId: secondFoodRoundMenuItem!.id,
+            foodNote: "Extra spicy",
+            drinkRoundMenuItemId: drinkRoundMenuItem!.id,
+            drinkNote: "Less ice",
           }),
         },
         testEnv,
       );
 
-      expect(res.status).toBe(409);
-      const body = (await res.json()) as { error?: string };
-      expect(body.error).toBe(ERROR_MESSAGES.submissionDuplicate);
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as Submission;
+      expect(body.foodRoundMenuItemId).toBe(secondFoodRoundMenuItem!.id);
+      expect(body.foodNote).toBe("Extra spicy");
+      expect(body.drinkRoundMenuItemId).toBe(drinkRoundMenuItem!.id);
+      expect(body.drinkNote).toBe("Less ice");
+
+      const listRes = await app.request(`/api/rounds/${round.id}/submissions`, {}, testEnv);
+      const rows = (await listRes.json()) as { employeeName: string; foodNote: string | null }[];
+      const forEmployee = rows.filter((r) => r.employeeName === employee!.fullName);
+      expect(forEmployee).toHaveLength(1);
+      expect(forEmployee[0]?.foodNote).toBe("Extra spicy");
     });
 
     it("POST rejected with 400 when drinkRoundMenuItemId is given but the round has no drinkRestaurantId", async () => {
