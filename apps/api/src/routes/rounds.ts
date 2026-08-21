@@ -342,10 +342,17 @@ roundsRoute.delete("/:id/menu-items/:itemId", async (c) => {
       return c.json({ error: ERROR_MESSAGES.roundEditNotDraft }, 400);
     }
 
-    const [row] = await db
-      .delete(roundMenuItems)
-      .where(eq(roundMenuItems.id, itemId))
-      .returning();
+    const [row] = await db.transaction(async (tx) => {
+      await tx
+        .update(submissions)
+        .set({ foodRoundMenuItemId: null, foodNote: null })
+        .where(eq(submissions.foodRoundMenuItemId, itemId));
+      await tx
+        .update(submissions)
+        .set({ drinkRoundMenuItemId: null, drinkNote: null })
+        .where(eq(submissions.drinkRoundMenuItemId, itemId));
+      return tx.delete(roundMenuItems).where(eq(roundMenuItems.id, itemId)).returning();
+    });
     return c.json(row);
   } catch (e) {
     console.error(
