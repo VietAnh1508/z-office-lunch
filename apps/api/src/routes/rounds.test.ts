@@ -1009,6 +1009,197 @@ describe("rounds routes", () => {
       expect(orphanDrink).toBeUndefined();
     });
 
+    it("PATCH changing foodRestaurantId nulls foodRoundMenuItemId/foodNote on affected submissions, leaves drink side untouched", async () => {
+      const food = await seedRestaurant(db, { name: "Pho 24", type: "food" });
+      const otherFood = await seedRestaurant(db, { name: "Bun Cha", type: "food" });
+      const drink = await seedRestaurant(db, { name: "Tra Da Corner", type: "drink" });
+      const foodItem = await seedMenuItem(db, { restaurantId: food!.id, name: "Pho Bo" });
+      const drinkItem = await seedMenuItem(db, { restaurantId: drink!.id, name: "Tra Da" });
+      const round = await seedRound(db, {
+        foodRestaurantId: food!.id,
+        drinkRestaurantId: drink!.id,
+      });
+      const curatedFood = await seedRoundMenuItem(db, {
+        roundId: round!.id,
+        menuItemId: foodItem!.id,
+      });
+      const curatedDrink = await seedRoundMenuItem(db, {
+        roundId: round!.id,
+        menuItemId: drinkItem!.id,
+      });
+      const employee = await seedEmployee(db);
+      const submission = await seedSubmission(db, {
+        roundId: round!.id,
+        employeeId: employee!.id,
+        foodRoundMenuItemId: curatedFood!.id,
+        foodNote: "extra spicy",
+        drinkRoundMenuItemId: curatedDrink!.id,
+        drinkNote: "less ice",
+      });
+
+      const res = await app.request(
+        `/api/rounds/${round!.id}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            deadline: round!.deadline.toISOString(),
+            foodRestaurantId: otherFood!.id,
+            drinkRestaurantId: drink!.id,
+          }),
+        },
+        testEnv,
+      );
+
+      expect(res.status).toBe(200);
+
+      const [updatedSubmission] = await db
+        .select()
+        .from(submissions)
+        .where(eq(submissions.id, submission!.id));
+      expect(updatedSubmission!.foodRoundMenuItemId).toBeNull();
+      expect(updatedSubmission!.foodNote).toBeNull();
+      expect(updatedSubmission!.drinkRoundMenuItemId).toBe(curatedDrink!.id);
+      expect(updatedSubmission!.drinkNote).toBe("less ice");
+    });
+
+    it("PATCH changing drinkRestaurantId nulls drinkRoundMenuItemId/drinkNote on affected submissions, leaves food side untouched", async () => {
+      const food = await seedRestaurant(db, { type: "food" });
+      const drink = await seedRestaurant(db, { name: "Tra Da Corner", type: "drink" });
+      const otherDrink = await seedRestaurant(db, { name: "Coconut Coffee", type: "drink" });
+      const foodItem = await seedMenuItem(db, { restaurantId: food!.id });
+      const drinkItem = await seedMenuItem(db, { restaurantId: drink!.id });
+      const round = await seedRound(db, {
+        foodRestaurantId: food!.id,
+        drinkRestaurantId: drink!.id,
+      });
+      const curatedFood = await seedRoundMenuItem(db, {
+        roundId: round!.id,
+        menuItemId: foodItem!.id,
+      });
+      const curatedDrink = await seedRoundMenuItem(db, {
+        roundId: round!.id,
+        menuItemId: drinkItem!.id,
+      });
+      const employee = await seedEmployee(db);
+      const submission = await seedSubmission(db, {
+        roundId: round!.id,
+        employeeId: employee!.id,
+        foodRoundMenuItemId: curatedFood!.id,
+        foodNote: "extra spicy",
+        drinkRoundMenuItemId: curatedDrink!.id,
+        drinkNote: "less ice",
+      });
+
+      const res = await app.request(
+        `/api/rounds/${round!.id}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            deadline: round!.deadline.toISOString(),
+            foodRestaurantId: food!.id,
+            drinkRestaurantId: otherDrink!.id,
+          }),
+        },
+        testEnv,
+      );
+
+      expect(res.status).toBe(200);
+
+      const [updatedSubmission] = await db
+        .select()
+        .from(submissions)
+        .where(eq(submissions.id, submission!.id));
+      expect(updatedSubmission!.drinkRoundMenuItemId).toBeNull();
+      expect(updatedSubmission!.drinkNote).toBeNull();
+      expect(updatedSubmission!.foodRoundMenuItemId).toBe(curatedFood!.id);
+      expect(updatedSubmission!.foodNote).toBe("extra spicy");
+    });
+
+    it("PATCH clearing drinkRestaurantId nulls drinkRoundMenuItemId/drinkNote on affected submissions", async () => {
+      const food = await seedRestaurant(db, { type: "food" });
+      const drink = await seedRestaurant(db, { name: "Tra Da Corner", type: "drink" });
+      const drinkItem = await seedMenuItem(db, { restaurantId: drink!.id });
+      const round = await seedRound(db, {
+        foodRestaurantId: food!.id,
+        drinkRestaurantId: drink!.id,
+      });
+      const curatedDrink = await seedRoundMenuItem(db, {
+        roundId: round!.id,
+        menuItemId: drinkItem!.id,
+      });
+      const employee = await seedEmployee(db);
+      const submission = await seedSubmission(db, {
+        roundId: round!.id,
+        employeeId: employee!.id,
+        foodRoundMenuItemId: null,
+        drinkRoundMenuItemId: curatedDrink!.id,
+        drinkNote: "less ice",
+      });
+
+      const res = await app.request(
+        `/api/rounds/${round!.id}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            deadline: round!.deadline.toISOString(),
+            foodRestaurantId: food!.id,
+          }),
+        },
+        testEnv,
+      );
+
+      expect(res.status).toBe(200);
+
+      const [updatedSubmission] = await db
+        .select()
+        .from(submissions)
+        .where(eq(submissions.id, submission!.id));
+      expect(updatedSubmission!.drinkRoundMenuItemId).toBeNull();
+      expect(updatedSubmission!.drinkNote).toBeNull();
+    });
+
+    it("PATCH with a deadline-only change leaves an existing submission completely untouched", async () => {
+      const food = await seedRestaurant(db, { type: "food" });
+      const foodItem = await seedMenuItem(db, { restaurantId: food!.id });
+      const round = await seedRound(db, { foodRestaurantId: food!.id });
+      const curatedFood = await seedRoundMenuItem(db, {
+        roundId: round!.id,
+        menuItemId: foodItem!.id,
+      });
+      const employee = await seedEmployee(db);
+      const submission = await seedSubmission(db, {
+        roundId: round!.id,
+        employeeId: employee!.id,
+        foodRoundMenuItemId: curatedFood!.id,
+        foodNote: "extra spicy",
+        drinkRoundMenuItemId: null,
+      });
+
+      const res = await app.request(
+        `/api/rounds/${round!.id}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            deadline: "2026-09-01T12:00:00.000Z",
+            foodRestaurantId: food!.id,
+          }),
+        },
+        testEnv,
+      );
+
+      expect(res.status).toBe(200);
+
+      const [updatedSubmission] = await db
+        .select()
+        .from(submissions)
+        .where(eq(submissions.id, submission!.id));
+      expect(updatedSubmission).toEqual(submission);
+    });
+
     it("PATCH on an open round returns 400 and leaves the row unchanged", async () => {
       const food = await seedRestaurant(db, { type: "food" });
       const round = await seedRound(db, { foodRestaurantId: food!.id, status: "open" });
