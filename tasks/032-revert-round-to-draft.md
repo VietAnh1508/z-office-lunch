@@ -1,7 +1,7 @@
 ---
 id: 032
 title: Add an open-to-draft revert transition, so admins can fix a live round
-status: in_review
+status: done
 depends_on: [030, 031]
 parallelizable_with: []
 epic: open-round-editing
