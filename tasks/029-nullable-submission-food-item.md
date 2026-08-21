@@ -1,7 +1,7 @@
 ---
 id: 029
 title: Make submissions.food_round_menu_item_id nullable and null-safe to read
-status: approved
+status: in_review
 depends_on: []
 parallelizable_with: []
 epic: open-round-editing
@@ -62,6 +62,36 @@ Foundational schema change, no new admin-facing behavior yet. Widen `submissions
 
 ## Implementation Log
 
+- Red: `5f91508` — new tests: two FK-cascade tests (delete a curated `round_menu_items` row, assert the referencing submission's `foodRoundMenuItemId`/`drinkRoundMenuItemId` nulls out), one `GET /:id/submissions` test asserting a nulled-food submission still appears with `foodName: null`, plus a `RoundDetail.test.tsx` case asserting a null `foodName` renders without crashing. `pnpm -r typecheck` failed as expected: `apps/api` line setting `foodRoundMenuItemId: null` didn't typecheck against the still-`NOT NULL` schema.
+- Green: `2347350` — `schema.ts`: dropped `.notNull()` from `foodRoundMenuItemId`, added `{ onDelete: "set null" }` to both FKs. Generated migration `0005_windy_revanche.sql` via `pnpm --filter db generate` (inspected: 2 `DROP CONSTRAINT`/`ADD CONSTRAINT ... ON DELETE set null` pairs + 1 `DROP NOT NULL`, matches acceptance criteria exactly) and applied it to the local dev db via `pnpm --filter db migrate` (test db picks it up automatically via `vitest-global-setup.ts`). `rounds.ts`: food joins in `GET /:id/submissions` switched `innerJoin` → `leftJoin`. `useRoundSubmissions.ts`: `foodName: string` → `string | null`. `testing.ts`: `seedSubmission`'s required-fields type widened to `foodRoundMenuItemId: number | null`.
+- `pnpm -r typecheck && pnpm --filter web build && pnpm test` → all passing (289/289 tests, no new lint findings — `pnpm lint`'s 3 pre-existing `only-export-components` warnings are in files this task didn't touch).
+
 ## Plan Deviations
 
+None — implementation followed the Plan section as written.
+
 ## Review Notes
+
+`feature-dev:code-reviewer` (reviewed the red→green diff directly):
+
+> ## Review Scope
+>
+> Reviewed the diff for task 029, spanning `apps/api/src/routes/rounds.ts`, `apps/api/src/routes/rounds.test.ts`, `apps/web/src/routes/shared/useRoundSubmissions.ts`, `packages/db/src/schema.ts`, `packages/db/src/testing.ts`, and the generated migration `packages/db/migrations/0005_windy_revanche.sql`.
+>
+> ## Verification performed
+>
+> - **Join fix correctness**: `GET /:id/submissions` (`apps/api/src/routes/rounds.ts:702-713`) now uses `leftJoin` for *both* hops on the food side (`foodRoundMenuItemAlias` and `foodMenuItemAlias`), matching the drink side's existing pattern. Both hops needed changing — leaving the second hop as `innerJoin` would still have dropped the row, since `foodRoundMenuItemAlias.menuItemId` is null-producing once the first join misses. This is done correctly.
+> - **Other queries touching `submissions`**: grepped the whole `apps/api/src` tree for `from(submissions)` — the only other query is the duplicate-submission check in the POST handler (`rounds.ts:656`), which doesn't join to `roundMenuItems`/`menuItems` at all. No other inner-join-on-food-side bug exists elsewhere.
+> - **Contract type consistency**: grepped the whole repo for `foodName` — only `apps/web/src/routes/shared/useRoundSubmissions.ts` (updated), its consumers/tests, and the API route (which never declares an explicit response type, relying on inference) reference it. No stale `foodName: string` contract elsewhere.
+> - **Migration/snapshot consistency**: `packages/db/migrations/meta/0005_snapshot.json` correctly shows `food_round_menu_item_id` as `"notNull": false` and both FKs as `"onDelete": "set null"` — matching `schema.ts`. No drift between schema, migration SQL, and snapshot.
+> - **API error-handling convention**: the modified `GET /:id/submissions` handler already had (and retains) the required `try/catch/finally` with structured `console.error` and `await db.$client.end()` — unaffected by this diff, still compliant.
+> - **POST /submissions route**: still requires `foodRoundMenuItemId` and resolves it via `selectRoundMenuItem`, rejecting with 404/400 if missing or invalid. This is correct and intentional — task 029 only widens the column for the *delete-cascade* case; no route yet lets a client submit without a food pick. Not a bug.
+> - **Frontend rendering**: `SubmissionsTable.tsx` and `RoundDetail.tsx`'s CSV export render `foodName`/`foodNote` the same way they already render the nullable `drinkName`/`drinkNote` — consistent with the pre-existing pattern, not a new gap introduced here.
+>
+> ## Findings
+>
+> No issues at or above the 80-confidence bar. The diff is precisely scoped to the stated task goal, and each piece checks out against the schema, the generated migration, and the rest of the codebase.
+>
+> ## Worth flagging to the parent as a design question (not a defect in this diff)
+>
+> When the cascade eventually nulls `foodRoundMenuItemId` (via tasks 030/031, not yet wired to any route), `foodNote` will survive untouched — so a submission could render a blank Food cell next to a leftover note that no longer refers to anything. The codebase already encodes the opposite invariant on the drink side: `rounds.ts:600-603` nulls `drinkNote` whenever `drinkRoundMenuItemId` is null. Task 029 only owns the schema widening and the read-path join fix, and no route can trigger this cascade yet, so this isn't something to fix in this diff — but tasks 030/031 (whichever adds the delete path) should decide whether `foodNote` gets cleared alongside `foodRoundMenuItemId` when the underlying round menu item is deleted, for consistency with the drink side.
