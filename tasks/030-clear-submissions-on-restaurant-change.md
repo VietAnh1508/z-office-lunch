@@ -1,7 +1,7 @@
 ---
 id: 030
 title: Null affected submissions when a draft round's restaurant change purges stale curated items
-status: approved
+status: in_review
 depends_on: [029]
 parallelizable_with: [031]
 epic: open-round-editing
@@ -62,6 +62,29 @@ created: 2026-08-21
 
 ## Implementation Log
 
+- Red: `52c907b` — `test: cover clearing submissions when a draft round's restaurant change purges stale items`. `pnpm test -- apps/api/src/routes/rounds.test.ts -t "nulls|untouched"` -> 3 failing (the two `...Note` fields stayed at their pre-PATCH values; `...RoundMenuItemId` was already nulled by task 029's FK cascade, as expected).
+- Green: `63358a1` — `fix: null submissions' round-menu-item FK and note when a draft round's restaurant change purges their curated item`. `pnpm -r typecheck && pnpm --filter web build && pnpm test` -> all passing (293/293).
+
 ## Plan Deviations
 
+- The Plan's sketch selected stale ids by joining `roundMenuItems` to `menuItems` inline inside `clearAffectedSubmissions`'s `.where()`. Implemented instead as a separate `staleItemIds(restaurantId)` closure returning that same subquery, reused by `clearAffectedSubmissions`, so the join lives in one place rather than being written out per call — same query shape and behavior, just factored differently from the literal snippet in the Plan.
+- Otherwise implemented as planned: `clearAffectedSubmissions` is called immediately before each side's `purgeStaleItems`, gated on the same `foodChanged`/`drinkChanged && round.drinkRestaurantId !== null` conditions already guarding the purge calls.
+
 ## Review Notes
+
+Reviewed by `feature-dev:code-reviewer` against the red→green diff plus the new tests in `apps/api/src/routes/rounds.test.ts`.
+
+**Correctness — confirmed sound, no bugs found:**
+- `inArray(column, subquery)` correctly excludes submissions whose FK is already `NULL` (SQL NULL semantics: `NULL IN (...)` evaluates to `NULL`, not `TRUE`), so no false-positive nulling.
+- Ordering requirement satisfied: `clearAffectedSubmissions` is `await`ed and completes before `purgeStaleItems` runs, and `staleItemIds` queries `round_menu_items` fresh as a subquery baked into the `UPDATE` — keyed on pre-delete ids, not the FK's post-delete `set null` state.
+- `round.foodRestaurantId`/`round.drinkRestaurantId` (pre-update values) are correctly used as the "old restaurant" key for both clearing and purging.
+- Food/drink clear+purge pairs can't cross-contaminate — each `staleItemIds` call filters on a specific `restaurantId`.
+- Draft-only guard untouched; subquery-in-`inArray` pattern mirrors the pre-existing `purgeStaleItems` style in this file.
+
+**Important (confidence ~85) — test coverage gap, no code change needed:** the `*RoundMenuItemId` assertions in the three restaurant-change tests are tautological given the schema's `onDelete: "set null"` on `submissions.foodRoundMenuItemId`/`drinkRoundMenuItemId` — those would pass even if `clearAffectedSubmissions` were deleted and only the DB-level cascade ran. The `foodNote`/`drinkNote` assertions in those same tests are the ones actually exercising the new code (notes have no DB-level cascade). Noted for awareness; not treated as a required fix since testing the pre-purge clear in isolation isn't practical through the route's black-box behavior.
+
+**Lower-confidence, below reporting bar (not actioned):**
+- `staleItemIds` (join-based) and `purgeStaleItems`'s `inArray(menuItemId, subselect)` express "which round_menu_items are stale" two different ways; they agree today but could diverge if edited separately later. Optional follow-up: rewrite `purgeStaleItems` to consume `staleItemIds` directly.
+- Each new test seeds exactly one submission per round, so "drink side untouched" / "every submission untouched" assertions are only incidentally scoped-correct rather than proven against a second, differently-shaped submission in the same round.
+
+Bottom line: implementation correct as written; no changes made in response to this review.
