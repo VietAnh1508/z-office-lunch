@@ -2038,7 +2038,7 @@ describe("rounds routes", () => {
       type SubmissionRow = {
         id: number;
         employeeName: string;
-        foodName: string;
+        foodName: string | null;
         foodNote: string | null;
         drinkName: string | null;
         drinkNote: string | null;

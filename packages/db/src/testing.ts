@@ -102,7 +102,7 @@ export async function seedSubmission(
   overrides: Partial<typeof schema.submissions.$inferInsert> & {
     roundId: number;
     employeeId: number;
-    foodRoundMenuItemId: number;
+    foodRoundMenuItemId: number | null;
   },
 ) {
   const [row] = await db
