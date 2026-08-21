@@ -1,7 +1,7 @@
 ---
 id: 031
 title: Null affected submission when removing a single curated menu item from a draft round
-status: in_review
+status: done
 depends_on: [029]
 parallelizable_with: [030]
 epic: open-round-editing
