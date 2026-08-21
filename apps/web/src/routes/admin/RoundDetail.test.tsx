@@ -573,6 +573,32 @@ describe("RoundDetail", () => {
       expect(screen.getByText("Tra Da")).toBeInTheDocument();
     });
 
+    it("renders a blank food cell when foodName is null", async () => {
+      server.use(
+        http.get("/api/rounds/1", () => HttpResponse.json(draftRound())),
+        http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+        http.get("/api/rounds/1/submissions", () =>
+          HttpResponse.json([
+            {
+              id: 1,
+              employeeName: "An Nguyen",
+              foodName: null,
+              foodNote: null,
+              drinkName: "Tra Da",
+              drinkNote: null,
+            },
+          ]),
+        ),
+        http.get("/api/rounds/1/menu-items", () => HttpResponse.json([])),
+        http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
+      );
+
+      renderDetail("1");
+
+      expect(await screen.findByText("An Nguyen")).toBeInTheDocument();
+      expect(screen.getByText("Tra Da")).toBeInTheDocument();
+    });
+
     it("exports submissions as a CSV via the Export CSV button", async () => {
       const user = userEvent.setup();
 

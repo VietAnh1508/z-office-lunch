@@ -76,12 +76,14 @@ export const submissions = pgTable(
     employeeId: integer("employee_id")
       .notNull()
       .references(() => employees.id),
-    foodRoundMenuItemId: integer("food_round_menu_item_id")
-      .notNull()
-      .references(() => roundMenuItems.id),
+    foodRoundMenuItemId: integer("food_round_menu_item_id").references(
+      () => roundMenuItems.id,
+      { onDelete: "set null" },
+    ),
     foodNote: text("food_note"),
     drinkRoundMenuItemId: integer("drink_round_menu_item_id").references(
       () => roundMenuItems.id,
+      { onDelete: "set null" },
     ),
     drinkNote: text("drink_note"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

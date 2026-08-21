@@ -701,11 +701,11 @@ roundsRoute.get("/:id/submissions", async (c) => {
       })
       .from(submissions)
       .innerJoin(employees, eq(submissions.employeeId, employees.id))
-      .innerJoin(
+      .leftJoin(
         foodRoundMenuItemAlias,
         eq(submissions.foodRoundMenuItemId, foodRoundMenuItemAlias.id),
       )
-      .innerJoin(foodMenuItemAlias, eq(foodRoundMenuItemAlias.menuItemId, foodMenuItemAlias.id))
+      .leftJoin(foodMenuItemAlias, eq(foodRoundMenuItemAlias.menuItemId, foodMenuItemAlias.id))
       .leftJoin(
         drinkRoundMenuItemAlias,
         eq(submissions.drinkRoundMenuItemId, drinkRoundMenuItemAlias.id),
