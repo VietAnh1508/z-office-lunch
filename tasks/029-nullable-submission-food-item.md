@@ -1,7 +1,7 @@
 ---
 id: 029
 title: Make submissions.food_round_menu_item_id nullable and null-safe to read
-status: in_review
+status: done
 depends_on: []
 parallelizable_with: []
 epic: open-round-editing
