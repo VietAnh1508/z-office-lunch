@@ -548,7 +548,7 @@ roundsRoute.patch("/:id/status", async (c) => {
   if (!Number.isInteger(roundId)) {
     return c.json({ error: ERROR_MESSAGES.roundNotFound }, 404);
   }
-  if (status !== "open" && status !== "closed") {
+  if (status !== "open" && status !== "closed" && status !== "draft") {
     return c.json({ error: ERROR_MESSAGES.roundStatusInvalid }, 400);
   }
 
@@ -581,9 +581,13 @@ roundsRoute.patch("/:id/status", async (c) => {
       if (otherOpenRound) {
         return c.json({ error: ERROR_MESSAGES.roundOpenAnotherOpen }, 409);
       }
-    } else {
+    } else if (status === "closed") {
       if (round.status !== "open") {
         return c.json({ error: ERROR_MESSAGES.roundCloseNotOpen }, 400);
+      }
+    } else {
+      if (round.status !== "open") {
+        return c.json({ error: ERROR_MESSAGES.roundRevertNotOpen }, 400);
       }
     }
 

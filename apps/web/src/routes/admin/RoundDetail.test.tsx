@@ -249,6 +249,87 @@ describe("RoundDetail", () => {
     expect(await screen.findByText("Round closed")).toBeInTheDocument();
   });
 
+  it("shows a Revert to draft button only for an open round", async () => {
+    server.use(
+      http.get("/api/rounds/1", () => HttpResponse.json(draftRound())),
+      http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+      http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
+      http.get("/api/rounds/1/menu-items", () => HttpResponse.json([])),
+      http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
+    );
+
+    renderDetail("1");
+
+    await screen.findByRole("button", { name: "Open" });
+    expect(screen.queryByRole("button", { name: "Revert to draft" })).not.toBeInTheDocument();
+  });
+
+  it("does not show a Revert to draft button for a closed round", async () => {
+    server.use(
+      http.get("/api/rounds/1", () => HttpResponse.json(draftRound({ status: "closed" }))),
+      http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+      http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
+      http.get("/api/rounds/1/menu-items", () => HttpResponse.json([])),
+      http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
+    );
+
+    renderDetail("1");
+
+    await screen.findByText("This round is closed.");
+    expect(screen.queryByRole("button", { name: "Revert to draft" })).not.toBeInTheDocument();
+  });
+
+  it("reverts an open round to draft via the confirmation dialog", async () => {
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+    let round = draftRound({ status: "open" });
+
+    server.use(
+      http.get("/api/rounds/1", () => HttpResponse.json(round)),
+      http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+      http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
+      http.get("/api/rounds/1/menu-items", () => HttpResponse.json([])),
+      http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
+      http.patch("/api/rounds/1/status", () => {
+        round = { ...round, status: "draft" };
+        return HttpResponse.json(round);
+      }),
+    );
+
+    renderDetail("1");
+
+    await user.click(await screen.findByRole("button", { name: "Revert to draft" }));
+    await screen.findByText("Revert to draft?");
+    await user.click(screen.getByRole("button", { name: "Revert round" }));
+
+    expect(await screen.findByText("Round reverted to draft")).toBeInTheDocument();
+  });
+
+  it("cancelling the revert-to-draft dialog sends no request", async () => {
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+    const patchStatus = vi.fn();
+
+    server.use(
+      http.get("/api/rounds/1", () => HttpResponse.json(draftRound({ status: "open" }))),
+      http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+      http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
+      http.get("/api/rounds/1/menu-items", () => HttpResponse.json([])),
+      http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
+      http.patch("/api/rounds/1/status", () => {
+        patchStatus();
+        return HttpResponse.json(draftRound({ status: "draft" }));
+      }),
+    );
+
+    renderDetail("1");
+
+    await user.click(await screen.findByRole("button", { name: "Revert to draft" }));
+    await screen.findByText("Revert to draft?");
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+
+    expect(screen.queryByText("Revert to draft?")).not.toBeInTheDocument();
+    expect(patchStatus).not.toHaveBeenCalled();
+  });
+
   it("shows no status button and a closed message for a closed round", async () => {
     server.use(
       http.get("/api/rounds/1", () => HttpResponse.json(draftRound({ status: "closed" }))),

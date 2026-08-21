@@ -85,15 +85,21 @@ export function useUpdateRound(roundId: number) {
   });
 }
 
+const ROUND_STATUS_UPDATE_TOASTS: Record<Round["status"], string> = {
+  open: "Round opened",
+  closed: "Round closed",
+  draft: "Round reverted to draft",
+};
+
 export function useUpdateRoundStatus(roundId: number) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (status: "open" | "closed") =>
+    mutationFn: (status: "open" | "closed" | "draft") =>
       api.patch<Round>(`/rounds/${roundId}/status`, { status }),
     onSuccess: (round) => {
       queryClient.invalidateQueries({ queryKey: roundKeys.all });
-      toast.success(round.status === "open" ? "Round opened" : "Round closed");
+      toast.success(ROUND_STATUS_UPDATE_TOASTS[round.status]);
     },
     onError: (error) => toastApiError(error, "Could not update round status."),
   });

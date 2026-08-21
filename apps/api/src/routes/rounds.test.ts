@@ -833,6 +833,98 @@ describe("rounds routes", () => {
       expect(res.status).toBe(400);
     });
 
+    it("PATCH reverts an open round to draft", async () => {
+      const food = await seedRestaurant(db, { type: "food" });
+      const round = await seedRound(db, { foodRestaurantId: food!.id, status: "open" });
+
+      const res = await app.request(
+        `/api/rounds/${round!.id}/status`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: "draft" }),
+        },
+        testEnv,
+      );
+
+      expect(res.status).toBe(200);
+      const updated = (await res.json()) as Round;
+      expect(updated.status).toBe("draft");
+    });
+
+    it("PATCH reverting a draft round to draft returns 400", async () => {
+      const food = await seedRestaurant(db, { type: "food" });
+      const round = await seedRound(db, { foodRestaurantId: food!.id });
+
+      const res = await app.request(
+        `/api/rounds/${round!.id}/status`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: "draft" }),
+        },
+        testEnv,
+      );
+
+      expect(res.status).toBe(400);
+    });
+
+    it("PATCH reverting a closed round to draft returns 400", async () => {
+      const food = await seedRestaurant(db, { type: "food" });
+      const round = await seedRound(db, { foodRestaurantId: food!.id, status: "closed" });
+
+      const res = await app.request(
+        `/api/rounds/${round!.id}/status`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: "draft" }),
+        },
+        testEnv,
+      );
+
+      expect(res.status).toBe(400);
+    });
+
+    it("reverting and reopening still enforces roundOpenNoFoodItems if curation was emptied out", async () => {
+      const food = await seedRestaurant(db, { type: "food" });
+      const foodItem = await seedMenuItem(db, { restaurantId: food!.id });
+      const round = await seedRound(db, { foodRestaurantId: food!.id, status: "open" });
+      const roundMenuItem = await seedRoundMenuItem(db, {
+        roundId: round!.id,
+        menuItemId: foodItem!.id,
+      });
+
+      const revertRes = await app.request(
+        `/api/rounds/${round!.id}/status`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: "draft" }),
+        },
+        testEnv,
+      );
+      expect(revertRes.status).toBe(200);
+
+      await app.request(
+        `/api/rounds/${round!.id}/menu-items/${roundMenuItem!.id}`,
+        { method: "DELETE" },
+        testEnv,
+      );
+
+      const reopenRes = await app.request(
+        `/api/rounds/${round!.id}/status`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: "open" }),
+        },
+        testEnv,
+      );
+
+      expect(reopenRes.status).toBe(400);
+    });
+
     it("PATCH with an invalid status value returns 400", async () => {
       const food = await seedRestaurant(db, { type: "food" });
       const round = await seedRound(db, { foodRestaurantId: food!.id });

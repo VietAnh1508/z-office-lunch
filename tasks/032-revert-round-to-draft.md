@@ -1,7 +1,7 @@
 ---
 id: 032
 title: Add an open-to-draft revert transition, so admins can fix a live round
-status: approved
+status: in_review
 depends_on: [030, 031]
 parallelizable_with: []
 epic: open-round-editing
@@ -53,6 +53,23 @@ Give the admin a way to fix an `open` round's restaurant or curated menu items (
 
 ## Implementation Log
 
+- Red commit `b062bf0`: added 2 API tests (open→draft revert 200; revert+reopen still enforcing `roundOpenNoFoodItems`) and 4 frontend tests (Revert button visibility for open/closed, confirm-and-revert, cancel-sends-no-request) to `apps/api/src/routes/rounds.test.ts` and `apps/web/src/routes/admin/RoundDetail.test.tsx`. Also added 2 API tests for draft/closed rounds rejecting the revert with 400 — these passed immediately since the pre-existing `roundStatusInvalid` check already rejected `"draft"` as an unrecognized status value, but are kept as explicit coverage of the final `roundRevertNotOpen` behavior once `"draft"` becomes a recognized target. `pnpm test -- apps/api/src/routes/rounds.test.ts apps/web/src/routes/admin/RoundDetail.test.tsx` → 4 failing (the 2 API 400-rejection tests and 2 of the frontend visibility tests passed trivially pre-implementation as noted; the genuinely new-behavior tests — open→draft 200, revert+reopen composition, confirm-dialog revert, cancel-dialog — failed as expected).
+- Green commit `5559d06`: widened `PATCH /:id/status`'s valid-status check to include `"draft"`, added a `roundRevertNotOpen` branch requiring `round.status === "open"`, added `ERROR_MESSAGES.roundRevertNotOpen`. Widened `useUpdateRoundStatus`'s mutation type and success toast to a third `"draft"` case. Added a "Revert to draft" destructive button + `AlertDialog` on `RoundDetail.tsx`'s Status card, shown only for `round.status === "open"`, following the existing Delete-round dialog pattern. Also updated `ERROR_MESSAGES.roundStatusInvalid`'s text to mention `draft` (flagged by the code-reviewer agent — see Review Notes — and folded into this commit before pushing). `pnpm -r typecheck && pnpm --filter web build && pnpm test` → all 304 tests passing.
+- `pnpm lint` → clean (3 pre-existing `react(only-export-components)` warnings in files this task didn't touch).
+
 ## Plan Deviations
 
+None — implementation followed the Plan section as written.
+
 ## Review Notes
+
+Reviewed by `feature-dev:code-reviewer` against the red→green diff.
+
+**Important — fixed**: `ERROR_MESSAGES.roundStatusInvalid` still read `"status must be open or closed"` even though the same diff widened the validation to accept `"draft"` too, so an invalid-status client error would have understated the valid options. Fixed by changing the message to `"status must be open, closed, or draft"` and folding the fix into the green commit before pushing.
+
+Not flagged as issues (reviewer checked, judged non-issues or below the confidence bar):
+- `roundRevertNotOpen` duplicates `roundCloseNotOpen`'s exact string (`"round is not open"`) — consistent with existing precedent in the same file (e.g. `roundNotOpenForSubmission`, `roundDeleteNotDraft`/`roundEditNotDraft`).
+- Close and Revert-to-draft render as two sibling `variant="destructive"` buttons — minor UX overlap, not covered by any project guideline.
+- The new `round.status === "open"` JSX block is a separate conditional from the existing Close button's block rather than merged — cosmetic only.
+
+Reviewer also explicitly checked whether the new `open → draft → edit` path could resurrect the task-031 submission-nulling bug; it can't, since `PATCH /rounds/:id`'s `clearAffectedSubmissions` logic already runs on any restaurant change regardless of prior status.
