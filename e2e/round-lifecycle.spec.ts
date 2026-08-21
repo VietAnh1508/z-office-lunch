@@ -110,7 +110,7 @@ test("employee-facing public round link reflects open then closed state", async 
 // two independent "open a round" tests risk colliding with each other (or
 // with an already-open round left over from manual testing) under parallel
 // workers.
-test("employee submits food and drink picks, then a second submission is rejected", async ({
+test("employee submits food and drink picks, then a second submission overwrites it", async ({
   page,
 }) => {
   const foodRestaurantName = `Submission Test Food ${Date.now()}`;
@@ -185,14 +185,19 @@ test("employee submits food and drink picks, then a second submission is rejecte
   // page reload (task 024).
   await expect(page.getByRole("cell", { name: employeeName })).toBeVisible();
 
-  // Second submission for the same round + employee: rejected, not upserted.
+  // Second submission for the same round + employee: overwrites the first in
+  // place (task 033), not rejected. The form starts blank on every load, so
+  // re-select food and drink to keep "Less ice" intact for the admin check
+  // below.
   await page.goto(`/r/${roundId}`);
   await page.getByRole("combobox", { name: "Your name", exact: false }).fill(employeeName);
   await page.getByRole("option", { name: employeeName }).click();
   await page.getByLabel("Food item", { exact: false }).selectOption({ label: "Pho Bo" });
+  await page.getByLabel("Drink item", { exact: false }).selectOption({ label: "Tra Da" });
+  await page.getByLabel("Drink note", { exact: false }).fill("Less ice");
   await page.getByRole("button", { name: "Submit" }).click();
 
-  await expect(page.getByText("you have already submitted for this round")).toBeVisible();
+  await expect(page.getByText("Thanks! Your order has been recorded.")).toBeVisible();
 
   // Admin can see the submission (resolved names, not raw ids) and export it.
   await page.goto(`/admin/rounds/${roundId}`);
