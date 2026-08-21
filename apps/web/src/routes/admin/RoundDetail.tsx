@@ -308,6 +308,33 @@ export function RoundDetail() {
                 Close
               </Button>
             )}
+            {round.status === "open" && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button type="button" variant="destructive" disabled={updateStatus.isPending}>
+                    Revert to draft
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Revert to draft?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This round will disappear from the public page and stop accepting
+                      submissions until it's reopened.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      variant="destructive"
+                      onClick={() => updateStatus.mutate("draft")}
+                    >
+                      Revert round
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
             {round.status === "closed" && (
               <p className="text-sm text-muted-foreground">This round is closed.</p>
             )}
