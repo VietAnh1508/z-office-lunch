@@ -515,6 +515,95 @@ describe("rounds routes", () => {
       expect(list).toHaveLength(0);
     });
 
+    it("DELETE nulls foodRoundMenuItemId/foodNote on a referencing submission, leaves drink side untouched", async () => {
+      const food = await seedRestaurant(db, { type: "food" });
+      const drink = await seedRestaurant(db, { name: "Tra Da Corner", type: "drink" });
+      const foodItem = await seedMenuItem(db, { restaurantId: food!.id, name: "Pho Bo" });
+      const drinkItem = await seedMenuItem(db, { restaurantId: drink!.id, name: "Tra Da" });
+      const round = await seedRound(db, { foodRestaurantId: food!.id, drinkRestaurantId: drink!.id });
+      const curatedFood = await seedRoundMenuItem(db, { roundId: round!.id, menuItemId: foodItem!.id });
+      const curatedDrink = await seedRoundMenuItem(db, { roundId: round!.id, menuItemId: drinkItem!.id });
+      const employee = await seedEmployee(db);
+      const submission = await seedSubmission(db, {
+        roundId: round!.id,
+        employeeId: employee!.id,
+        foodRoundMenuItemId: curatedFood!.id,
+        foodNote: "extra spicy",
+        drinkRoundMenuItemId: curatedDrink!.id,
+        drinkNote: "less ice",
+      });
+
+      const res = await app.request(
+        `/api/rounds/${round!.id}/menu-items/${curatedFood!.id}`,
+        { method: "DELETE" },
+        testEnv,
+      );
+
+      expect(res.status).toBe(200);
+
+      const [updatedSubmission] = await db
+        .select()
+        .from(submissions)
+        .where(eq(submissions.id, submission!.id));
+      expect(updatedSubmission!.foodRoundMenuItemId).toBeNull();
+      expect(updatedSubmission!.foodNote).toBeNull();
+      expect(updatedSubmission!.drinkRoundMenuItemId).toBe(curatedDrink!.id);
+      expect(updatedSubmission!.drinkNote).toBe("less ice");
+    });
+
+    it("DELETE nulls drinkRoundMenuItemId/drinkNote on a referencing submission, leaves food side untouched", async () => {
+      const food = await seedRestaurant(db, { type: "food" });
+      const drink = await seedRestaurant(db, { name: "Tra Da Corner", type: "drink" });
+      const foodItem = await seedMenuItem(db, { restaurantId: food!.id, name: "Pho Bo" });
+      const drinkItem = await seedMenuItem(db, { restaurantId: drink!.id, name: "Tra Da" });
+      const round = await seedRound(db, { foodRestaurantId: food!.id, drinkRestaurantId: drink!.id });
+      const curatedFood = await seedRoundMenuItem(db, { roundId: round!.id, menuItemId: foodItem!.id });
+      const curatedDrink = await seedRoundMenuItem(db, { roundId: round!.id, menuItemId: drinkItem!.id });
+      const employee = await seedEmployee(db);
+      const submission = await seedSubmission(db, {
+        roundId: round!.id,
+        employeeId: employee!.id,
+        foodRoundMenuItemId: curatedFood!.id,
+        foodNote: "extra spicy",
+        drinkRoundMenuItemId: curatedDrink!.id,
+        drinkNote: "less ice",
+      });
+
+      const res = await app.request(
+        `/api/rounds/${round!.id}/menu-items/${curatedDrink!.id}`,
+        { method: "DELETE" },
+        testEnv,
+      );
+
+      expect(res.status).toBe(200);
+
+      const [updatedSubmission] = await db
+        .select()
+        .from(submissions)
+        .where(eq(submissions.id, submission!.id));
+      expect(updatedSubmission!.drinkRoundMenuItemId).toBeNull();
+      expect(updatedSubmission!.drinkNote).toBeNull();
+      expect(updatedSubmission!.foodRoundMenuItemId).toBe(curatedFood!.id);
+      expect(updatedSubmission!.foodNote).toBe("extra spicy");
+    });
+
+    it("DELETE with no referencing submission returns the deleted row unchanged", async () => {
+      const food = await seedRestaurant(db, { type: "food" });
+      const foodItem = await seedMenuItem(db, { restaurantId: food!.id });
+      const round = await seedRound(db, { foodRestaurantId: food!.id });
+      const curated = await seedRoundMenuItem(db, { roundId: round!.id, menuItemId: foodItem!.id });
+
+      const res = await app.request(
+        `/api/rounds/${round!.id}/menu-items/${curated!.id}`,
+        { method: "DELETE" },
+        testEnv,
+      );
+
+      expect(res.status).toBe(200);
+      const deleted = (await res.json()) as RoundMenuItem;
+      expect(deleted).toEqual(curated);
+    });
+
     it("DELETE for a nonexistent curated item returns 404", async () => {
       const food = await seedRestaurant(db, { type: "food" });
       const round = await seedRound(db, { foodRestaurantId: food!.id });
