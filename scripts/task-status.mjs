@@ -53,32 +53,65 @@ if (inFlight.length > 0) {
   process.exit(0);
 }
 
+// Groups a list of tasks by their (optional) `epic` field, preserving overall
+// order -- an epic's group is inserted at the position of its first member,
+// later members join that same group even if not adjacent. Tasks with no
+// epic each get their own singleton group, so they print exactly as before.
+// This is a pure display grouping over frontmatter already read above -- no
+// new data source, so it can't drift from it.
+function groupByEpic(list) {
+  const groups = [];
+  const byEpic = new Map();
+  for (const t of list) {
+    if (!t.epic) {
+      groups.push({ epic: null, tasks: [t] });
+      continue;
+    }
+    if (!byEpic.has(t.epic)) {
+      const group = { epic: t.epic, tasks: [] };
+      byEpic.set(t.epic, group);
+      groups.push(group);
+    }
+    byEpic.get(t.epic).tasks.push(t);
+  }
+  return groups;
+}
+
+function printGrouped(list, formatLine) {
+  for (const group of groupByEpic(list)) {
+    if (group.epic) {
+      console.log(`  [epic: ${group.epic}] tasks/epics/${group.epic}.md`);
+      for (const t of group.tasks) console.log(`    ${formatLine(t)}`);
+    } else {
+      for (const t of group.tasks) console.log(`  ${formatLine(t)}`);
+    }
+  }
+}
+
 const ready = [...tasks.values()].filter(
   (t) => t.status === "approved" && t.depends_on.every((depId) => tasks.get(depId)?.status === "done"),
 );
 
 console.log(ready.length > 0 ? "Ready to start:" : "No ready tasks.");
-for (const t of ready) {
-  console.log(`  ${t.id} ${t.title} (depends_on: ${t.depends_on.join(", ") || "none"})`);
-}
+printGrouped(ready, (t) => `${t.id} ${t.title} (depends_on: ${t.depends_on.join(", ") || "none"})`);
 
 const blocked = [...tasks.values()].filter((t) => t.status === "approved" && !ready.includes(t));
 if (blocked.length > 0) {
   console.log("\nBlocked (waiting on dependencies):");
-  for (const t of blocked) {
+  printGrouped(blocked, (t) => {
     const waiting = t.depends_on.filter((d) => tasks.get(d)?.status !== "done");
-    console.log(`  ${t.id} ${t.title} — waiting on: ${waiting.join(", ")}`);
-  }
+    return `${t.id} ${t.title} — waiting on: ${waiting.join(", ")}`;
+  });
 }
 
 const needsApproval = [...tasks.values()].filter((t) => t.status === "proposed");
 if (needsApproval.length > 0) {
   console.log("\nNeeds approval:");
-  for (const t of needsApproval) console.log(`  ${t.id} ${t.title}`);
+  printGrouped(needsApproval, (t) => `${t.id} ${t.title}`);
 }
 
 const done = [...tasks.values()].filter((t) => t.status === "done");
 if (done.length > 0) {
   console.log("\nDone:");
-  for (const t of done) console.log(`  ${t.id} ${t.title}`);
+  printGrouped(done, (t) => `${t.id} ${t.title}`);
 }

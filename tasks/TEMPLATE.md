@@ -4,6 +4,7 @@ title: Short imperative title
 status: proposed        # proposed | approved | in_progress | in_review | done
 depends_on: []           # ids that must be status: done before this can start
 parallelizable_with: []  # informational only; no command consumes this today — execution is always sequential
+epic:                    # optional slug -> tasks/epics/<slug>.md; blank for a standalone task
 tdd: required            # required | exempt (exempt is only for one-time scaffolding done outside the /plan-task -> /implement-task loop)
 test_command: ""
 created: 2026-08-01

@@ -17,6 +17,7 @@ We're building the AI workflow harness (this file, the commands, the task templa
 ## Where things live
 
 - `tasks/` — one markdown file per unit of work. Frontmatter `status` field is the source of truth for what's done, in progress, or waiting on review. Nothing else tracks status — don't add a separate progress log, it will drift out of sync with these files. Run `pnpm tasks:status` (`scripts/task-status.mjs`) to compute what's in-flight or ready from `depends_on` instead of scanning frontmatter by eye.
+- `tasks/epics/` — one file per multi-task `/plan-task` output, holding only the "why these tasks are one thing" narrative and a static list of member task ids (see a task's `epic:` frontmatter field). Never holds a status or progress list — that stays solely in each task's own frontmatter, same rule as above. Most tasks are standalone and have no epic.
 - `docs/architecture.md` — app data model and stack rationale, once decided. Written once, updated only when the architecture actually changes, not per task.
 - `docs/deployment.md` — live URL, provisioned cloud resources (Cloudflare Worker/Hyperdrive/R2, Neon), how to redeploy and run migrations against production.
 - `.claude/commands/plan-task.md`, `.claude/commands/implement-task.md` — the two custom commands that drive the loop below.
