@@ -428,6 +428,13 @@ roundsRoute.patch("/:id", async (c) => {
     const drinkChanged = drinkRestaurantId !== round.drinkRestaurantId;
 
     const [row] = await db.transaction(async (tx) => {
+      const staleItemIds = (restaurantId: number) =>
+        tx
+          .select({ id: roundMenuItems.id })
+          .from(roundMenuItems)
+          .innerJoin(menuItems, eq(roundMenuItems.menuItemId, menuItems.id))
+          .where(and(eq(roundMenuItems.roundId, id), eq(menuItems.restaurantId, restaurantId)));
+
       const purgeStaleItems = (restaurantId: number) =>
         tx.delete(roundMenuItems).where(
           and(
@@ -439,10 +446,31 @@ roundsRoute.patch("/:id", async (c) => {
           ),
         );
 
+      // Runs before the purge's DELETE, keyed on the round-menu-item ids
+      // about to be removed -- not on the FK's post-delete null state, which
+      // task 029's onDelete: "set null" would already have nulled by then
+      // but without clearing the paired free-text note column.
+      const clearAffectedSubmissions = (side: "food" | "drink", restaurantId: number) =>
+        tx
+          .update(submissions)
+          .set(
+            side === "food"
+              ? { foodRoundMenuItemId: null, foodNote: null }
+              : { drinkRoundMenuItemId: null, drinkNote: null },
+          )
+          .where(
+            inArray(
+              side === "food" ? submissions.foodRoundMenuItemId : submissions.drinkRoundMenuItemId,
+              staleItemIds(restaurantId),
+            ),
+          );
+
       if (foodChanged) {
+        await clearAffectedSubmissions("food", round.foodRestaurantId);
         await purgeStaleItems(round.foodRestaurantId);
       }
       if (drinkChanged && round.drinkRestaurantId !== null) {
+        await clearAffectedSubmissions("drink", round.drinkRestaurantId);
         await purgeStaleItems(round.drinkRestaurantId);
       }
 
