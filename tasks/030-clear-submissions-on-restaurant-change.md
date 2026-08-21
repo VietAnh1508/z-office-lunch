@@ -1,7 +1,7 @@
 ---
 id: 030
 title: Null affected submissions when a draft round's restaurant change purges stale curated items
-status: in_review
+status: done
 depends_on: [029]
 parallelizable_with: [031]
 epic: open-round-editing
