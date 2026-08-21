@@ -1,7 +1,7 @@
 ---
 id: 033
 title: Allow resubmission - overwrite an employee's existing submission instead of rejecting it
-status: approved
+status: in_review
 depends_on: []
 parallelizable_with: []
 epic: open-round-editing
@@ -75,6 +75,21 @@ Once an admin's fix (tasks 030/031) clears part of an employee's submission, tha
 
 ## Implementation Log
 
+- Red commit: `882feac` — `test: cover submission resubmission overwrite`
+- Green commit: `1aa5011` — `feat: overwrite an existing submission on resubmit instead of rejecting` (amended after review to also fix `e2e/round-lifecycle.spec.ts`, see Plan Deviations)
+- `pnpm -r typecheck && pnpm --filter web build && pnpm test` → all passing (22 test files, 304 tests)
+- `pnpm test:e2e` → 10/11 passing; `smoke.spec.ts:9` ("SPA shell loads") fails both with and without this task's changes (verified via `git stash`), a pre-existing flake unrelated to this task
+
 ## Plan Deviations
 
+- The web test rewrite (`apps/web/src/routes/public/Round.test.tsx`) turned out to require no red phase: mocking a `200` response for the second POST already passed against the unmodified frontend, since the submit handler only checks `response.ok` and doesn't distinguish `200` from `201`. This confirms the Acceptance Criteria's expectation that `Round.tsx` needs no change — noted here because it means that file's test never went red, unlike every other test in this task.
+- The API test (`rounds.test.ts`) was written more thoroughly than the Plan's rewrite sketch: it changes `foodRoundMenuItemId` to a second, distinct round menu item (not just notes) and also exercises the drink fields, then asserts via a follow-up `GET .../submissions` that exactly one row exists for the employee with the overwritten values — matching the Plan's own guidance to check "not two rows, not the first submission's values" more literally than the one-line description suggested.
+- Not anticipated by the Plan: `e2e/round-lifecycle.spec.ts` had its own test asserting the *old* 409-rejection behavior on a second submission (`"you have already submitted for this round"`), which the code-reviewer agent caught — it isn't covered by `test_command` (a separate suite, per `CLAUDE.md`) so it silently would have broken on the next `pnpm test:e2e` run. Fixed it to re-select the food/drink items and assert the overwrite succeeds instead, renamed the test, and verified both that it now passes and that it genuinely failed before the fix (via `git stash`).
+
 ## Review Notes
+
+`feature-dev:code-reviewer` review of the red→green diff:
+
+**Important — Stale e2e test asserted the exact behavior this task removes (`e2e/round-lifecycle.spec.ts:188-200`)** (confidence 90). The block wasn't touched by the task's own plan (only `rounds.test.ts`/`Round.test.tsx` were), but it directly exercised the resubmission flow: it asserted the removed "you have already submitted for this round" 409 message, and its second submission only reselected the food item (not drink), which would have wiped the drink note ("Less ice") that a later admin-view assertion in the same test depended on. Not caught by `test_command` since `pnpm test:e2e` is a separate suite. **Fixed**: reselected food+drink+note on the second submission, updated the assertion to expect the success message instead of the 409 error, and renamed the test from "...a second submission is rejected" to "...a second submission overwrites it". Verified both that the fix passes and that it fails without the fix (via `git stash`).
+
+Verified, not flagged: `useCreateSubmission` invalidates queries rather than optimistically appending, so a resubmission doesn't risk a duplicate row rendering client-side (confirms "no frontend change needed" from the Acceptance Criteria). The `submissions` table's `unique(roundId, employeeId)` constraint means the pre-existing non-transactional select-then-branch race (already present in this route, per the task's own Plan) still only surfaces as the existing generic 500 path on a genuine race — not a new regression from this change.
