@@ -1,7 +1,7 @@
 ---
 id: 033
 title: Allow resubmission - overwrite an employee's existing submission instead of rejecting it
-status: in_review
+status: done
 depends_on: []
 parallelizable_with: []
 epic: open-round-editing
