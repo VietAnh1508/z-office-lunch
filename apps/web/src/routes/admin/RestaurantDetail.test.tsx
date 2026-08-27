@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { HttpResponse, http } from "msw";
 import { MemoryRouter, Route, Routes } from "react-router";
@@ -591,12 +591,13 @@ describe("RestaurantDetail", () => {
       await user.click(screen.getByRole("button", { name: "Edit menu item" }));
 
       const nameInput = screen.getByLabelText("Menu item name");
+      const row = within(nameInput.closest("li")!);
       await user.clear(nameInput);
       await user.type(nameInput, "Pho Ga");
       const priceInput = screen.getByLabelText("Menu item price");
       await user.clear(priceInput);
       await user.type(priceInput, "12000");
-      await user.click(screen.getByRole("button", { name: "Save" }));
+      await user.click(row.getByRole("button", { name: "Save" }));
 
       await waitFor(() => {
         expect(patchBody).not.toBeNull();
@@ -625,8 +626,9 @@ describe("RestaurantDetail", () => {
 
       await screen.findByText("Pho Bo");
       await user.click(screen.getByRole("button", { name: "Edit menu item" }));
-      await user.clear(screen.getByLabelText("Menu item name"));
-      await user.click(screen.getByRole("button", { name: "Save" }));
+      const nameInput = screen.getByLabelText("Menu item name");
+      await user.clear(nameInput);
+      await user.click(within(nameInput.closest("li")!).getByRole("button", { name: "Save" }));
 
       expect(await screen.findByText("Name is required.")).toBeInTheDocument();
       expect(patchCalled).toBe(false);
@@ -653,7 +655,7 @@ describe("RestaurantDetail", () => {
       const priceInput = screen.getByLabelText("Menu item price");
       await user.clear(priceInput);
       await user.type(priceInput, "-500");
-      await user.click(screen.getByRole("button", { name: "Save" }));
+      await user.click(within(priceInput.closest("li")!).getByRole("button", { name: "Save" }));
 
       expect(
         await screen.findByText("Price must be a valid non-negative number."),
@@ -707,7 +709,7 @@ describe("RestaurantDetail", () => {
       const nameInput = screen.getByLabelText("Menu item name");
       await user.clear(nameInput);
       await user.type(nameInput, "Pho Ga");
-      await user.click(screen.getByRole("button", { name: "Save" }));
+      await user.click(within(nameInput.closest("li")!).getByRole("button", { name: "Save" }));
 
       expect(await screen.findByText("menu item not found")).toBeInTheDocument();
       expect(screen.getByLabelText("Menu item name")).toHaveValue("Pho Ga");
@@ -734,7 +736,7 @@ describe("RestaurantDetail", () => {
       const nameInput = screen.getByLabelText("Menu item name");
       await user.clear(nameInput);
       await user.type(nameInput, "Pho Ga");
-      await user.click(screen.getByRole("button", { name: "Save" }));
+      await user.click(within(nameInput.closest("li")!).getByRole("button", { name: "Save" }));
       await screen.findByText("Pho Ga", { exact: false });
 
       await user.click(screen.getByRole("button", { name: "Edit menu item" }));
