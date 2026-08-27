@@ -116,3 +116,45 @@ menuItemsRoute.patch("/:id/menu-items/:itemId", async (c) => {
     await db.$client.end();
   }
 });
+
+menuItemsRoute.patch("/:id/menu-items/:itemId/details", async (c) => {
+  const restaurantId = Number(c.req.param("id"));
+  const itemId = Number(c.req.param("itemId"));
+  if (!Number.isInteger(restaurantId) || !Number.isInteger(itemId)) {
+    return c.json({ error: ERROR_MESSAGES.menuItemNotFound }, 404);
+  }
+
+  const body = await c.req.json().catch(() => ({}));
+  const name = typeof body.name === "string" ? body.name.trim() : "";
+  const parsedPrice = parsePrice(body.price);
+
+  if (!name) {
+    return c.json({ error: ERROR_MESSAGES.nameRequired }, 400);
+  }
+  if (!parsedPrice.ok) {
+    return c.json({ error: ERROR_MESSAGES.priceInvalid }, 400);
+  }
+
+  const db = getDb(c);
+  try {
+    const [existing] = await db
+      .select()
+      .from(menuItems)
+      .where(and(eq(menuItems.id, itemId), eq(menuItems.restaurantId, restaurantId)));
+    if (!existing) {
+      return c.json({ error: ERROR_MESSAGES.menuItemNotFound }, 404);
+    }
+
+    const [row] = await db
+      .update(menuItems)
+      .set({ name, price: parsedPrice.price })
+      .where(eq(menuItems.id, itemId))
+      .returning();
+    return c.json(row);
+  } catch (e) {
+    console.error(JSON.stringify({ message: "failed to update menu item details", error: String(e) }));
+    return c.json({ error: ERROR_MESSAGES.internal }, 500);
+  } finally {
+    await db.$client.end();
+  }
+});

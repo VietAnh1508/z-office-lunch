@@ -1,5 +1,5 @@
 import { createDb, menuItems } from "db";
-import { TEST_DATABASE_URL, seedRestaurant, truncateAll } from "db/testing";
+import { TEST_DATABASE_URL, seedMenuItem, seedRestaurant, truncateAll } from "db/testing";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import app from "../index";
 import { testEnv } from "../test/env";
@@ -165,5 +165,147 @@ describe("menu items routes", () => {
     );
 
     expect(res.status).toBe(404);
+  });
+
+  describe("PATCH /:id/menu-items/:itemId/details", () => {
+    it("updates name and price, leaving active untouched", async () => {
+      const restaurant = await seedRestaurant(db);
+      const item = await seedMenuItem(db, {
+        restaurantId: restaurant!.id,
+        name: "Banh Mi",
+        price: "5",
+        active: false,
+      });
+
+      const res = await app.request(
+        `/api/restaurants/${restaurant!.id}/menu-items/${item!.id}/details`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: "Banh Mi Thit", price: 7.5 }),
+        },
+        testEnv,
+      );
+
+      expect(res.status).toBe(200);
+      const updated = (await res.json()) as MenuItem;
+      expect(updated.name).toBe("Banh Mi Thit");
+      expect(updated.price).toBe("7.5");
+      expect(updated.active).toBe(false);
+    });
+
+    it("rejects a blank/whitespace-only/missing name with 400 and leaves the row unchanged", async () => {
+      const restaurant = await seedRestaurant(db);
+      const item = await seedMenuItem(db, { restaurantId: restaurant!.id, name: "Banh Mi" });
+
+      for (const name of ["", "   ", undefined]) {
+        const res = await app.request(
+          `/api/restaurants/${restaurant!.id}/menu-items/${item!.id}/details`,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name, price: 5 }),
+          },
+          testEnv,
+        );
+        expect(res.status).toBe(400);
+      }
+
+      const getRes = await app.request(`/api/restaurants/${restaurant!.id}/menu-items`, {}, testEnv);
+      const rows = (await getRes.json()) as MenuItem[];
+      expect(rows[0]?.name).toBe("Banh Mi");
+    });
+
+    it("rejects an invalid price with 400 and leaves the row unchanged", async () => {
+      const restaurant = await seedRestaurant(db);
+      const item = await seedMenuItem(db, {
+        restaurantId: restaurant!.id,
+        name: "Banh Mi",
+        price: "5",
+      });
+
+      const res = await app.request(
+        `/api/restaurants/${restaurant!.id}/menu-items/${item!.id}/details`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: "Banh Mi", price: "not-a-number" }),
+        },
+        testEnv,
+      );
+      expect(res.status).toBe(400);
+
+      const getRes = await app.request(`/api/restaurants/${restaurant!.id}/menu-items`, {}, testEnv);
+      const rows = (await getRes.json()) as MenuItem[];
+      expect(rows[0]?.price).toBe("5");
+    });
+
+    it("clears price to null when omitted, null, or an empty string", async () => {
+      const restaurant = await seedRestaurant(db);
+
+      for (const price of [undefined, null, ""]) {
+        const item = await seedMenuItem(db, {
+          restaurantId: restaurant!.id,
+          name: "Banh Mi",
+          price: "5",
+        });
+
+        const res = await app.request(
+          `/api/restaurants/${restaurant!.id}/menu-items/${item!.id}/details`,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name: "Banh Mi", price }),
+          },
+          testEnv,
+        );
+        expect(res.status).toBe(200);
+        const updated = (await res.json()) as MenuItem;
+        expect(updated.price).toBeNull();
+      }
+    });
+
+    it("returns 404 for a nonexistent menu item", async () => {
+      const restaurant = await seedRestaurant(db);
+
+      const res = await app.request(
+        `/api/restaurants/${restaurant!.id}/menu-items/999999/details`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: "Banh Mi" }),
+        },
+        testEnv,
+      );
+
+      expect(res.status).toBe(404);
+    });
+
+    it("returns 404 for non-integer restaurant or item ids", async () => {
+      const restaurant = await seedRestaurant(db);
+      const item = await seedMenuItem(db, { restaurantId: restaurant!.id, name: "Banh Mi" });
+
+      const badRestaurant = await app.request(
+        `/api/restaurants/not-a-number/menu-items/${item!.id}/details`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: "Banh Mi" }),
+        },
+        testEnv,
+      );
+      expect(badRestaurant.status).toBe(404);
+
+      const badItem = await app.request(
+        `/api/restaurants/${restaurant!.id}/menu-items/not-a-number/details`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: "Banh Mi" }),
+        },
+        testEnv,
+      );
+      expect(badItem.status).toBe(404);
+    });
   });
 });

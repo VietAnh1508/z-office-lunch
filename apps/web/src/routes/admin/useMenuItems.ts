@@ -60,3 +60,20 @@ export function useToggleMenuItemActive(restaurantId: number) {
     onError: (error) => toastApiError(error, "Could not update menu item."),
   });
 }
+
+export function useUpdateMenuItem(restaurantId: number) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: { id: number; name: string; price: string | null }) =>
+      api.patch<MenuItem>(`/restaurants/${restaurantId}/menu-items/${input.id}/details`, {
+        name: input.name,
+        price: input.price,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: menuItemKeys.all(restaurantId) });
+      toast.success("Menu item updated");
+    },
+    onError: (error) => toastApiError(error, "Could not update menu item."),
+  });
+}
