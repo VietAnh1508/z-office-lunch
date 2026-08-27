@@ -84,7 +84,10 @@ describe("RestaurantDetail", () => {
     await screen.findByText("No menu items yet.");
 
     await user.type(screen.getByLabelText("Name", { exact: false, selector: "#menu-item-name" }), "Banh Mi");
-    await user.type(screen.getByLabelText("Price", { exact: false }), "25000");
+    await user.type(
+      screen.getByLabelText("Price", { exact: false, selector: "#menu-item-price" }),
+      "25000",
+    );
     await user.click(screen.getByRole("button", { name: "Add menu item" }));
 
     await waitFor(() => {
@@ -92,7 +95,9 @@ describe("RestaurantDetail", () => {
     });
     expect(await screen.findByText("Menu item added")).toBeInTheDocument();
     expect(screen.getByLabelText("Name", { exact: false, selector: "#menu-item-name" })).toHaveValue("");
-    expect(screen.getByLabelText("Price", { exact: false })).toHaveValue("");
+    expect(
+      screen.getByLabelText("Price", { exact: false, selector: "#menu-item-price" }),
+    ).toHaveValue("");
   });
 
   it("shows an inline error and does not submit when price is negative", async () => {
@@ -117,7 +122,10 @@ describe("RestaurantDetail", () => {
     await screen.findByText("No menu items yet.");
 
     await user.type(screen.getByLabelText("Name", { exact: false, selector: "#menu-item-name" }), "Banh Mi");
-    await user.type(screen.getByLabelText("Price", { exact: false }), "-500");
+    await user.type(
+      screen.getByLabelText("Price", { exact: false, selector: "#menu-item-price" }),
+      "-500",
+    );
     await user.click(screen.getByRole("button", { name: "Add menu item" }));
 
     expect(
@@ -532,6 +540,211 @@ describe("RestaurantDetail", () => {
 
       expect(await screen.findByText("Could not upload menu image.")).toBeInTheDocument();
       expect(screen.queryByAltText("Menu")).not.toBeInTheDocument();
+    });
+  });
+
+  describe("Menu item edit", () => {
+    function restaurantHandler() {
+      return http.get("/api/restaurants", () =>
+        HttpResponse.json([
+          { id: 1, name: "Pho 24", type: "food", contactInfo: null, note: null, menuUrl: null },
+        ]),
+      );
+    }
+
+    it("shows inputs pre-filled with the item's current name and price on edit click", async () => {
+      const user = userEvent.setup();
+      const item = { id: 10, restaurantId: 1, name: "Pho Bo", price: "11000", active: true };
+
+      server.use(
+        restaurantHandler(),
+        http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([item])),
+      );
+
+      renderDetail("1");
+
+      await screen.findByText("Pho Bo");
+      await user.click(screen.getByRole("button", { name: "Edit menu item" }));
+
+      expect(screen.getByLabelText("Menu item name")).toHaveValue("Pho Bo");
+      expect(screen.getByLabelText("Menu item price")).toHaveValue("11000");
+    });
+
+    it("saves new name/price via PATCH, shows the update + success toast, and returns to display mode", async () => {
+      const user = userEvent.setup();
+      let item = { id: 10, restaurantId: 1, name: "Pho Bo", price: "11000", active: true };
+      let patchBody: Record<string, unknown> | null = null;
+
+      server.use(
+        restaurantHandler(),
+        http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([item])),
+        http.patch("/api/restaurants/1/menu-items/10/details", async ({ request }) => {
+          patchBody = (await request.json()) as Record<string, unknown>;
+          item = { ...item, name: patchBody.name as string, price: patchBody.price as string };
+          return HttpResponse.json(item);
+        }),
+      );
+
+      renderDetail("1");
+
+      await screen.findByText("Pho Bo");
+      await user.click(screen.getByRole("button", { name: "Edit menu item" }));
+
+      const nameInput = screen.getByLabelText("Menu item name");
+      await user.clear(nameInput);
+      await user.type(nameInput, "Pho Ga");
+      const priceInput = screen.getByLabelText("Menu item price");
+      await user.clear(priceInput);
+      await user.type(priceInput, "12000");
+      await user.click(screen.getByRole("button", { name: "Save" }));
+
+      await waitFor(() => {
+        expect(patchBody).not.toBeNull();
+      });
+      expect(patchBody).toMatchObject({ name: "Pho Ga", price: "12000" });
+      expect(await screen.findByText("Menu item updated")).toBeInTheDocument();
+      expect(screen.getByText("Pho Ga", { exact: false })).toBeInTheDocument();
+      expect(screen.queryByLabelText("Menu item name")).not.toBeInTheDocument();
+    });
+
+    it("shows an inline error and sends no request when the name is cleared", async () => {
+      const user = userEvent.setup();
+      const item = { id: 10, restaurantId: 1, name: "Pho Bo", price: "11000", active: true };
+      let patchCalled = false;
+
+      server.use(
+        restaurantHandler(),
+        http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([item])),
+        http.patch("/api/restaurants/1/menu-items/10/details", () => {
+          patchCalled = true;
+          return HttpResponse.json(item);
+        }),
+      );
+
+      renderDetail("1");
+
+      await screen.findByText("Pho Bo");
+      await user.click(screen.getByRole("button", { name: "Edit menu item" }));
+      await user.clear(screen.getByLabelText("Menu item name"));
+      await user.click(screen.getByRole("button", { name: "Save" }));
+
+      expect(await screen.findByText("Name is required.")).toBeInTheDocument();
+      expect(patchCalled).toBe(false);
+    });
+
+    it("shows an inline error and sends no request when the price is invalid", async () => {
+      const user = userEvent.setup();
+      const item = { id: 10, restaurantId: 1, name: "Pho Bo", price: "11000", active: true };
+      let patchCalled = false;
+
+      server.use(
+        restaurantHandler(),
+        http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([item])),
+        http.patch("/api/restaurants/1/menu-items/10/details", () => {
+          patchCalled = true;
+          return HttpResponse.json(item);
+        }),
+      );
+
+      renderDetail("1");
+
+      await screen.findByText("Pho Bo");
+      await user.click(screen.getByRole("button", { name: "Edit menu item" }));
+      const priceInput = screen.getByLabelText("Menu item price");
+      await user.clear(priceInput);
+      await user.type(priceInput, "-500");
+      await user.click(screen.getByRole("button", { name: "Save" }));
+
+      expect(
+        await screen.findByText("Price must be a valid non-negative number."),
+      ).toBeInTheDocument();
+      expect(patchCalled).toBe(false);
+    });
+
+    it("cancels without a request and reverts to the original values", async () => {
+      const user = userEvent.setup();
+      const item = { id: 10, restaurantId: 1, name: "Pho Bo", price: "11000", active: true };
+      let patchCalled = false;
+
+      server.use(
+        restaurantHandler(),
+        http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([item])),
+        http.patch("/api/restaurants/1/menu-items/10/details", () => {
+          patchCalled = true;
+          return HttpResponse.json(item);
+        }),
+      );
+
+      renderDetail("1");
+
+      await screen.findByText("Pho Bo");
+      await user.click(screen.getByRole("button", { name: "Edit menu item" }));
+      const nameInput = screen.getByLabelText("Menu item name");
+      await user.clear(nameInput);
+      await user.type(nameInput, "Something Else");
+      await user.click(screen.getByRole("button", { name: "Cancel" }));
+
+      expect(screen.getByText("Pho Bo", { exact: false })).toBeInTheDocument();
+      expect(patchCalled).toBe(false);
+    });
+
+    it("shows an error toast and stays in edit mode when the save fails", async () => {
+      const user = userEvent.setup();
+      const item = { id: 10, restaurantId: 1, name: "Pho Bo", price: "11000", active: true };
+
+      server.use(
+        restaurantHandler(),
+        http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([item])),
+        http.patch("/api/restaurants/1/menu-items/10/details", () =>
+          HttpResponse.json({ error: "menu item not found" }, { status: 404 }),
+        ),
+      );
+
+      renderDetail("1");
+
+      await screen.findByText("Pho Bo");
+      await user.click(screen.getByRole("button", { name: "Edit menu item" }));
+      const nameInput = screen.getByLabelText("Menu item name");
+      await user.clear(nameInput);
+      await user.type(nameInput, "Pho Ga");
+      await user.click(screen.getByRole("button", { name: "Save" }));
+
+      expect(await screen.findByText("menu item not found")).toBeInTheDocument();
+      expect(screen.getByLabelText("Menu item name")).toHaveValue("Pho Ga");
+    });
+
+    it("reverts to the just-saved value, not the original, when reopened and cancelled", async () => {
+      const user = userEvent.setup();
+      let item = { id: 10, restaurantId: 1, name: "Pho Bo", price: "11000", active: true };
+
+      server.use(
+        restaurantHandler(),
+        http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([item])),
+        http.patch("/api/restaurants/1/menu-items/10/details", async ({ request }) => {
+          const body = (await request.json()) as { name: string; price: string | null };
+          item = { ...item, name: body.name, price: body.price ?? "" };
+          return HttpResponse.json(item);
+        }),
+      );
+
+      renderDetail("1");
+
+      await screen.findByText("Pho Bo");
+      await user.click(screen.getByRole("button", { name: "Edit menu item" }));
+      const nameInput = screen.getByLabelText("Menu item name");
+      await user.clear(nameInput);
+      await user.type(nameInput, "Pho Ga");
+      await user.click(screen.getByRole("button", { name: "Save" }));
+      await screen.findByText("Pho Ga", { exact: false });
+
+      await user.click(screen.getByRole("button", { name: "Edit menu item" }));
+      const reopenedNameInput = screen.getByLabelText("Menu item name");
+      await user.clear(reopenedNameInput);
+      await user.type(reopenedNameInput, "Something Else");
+      await user.click(screen.getByRole("button", { name: "Cancel" }));
+
+      expect(screen.getByText("Pho Ga", { exact: false })).toBeInTheDocument();
+      expect(screen.queryByText("Something Else")).not.toBeInTheDocument();
     });
   });
 });
