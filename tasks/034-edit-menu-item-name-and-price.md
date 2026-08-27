@@ -1,7 +1,7 @@
 ---
 id: 034
 title: Edit a menu item's name and price
-status: in_review
+status: done
 depends_on: [004]
 parallelizable_with: []
 epic:
