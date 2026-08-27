@@ -201,11 +201,11 @@ function MenuItemRow({ restaurantId, item }: { restaurantId: number; item: MenuI
     <li className="flex items-center justify-between gap-2 py-2.5 text-sm first:pt-0 last:pb-0">
       {isEditing ? (
         <div className="flex flex-1 flex-col gap-1.5">
-          <Input {...name.inputProps} aria-label="Menu item name" />
+          <Input {...name.inputProps} aria-label="Menu item name" placeholder="Name" />
           {name.error && <p className="text-sm text-destructive">{name.error}</p>}
           <Input
-            id="menu-item-edit-price"
             aria-label="Menu item price"
+            placeholder="Price"
             value={price}
             onChange={(e) => {
               setPrice(e.target.value);
