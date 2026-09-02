@@ -1,7 +1,7 @@
 ---
 id: 037
 title: Generate menu from image via client-side OCR
-status: in_review
+status: done
 depends_on: [035, 036]
 parallelizable_with: []
 epic: ocr-menu-generation
