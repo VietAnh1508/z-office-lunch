@@ -1,5 +1,13 @@
-import { createDb, menuItems } from "db";
-import { TEST_DATABASE_URL, seedMenuItem, seedRestaurant, truncateAll } from "db/testing";
+import { eq } from "drizzle-orm";
+import { createDb, menuItems, roundMenuItems } from "db";
+import {
+  TEST_DATABASE_URL,
+  seedMenuItem,
+  seedRestaurant,
+  seedRound,
+  seedRoundMenuItem,
+  truncateAll,
+} from "db/testing";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import app from "../index";
 import { testEnv } from "../test/env";
@@ -306,6 +314,167 @@ describe("menu items routes", () => {
         testEnv,
       );
       expect(badItem.status).toBe(404);
+    });
+  });
+
+  describe("POST /:id/menu-items/bulk", () => {
+    async function postBulk(restaurantId: number, body: unknown) {
+      return app.request(
+        `/api/restaurants/${restaurantId}/menu-items/bulk`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        },
+        testEnv,
+      );
+    }
+
+    it("append inserts all items as active rows, leaving existing items untouched", async () => {
+      const restaurant = await seedRestaurant(db);
+      const existing = await seedMenuItem(db, { restaurantId: restaurant!.id, name: "Pho Bo" });
+
+      const res = await postBulk(restaurant!.id, {
+        mode: "append",
+        items: [
+          { name: "Banh Mi", price: "25000" },
+          { name: "Bun Cha" },
+        ],
+      });
+
+      expect(res.status).toBe(201);
+      const inserted = (await res.json()) as MenuItem[];
+      expect(inserted).toHaveLength(2);
+      expect(inserted.every((i) => i.active)).toBe(true);
+      expect(inserted.map((i) => i.name).sort()).toEqual(["Banh Mi", "Bun Cha"]);
+
+      const getRes = await app.request(`/api/restaurants/${restaurant!.id}/menu-items`, {}, testEnv);
+      const rows = (await getRes.json()) as MenuItem[];
+      expect(rows).toHaveLength(3);
+      const stillThere = rows.find((r) => r.id === existing!.id);
+      expect(stillThere?.active).toBe(true);
+    });
+
+    it("override deactivates existing active items and inserts the new ones as active", async () => {
+      const restaurant = await seedRestaurant(db);
+      const existing = await seedMenuItem(db, {
+        restaurantId: restaurant!.id,
+        name: "Pho Bo",
+        active: true,
+      });
+
+      const res = await postBulk(restaurant!.id, {
+        mode: "override",
+        items: [{ name: "Banh Mi", price: "25000" }],
+      });
+
+      expect(res.status).toBe(201);
+      const inserted = (await res.json()) as MenuItem[];
+      expect(inserted).toHaveLength(1);
+      expect(inserted[0]?.name).toBe("Banh Mi");
+      expect(inserted[0]?.active).toBe(true);
+
+      const getRes = await app.request(`/api/restaurants/${restaurant!.id}/menu-items`, {}, testEnv);
+      const rows = (await getRes.json()) as MenuItem[];
+      expect(rows).toHaveLength(2);
+      const oldRow = rows.find((r) => r.id === existing!.id);
+      expect(oldRow?.active).toBe(false);
+    });
+
+    it("override is FK-safe: a menu item curated into a round survives as a deactivated row, not deleted", async () => {
+      const restaurant = await seedRestaurant(db);
+      const item = await seedMenuItem(db, {
+        restaurantId: restaurant!.id,
+        name: "Pho Bo",
+        active: true,
+      });
+      const round = await seedRound(db, { foodRestaurantId: restaurant!.id });
+      const roundMenuItem = await seedRoundMenuItem(db, {
+        roundId: round!.id,
+        menuItemId: item!.id,
+      });
+
+      const res = await postBulk(restaurant!.id, {
+        mode: "override",
+        items: [{ name: "Banh Mi" }],
+      });
+
+      expect(res.status).toBe(201);
+
+      const getRes = await app.request(`/api/restaurants/${restaurant!.id}/menu-items`, {}, testEnv);
+      const rows = (await getRes.json()) as MenuItem[];
+      const oldRow = rows.find((r) => r.id === item!.id);
+      expect(oldRow).toBeDefined();
+      expect(oldRow?.active).toBe(false);
+
+      const [stillCurated] = await db
+        .select()
+        .from(roundMenuItems)
+        .where(eq(roundMenuItems.id, roundMenuItem!.id));
+      expect(stillCurated).toBeDefined();
+      expect(stillCurated?.menuItemId).toBe(item!.id);
+    });
+
+    it("rejects a missing/invalid mode with 400", async () => {
+      const restaurant = await seedRestaurant(db);
+
+      for (const mode of [undefined, "invalid", "", 1]) {
+        const res = await postBulk(restaurant!.id, { mode, items: [{ name: "Banh Mi" }] });
+        expect(res.status).toBe(400);
+      }
+    });
+
+    it("rejects missing/non-array/empty items for both modes with 400", async () => {
+      const restaurant = await seedRestaurant(db);
+
+      for (const mode of ["append", "override"]) {
+        for (const items of [undefined, "not-an-array", []]) {
+          const res = await postBulk(restaurant!.id, { mode, items });
+          expect(res.status).toBe(400);
+        }
+      }
+    });
+
+    it("rejects a blank name in any item with 400 and writes nothing", async () => {
+      const restaurant = await seedRestaurant(db);
+
+      const res = await postBulk(restaurant!.id, {
+        mode: "append",
+        items: [{ name: "Banh Mi" }, { name: "   " }],
+      });
+      expect(res.status).toBe(400);
+
+      const getRes = await app.request(`/api/restaurants/${restaurant!.id}/menu-items`, {}, testEnv);
+      expect(await getRes.json()).toEqual([]);
+    });
+
+    it("rejects an invalid price in any item with 400 and writes nothing", async () => {
+      const restaurant = await seedRestaurant(db);
+
+      const res = await postBulk(restaurant!.id, {
+        mode: "append",
+        items: [{ name: "Banh Mi", price: "not-a-number" }],
+      });
+      expect(res.status).toBe(400);
+
+      const getRes = await app.request(`/api/restaurants/${restaurant!.id}/menu-items`, {}, testEnv);
+      expect(await getRes.json()).toEqual([]);
+    });
+
+    it("returns 404 for a nonexistent or non-integer restaurant id", async () => {
+      const missingRes = await postBulk(999999, { mode: "append", items: [{ name: "Banh Mi" }] });
+      expect(missingRes.status).toBe(404);
+
+      const badIdRes = await app.request(
+        "/api/restaurants/not-a-number/menu-items/bulk",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ mode: "append", items: [{ name: "Banh Mi" }] }),
+        },
+        testEnv,
+      );
+      expect(badIdRes.status).toBe(404);
     });
   });
 });
