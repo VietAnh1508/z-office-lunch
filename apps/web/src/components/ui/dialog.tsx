@@ -72,4 +72,44 @@ function DialogTitle({ className, ...props }: ComponentProps<typeof DialogPrimit
   );
 }
 
-export { Dialog, DialogClose, DialogContent, DialogOverlay, DialogPortal, DialogTitle, DialogTrigger };
+function DialogDescription({
+  className,
+  ...props
+}: ComponentProps<typeof DialogPrimitive.Description>) {
+  return (
+    <DialogPrimitive.Description
+      data-slot="dialog-description"
+      className={cn("text-sm text-muted-foreground", className)}
+      {...props}
+    />
+  );
+}
+
+function DialogHeader({ className, ...props }: ComponentProps<"div">) {
+  return (
+    <div data-slot="dialog-header" className={cn("flex flex-col gap-1.5", className)} {...props} />
+  );
+}
+
+function DialogFooter({ className, ...props }: ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="dialog-footer"
+      className={cn("flex flex-col-reverse gap-2 sm:flex-row sm:justify-end", className)}
+      {...props}
+    />
+  );
+}
+
+export {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogOverlay,
+  DialogPortal,
+  DialogTitle,
+  DialogTrigger,
+};

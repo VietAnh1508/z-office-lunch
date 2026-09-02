@@ -2,10 +2,12 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { HttpResponse, http } from "msw";
 import { MemoryRouter, Route, Routes } from "react-router";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@/test/render";
 import { server } from "@/test/mocks/server";
 import { RestaurantDetail } from "./RestaurantDetail";
+
+vi.mock("@/lib/ocr");
 
 function renderDetail(id: string) {
   return renderWithProviders(
@@ -442,6 +444,45 @@ describe("RestaurantDetail", () => {
       await user.click(screen.getByRole("button", { name: "Save" }));
 
       expect(await screen.findByText("restaurant not found")).toBeInTheDocument();
+    });
+
+    it("does not render a Generate menu from image button when there is no menu image", async () => {
+      server.use(
+        http.get("/api/restaurants", () =>
+          HttpResponse.json([
+            { id: 1, name: "Pho 24", type: "food", contactInfo: null, note: null, menuUrl: null, menuImage: null },
+          ]),
+        ),
+        http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
+      );
+
+      renderDetail("1");
+
+      await screen.findByLabelText("Name", { exact: false, selector: "#restaurant-detail-name" });
+      expect(screen.queryByRole("button", { name: "Generate menu from image" })).not.toBeInTheDocument();
+    });
+
+    it("renders a Generate menu from image button next to the uploaded menu image", async () => {
+      server.use(
+        http.get("/api/restaurants", () =>
+          HttpResponse.json([
+            {
+              id: 1,
+              name: "Pho 24",
+              type: "food",
+              contactInfo: null,
+              note: null,
+              menuUrl: null,
+              menuImage: "restaurants/1/abc",
+            },
+          ]),
+        ),
+        http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
+      );
+
+      renderDetail("1");
+
+      expect(await screen.findByRole("button", { name: "Generate menu from image" })).toBeInTheDocument();
     });
 
     it("uploads a menu image via the file picker and shows a preview + success toast", async () => {

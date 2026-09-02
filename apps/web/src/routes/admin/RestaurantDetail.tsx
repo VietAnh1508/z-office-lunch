@@ -9,6 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { useRequiredField } from "@/hooks/useRequiredField";
 import { formatPrice } from "@/lib/format-price";
+import { GenerateMenuFromImage } from "./GenerateMenuFromImage";
 import { RestaurantTypeBadge } from "./RestaurantTypeBadge";
 import type { Restaurant } from "./useRestaurants";
 import {
@@ -129,6 +130,12 @@ function RestaurantDetailsForm({ restaurant }: { restaurant: Restaurant }) {
                 src={`/api/restaurants/${restaurant.id}/menu-image?v=${menuImage}`}
                 alt="Menu"
                 className="max-w-xs rounded-lg border border-border"
+              />
+            )}
+            {menuImage && (
+              <GenerateMenuFromImage
+                restaurantId={restaurant.id}
+                menuImageSrc={`/api/restaurants/${restaurant.id}/menu-image?v=${menuImage}`}
               />
             )}
             <div className="flex items-center gap-2">

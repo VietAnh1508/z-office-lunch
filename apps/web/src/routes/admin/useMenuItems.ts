@@ -61,6 +61,20 @@ export function useToggleMenuItemActive(restaurantId: number) {
   });
 }
 
+export function useBulkCreateMenuItems(restaurantId: number) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: { mode: "override" | "append"; items: { name: string; price: string }[] }) =>
+      api.post<MenuItem[]>(`/restaurants/${restaurantId}/menu-items/bulk`, input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: menuItemKeys.all(restaurantId) });
+      toast.success("Menu items generated");
+    },
+    onError: (error) => toastApiError(error, "Could not save menu items."),
+  });
+}
+
 export function useUpdateMenuItem(restaurantId: number) {
   const queryClient = useQueryClient();
 
