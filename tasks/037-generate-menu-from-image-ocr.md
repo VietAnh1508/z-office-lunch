@@ -14,6 +14,8 @@ created: 2026-09-02
 
 Let the admin turn an already-uploaded restaurant menu image (task 027) into menu items without typing them in by hand: a "Generate menu" button runs OCR on the image client-side (`tesseract.js`, no server-side vision call, no new binding/secret), parses the result into candidate items (task 036's `parseMenuText`), shows them in an editable review dialog, and on accept saves them via task 035's bulk endpoint — asking override-vs-append only when the restaurant already has menu items.
 
+**Note:** task 036's `parse-menu-text.ts` was only ever tested against hand-picked strings — there was no real OCR output to test it against yet. Its code review flagged two real gaps (`name` whitespace collapses inconsistently between the price/no-price branches; `PRICE_TOKEN_RE` accepts token shapes `normalizePriceToken` can't actually normalize, e.g. `"1.234.567"` or `"25.000,50"`, letting garbage through as `price`). Once this task has `tesseract.js` producing real recognized text from real menu images, run some of that raw text through `parseMenuText` and revisit its heuristic against what real OCR output actually looks like — fix what's still wrong then, rather than guessing now with no real data to check against.
+
 ## Acceptance Criteria
 
 - [ ] A "Generate menu" button renders next to the uploaded menu image in `RestaurantDetailsForm`, only when the restaurant has one (`menuImage` truthy) — same condition the `<img>` preview already uses.
