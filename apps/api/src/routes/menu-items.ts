@@ -158,3 +158,66 @@ menuItemsRoute.patch("/:id/menu-items/:itemId/details", async (c) => {
     await db.$client.end();
   }
 });
+
+menuItemsRoute.post("/:id/menu-items/bulk", async (c) => {
+  const body = await c.req.json().catch(() => ({}));
+  const mode = body.mode;
+
+  if (mode !== "override" && mode !== "append") {
+    return c.json({ error: ERROR_MESSAGES.bulkModeInvalid }, 400);
+  }
+  if (!Array.isArray(body.items) || body.items.length === 0) {
+    return c.json({ error: ERROR_MESSAGES.bulkItemsRequired }, 400);
+  }
+
+  const parsedItems: { name: string; price: string | null }[] = [];
+  for (const item of body.items) {
+    const name = typeof item?.name === "string" ? item.name.trim() : "";
+    if (!name) {
+      return c.json({ error: ERROR_MESSAGES.nameRequired }, 400);
+    }
+    const parsedPrice = parsePrice(item?.price);
+    if (!parsedPrice.ok) {
+      return c.json({ error: ERROR_MESSAGES.priceInvalid }, 400);
+    }
+    parsedItems.push({ name, price: parsedPrice.price });
+  }
+
+  const restaurantId = Number(c.req.param("id"));
+  if (!Number.isInteger(restaurantId)) {
+    return c.json({ error: ERROR_MESSAGES.restaurantNotFound }, 404);
+  }
+
+  const db = getDb(c);
+  try {
+    const [restaurant] = await db
+      .select()
+      .from(restaurants)
+      .where(eq(restaurants.id, restaurantId));
+    if (!restaurant) {
+      return c.json({ error: ERROR_MESSAGES.restaurantNotFound }, 404);
+    }
+
+    const inserted = await db.transaction(async (tx) => {
+      if (mode === "override") {
+        await tx
+          .update(menuItems)
+          .set({ active: false })
+          .where(and(eq(menuItems.restaurantId, restaurantId), eq(menuItems.active, true)));
+      }
+      return tx
+        .insert(menuItems)
+        .values(parsedItems.map((item) => ({ restaurantId, name: item.name, price: item.price })))
+        .returning();
+    });
+
+    return c.json(inserted, 201);
+  } catch (e) {
+    console.error(
+      JSON.stringify({ message: "failed to bulk generate menu items", error: String(e) }),
+    );
+    return c.json({ error: ERROR_MESSAGES.internal }, 500);
+  } finally {
+    await db.$client.end();
+  }
+});
