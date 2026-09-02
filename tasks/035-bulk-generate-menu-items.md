@@ -1,7 +1,7 @@
 ---
 id: 035
 title: Bulk menu-item generation endpoint (override/append)
-status: in_review
+status: done
 depends_on: [004]
 parallelizable_with: []
 epic: ocr-menu-generation
