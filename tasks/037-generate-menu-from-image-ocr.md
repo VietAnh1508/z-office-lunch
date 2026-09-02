@@ -1,7 +1,7 @@
 ---
 id: 037
 title: Generate menu from image via client-side OCR
-status: approved
+status: in_review
 depends_on: [035, 036]
 parallelizable_with: []
 epic: ocr-menu-generation
@@ -114,19 +114,34 @@ Run `pnpm test -- apps/web/src/lib/parse-menu-text.test.ts apps/web/src/routes/a
 
 ## Implementation Log
 
-(Filled in by /implement-task.)
-
-- red commit: <sha> — `pnpm -r typecheck && pnpm --filter web build && pnpm test` -> N failing
-- green commit: <sha> — `pnpm -r typecheck && pnpm --filter web build && pnpm test` -> all passing
+- red commit: 8ef4b12 — `pnpm test` -> 2 test files failing (`GenerateMenuFromImage.test.tsx`: module not found; `RestaurantDetail.test.tsx`: 1 failing, "Generate menu" button not found)
+- green commit: c20bb9d — `pnpm -r typecheck && pnpm --filter web build && pnpm test` -> all passing (345/345 tests, typecheck clean, build succeeds). Includes a post-review fix (button label swaps to "Reading menu…" while OCR is running) applied before this commit was finalized — see Review Notes.
 
 ## Plan Deviations
 
-(Filled in by /implement-task, honestly, before requesting review — write "None." if genuinely nothing applies, don't skip this section silently. Only list genuine deviations — if a step was carried out as the Plan described, it doesn't belong here, even if it's worth doing again.)
-
-- Where did the actual implementation differ from the Plan above, and why?
-- Any wrong assumption, dead end, or approach abandoned partway through?
-- Anything the user had to correct or redirect mid-task?
+- `MenuCandidateRow` does not use `useRequiredField` for the name field as the Plan sketched. Instead it's a fully presentational component (no internal hooks/state) controlled entirely by the parent's `candidates` array via `onChange(rowId, patch)`/`onRemove(rowId)`. This was needed because Save (in the parent) must validate every row's *current* price in one pass before deciding whether to open the override/append confirmation — that's much simpler with the parent owning all row state directly than reconciling values back out of N independent `useRequiredField` instances. Consequently there's no inline name-required validation (only price validation, matching the Acceptance Criteria exactly); an emptied-out name would be caught server-side and surface via the existing save-failure path (error toast, dialog stays open, edits intact) rather than an inline error.
+- `pnpm add tesseract.js` triggered pnpm's new `allowBuilds` build-script approval gate (not mentioned in the Plan, and not present in the repo before this task). Checked `tesseract.js`'s `package.json` — no install/postinstall lifecycle script, only manual `build`/`profile:*` scripts that pnpm wouldn't run anyway — and set `tesseract.js: false` in `pnpm-workspace.yaml`'s `allowBuilds` to unblock `pnpm install`/`pnpm test`.
+- Caught and fixed a bug in my own first test (`GenerateMenuFromImage.test.tsx`) during the Green phase: asserted `screen.getByText("Pho Bo")` against a value that's inside an `<input>`, not text content, so it needed `getByDisplayValue` instead. Not a Plan deviation, just a self-correction while going from Red to Green.
 
 ## Review Notes
 
-(Output of the feature-dev:code-reviewer agent, appended by /implement-task.)
+Output of the `feature-dev:code-reviewer` agent (run against the red→green diff):
+
+### Findings
+
+**Important (confidence 80) — No progress feedback during OCR recognition** — `apps/web/src/routes/admin/GenerateMenuFromImage.tsx` (Generate menu button)
+
+> The "Generate menu" button only gets `disabled={isRecognizing}`; its label never changes and there's no spinner. `recognizeMenuImage` creates a fresh `tesseract.js` worker on every click via `createWorker(["eng", "vie"])`, which on a cold cache downloads the WASM core plus English and Vietnamese trained-data files before recognition even starts — realistically tens of seconds, not the sub-second latency of the existing `disabled={uploadMenuImage.isPending}` precedent this pattern was borrowed from. During that window the user sees a greyed-out button with no other signal, and the failure mode (OCR rejects) looks identical to the in-progress state until the toast eventually appears.
+
+**Fixed**: button label now swaps to `"Reading menu…"` while `isRecognizing` is true, with a test asserting the disabled/relabeled state during the async gap before OCR resolves.
+
+### Verified as not issues
+
+- `MenuCandidate.price` is always `string` (never `null`/`undefined`), so `validatePrice`/`c.price.trim()` can't throw.
+- The deliberate `useRequiredField`-skipping deviation in `MenuCandidateRow` round-trips correctly through the server's `nameRequired` 400 as described in Plan Deviations above.
+- `useBulkCreateMenuItems` correctly owns its own toast per `.claude/rules/mutation-feedback.md`; the OCR-failure `toast.error` at the call site is the documented, AC-specified exception.
+- Missing `isPending` disable on the override/append `AlertDialogAction`s matches every other `AlertDialogAction` usage in the codebase (`RoundList.tsx`, `RoundDetail.tsx`) — pre-existing pattern, not introduced here.
+- Radix Dialog/AlertDialog portal to `document.body`, so no risk of the confirm dialog's buttons submitting the surrounding `RestaurantDetailsForm`.
+- Every Acceptance Criteria bullet was walked against the diff and the corresponding test in `GenerateMenuFromImage.test.tsx` — all satisfied.
+
+No other findings at confidence ≥ 80.
