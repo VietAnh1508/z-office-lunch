@@ -5,6 +5,10 @@ import type { Bindings } from "../bindings";
 import { ERROR_MESSAGES } from "../lib/errors";
 import { getDb } from "../lib/get-db";
 
+function parseName(raw: unknown): string {
+  return typeof raw === "string" ? raw.trim() : "";
+}
+
 function parsePrice(raw: unknown): { ok: true; price: string | null } | { ok: false } {
   if (raw === undefined || raw === null || raw === "") {
     return { ok: true, price: null };
@@ -25,7 +29,7 @@ export const menuItemsRoute = new Hono<{ Bindings: Bindings }>();
 menuItemsRoute.post("/:id/menu-items", async (c) => {
   const restaurantId = Number(c.req.param("id"));
   const body = await c.req.json().catch(() => ({}));
-  const name = typeof body.name === "string" ? body.name.trim() : "";
+  const name = parseName(body.name);
   const parsedPrice = parsePrice(body.price);
 
   if (!name) {
@@ -125,7 +129,7 @@ menuItemsRoute.patch("/:id/menu-items/:itemId/details", async (c) => {
   }
 
   const body = await c.req.json().catch(() => ({}));
-  const name = typeof body.name === "string" ? body.name.trim() : "";
+  const name = parseName(body.name);
   const parsedPrice = parsePrice(body.price);
 
   if (!name) {
@@ -153,6 +157,69 @@ menuItemsRoute.patch("/:id/menu-items/:itemId/details", async (c) => {
     return c.json(row);
   } catch (e) {
     console.error(JSON.stringify({ message: "failed to update menu item details", error: String(e) }));
+    return c.json({ error: ERROR_MESSAGES.internal }, 500);
+  } finally {
+    await db.$client.end();
+  }
+});
+
+menuItemsRoute.post("/:id/menu-items/bulk", async (c) => {
+  const body = await c.req.json().catch(() => ({}));
+  const mode = body.mode;
+
+  if (mode !== "override" && mode !== "append") {
+    return c.json({ error: ERROR_MESSAGES.bulkModeInvalid }, 400);
+  }
+  if (!Array.isArray(body.items) || body.items.length === 0) {
+    return c.json({ error: ERROR_MESSAGES.bulkItemsRequired }, 400);
+  }
+
+  const parsedItems: { name: string; price: string | null }[] = [];
+  for (const item of body.items) {
+    const name = parseName(item?.name);
+    if (!name) {
+      return c.json({ error: ERROR_MESSAGES.nameRequired }, 400);
+    }
+    const parsedPrice = parsePrice(item?.price);
+    if (!parsedPrice.ok) {
+      return c.json({ error: ERROR_MESSAGES.priceInvalid }, 400);
+    }
+    parsedItems.push({ name, price: parsedPrice.price });
+  }
+
+  const restaurantId = Number(c.req.param("id"));
+  if (!Number.isInteger(restaurantId)) {
+    return c.json({ error: ERROR_MESSAGES.restaurantNotFound }, 404);
+  }
+
+  const db = getDb(c);
+  try {
+    const [restaurant] = await db
+      .select()
+      .from(restaurants)
+      .where(eq(restaurants.id, restaurantId));
+    if (!restaurant) {
+      return c.json({ error: ERROR_MESSAGES.restaurantNotFound }, 404);
+    }
+
+    const inserted = await db.transaction(async (tx) => {
+      if (mode === "override") {
+        await tx
+          .update(menuItems)
+          .set({ active: false })
+          .where(and(eq(menuItems.restaurantId, restaurantId), eq(menuItems.active, true)));
+      }
+      return tx
+        .insert(menuItems)
+        .values(parsedItems.map((item) => ({ restaurantId, name: item.name, price: item.price })))
+        .returning();
+    });
+
+    return c.json(inserted, 201);
+  } catch (e) {
+    console.error(
+      JSON.stringify({ message: "failed to bulk generate menu items", error: String(e) }),
+    );
     return c.json({ error: ERROR_MESSAGES.internal }, 500);
   } finally {
     await db.$client.end();

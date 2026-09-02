@@ -37,4 +37,6 @@ export const ERROR_MESSAGES = {
   menuImageTypeInvalid: "menuImage must be a JPEG, PNG, or WebP image",
   menuImageTooLarge: "menuImage must be 10MB or smaller",
   menuImageNotFound: "this restaurant has no menu image",
+  bulkModeInvalid: "mode must be override or append",
+  bulkItemsRequired: "items must be a non-empty array",
 } as const;
