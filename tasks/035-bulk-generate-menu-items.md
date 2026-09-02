@@ -1,7 +1,7 @@
 ---
 id: 035
 title: Bulk menu-item generation endpoint (override/append)
-status: approved
+status: in_review
 depends_on: [004]
 parallelizable_with: []
 epic: ocr-menu-generation
@@ -78,19 +78,39 @@ Run `pnpm test -- apps/api/src/routes/menu-items.test.ts`, then the full `test_c
 
 ## Implementation Log
 
-(Filled in by /implement-task.)
-
-- red commit: <sha> — `pnpm -r typecheck && pnpm --filter web build && pnpm test` -> N failing
-- green commit: <sha> — `pnpm -r typecheck && pnpm --filter web build && pnpm test` -> all passing
+- red commit: `8fb9f79` — `pnpm test -- apps/api/src/routes/menu-items.test.ts` -> 7 failing (route didn't exist yet, Hono's default 404 for all 7 new cases instead of the expected 201/400/404)
+- green commit: `26b465b` — `pnpm -r typecheck && pnpm --filter web build && pnpm test` -> all passing (325 tests)
 
 ## Plan Deviations
 
-(Filled in by /implement-task, honestly, before requesting review — write "None." if genuinely nothing applies, don't skip this section silently. Only list genuine deviations — if a step was carried out as the Plan described, it doesn't belong here, even if it's worth doing again.)
-
-- Where did the actual implementation differ from the Plan above, and why?
-- Any wrong assumption, dead end, or approach abandoned partway through?
-- Anything the user had to correct or redirect mid-task?
+- The Plan's FK-safety test verification used `GET /api/rounds/:id` to check the curated `round_menu_items` row survived override — that route only returns the bare `rounds` row (no joined menu items), so it can't verify this. Switched to querying `round_menu_items` directly via the Drizzle client in the test instead. No production code affected.
+- Everything else (route placement, validation order, transaction shape, error keys, seed-helper reuse) was implemented exactly as planned.
 
 ## Review Notes
 
 (Output of the feature-dev:code-reviewer agent, appended by /implement-task.)
+
+Reviewed the diff for task 035 (`POST /:id/menu-items/bulk`) against this file's Acceptance Criteria/Plan and `.claude/rules/api-error-handling.md`.
+
+Files reviewed:
+- `apps/api/src/routes/menu-items.ts` (new route)
+- `apps/api/src/lib/errors.ts` (new keys)
+- `apps/api/src/routes/menu-items.test.ts` (new tests)
+- `packages/db/src/schema.ts` (checked for constraints that could break override/append)
+
+**No high-confidence (≥80) issues found.**
+
+Checks performed and cleared:
+- Error-handling convention: `try`/`catch`/`finally` matches the established pattern exactly — structured `console.error` with a descriptive message, `500 internal` on catch, `await db.$client.end()` in `finally`, nothing leaked when validation fails before `getDb(c)` is called.
+- Validation order matches the AC precisely: mode → items array → per-item name/price (short-circuits on first invalid item, nothing written) → restaurant id format/existence (400 wins over 404, consistent with the rest of the file).
+- Transaction correctness: deactivation and insert both happen inside the same `db.transaction()`, matching the FK-safety requirement (existing rows soft-deleted via `active: false`, never deleted, so `round_menu_items` references stay valid — verified by the dedicated FK-safety test).
+- Reuses the existing module-private `parsePrice` helper and `ERROR_MESSAGES` constants rather than duplicating logic/strings, per project convention.
+- Route placement/ordering: `POST /:id/menu-items/bulk` cannot be shadowed by the existing `:itemId` PATCH routes (different HTTP methods/segment counts).
+- Schema check: no unique constraint on `menu_items(restaurant_id, name)`, so override's non-destructive deactivate-then-insert approach won't hit constraint violations when re-running with overlapping names (a real workflow concern for OCR re-extraction) — this was the one thing worth double-checking and it came back clean.
+- `active` defaults to `true` at the schema level, so the insert correctly produces active rows without needing to set it explicitly.
+
+Minor, below-threshold observations (not reported as findings):
+- No upper bound on `items.length` — a large enough batch could theoretically approach Postgres's bind-parameter ceiling, but this is an internal admin tool for OCR-sized batches, so this is low-confidence/non-actionable.
+- A literal JSON `null` body would throw before the `try` block — same pre-existing pattern as the other handlers in this file, not a new issue introduced by this diff.
+
+The implementation is a faithful, correct match of the task's plan and acceptance criteria.
