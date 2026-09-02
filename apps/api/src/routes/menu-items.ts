@@ -5,6 +5,10 @@ import type { Bindings } from "../bindings";
 import { ERROR_MESSAGES } from "../lib/errors";
 import { getDb } from "../lib/get-db";
 
+function parseName(raw: unknown): string {
+  return typeof raw === "string" ? raw.trim() : "";
+}
+
 function parsePrice(raw: unknown): { ok: true; price: string | null } | { ok: false } {
   if (raw === undefined || raw === null || raw === "") {
     return { ok: true, price: null };
@@ -25,7 +29,7 @@ export const menuItemsRoute = new Hono<{ Bindings: Bindings }>();
 menuItemsRoute.post("/:id/menu-items", async (c) => {
   const restaurantId = Number(c.req.param("id"));
   const body = await c.req.json().catch(() => ({}));
-  const name = typeof body.name === "string" ? body.name.trim() : "";
+  const name = parseName(body.name);
   const parsedPrice = parsePrice(body.price);
 
   if (!name) {
@@ -125,7 +129,7 @@ menuItemsRoute.patch("/:id/menu-items/:itemId/details", async (c) => {
   }
 
   const body = await c.req.json().catch(() => ({}));
-  const name = typeof body.name === "string" ? body.name.trim() : "";
+  const name = parseName(body.name);
   const parsedPrice = parsePrice(body.price);
 
   if (!name) {
@@ -172,7 +176,7 @@ menuItemsRoute.post("/:id/menu-items/bulk", async (c) => {
 
   const parsedItems: { name: string; price: string | null }[] = [];
   for (const item of body.items) {
-    const name = typeof item?.name === "string" ? item.name.trim() : "";
+    const name = parseName(item?.name);
     if (!name) {
       return c.json({ error: ERROR_MESSAGES.nameRequired }, 400);
     }
