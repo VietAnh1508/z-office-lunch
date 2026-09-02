@@ -4,4 +4,5 @@ packages:
 allowBuilds:
   esbuild: true
   msw: true
+  tesseract.js: false
   workerd: true

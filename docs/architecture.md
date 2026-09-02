@@ -49,6 +49,6 @@ Entities, reusable across rounds unless noted otherwise:
 
 Consolidated export (item 7) is a join of `Submission` → `Employee`, `RoundMenuItem` → `MenuItem` (food and drink), filtered by round — directly produces the "list of names and dish/drink" CSV, with `price` excluded.
 
-## Open items — not yet decided
+## Decisions worth recording
 
-- **OCR menu extraction — nice-to-have, not required for v1.** Idea: admin uploads a menu photo, a vision model breaks it into structured dish items (name/price) for the admin to review and correct, rather than typing them in by hand. Deferred decisions: which model (a frontier vision LLM via Cloudflare AI Gateway, vs. Workers AI's native vision models — accuracy on messy/handwritten/non-English photos is the open question), and the review/correction UI. Core requirement (manual dish entry, admin-provided image) does not depend on this.
+- **OCR menu extraction (task 037): client-side `tesseract.js`, not a server-side vision-model call.** Admin uploads a menu photo (task 027), clicks "Generate menu", and the browser runs OCR on it directly — no new Worker binding or secret needed, unlike a vision-LLM route via Cloudflare AI Gateway or Workers AI. Trade-off accepted: WASM OCR + heuristic text parsing (`parseMenuText`, task 036) is meaningfully less accurate than a frontier vision model, especially on messy/handwritten photos — this is mitigated, not solved, by the admin reviewing and editing every candidate item before it's saved (nothing is written without a save click).

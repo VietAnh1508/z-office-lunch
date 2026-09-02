@@ -46,12 +46,13 @@ describe("GenerateMenuFromImage", () => {
 
     await user.click(screen.getByRole("button", { name: "Generate menu" }));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Reading menu…" })).toBeDisabled();
 
     resolveRecognize("Pho Bo 45000\nBanh Mi 20000");
 
     expect(await screen.findByRole("dialog")).toBeInTheDocument();
-    expect(screen.getByText("Pho Bo")).toBeInTheDocument();
-    expect(screen.getByText("Banh Mi")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Pho Bo")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Banh Mi")).toBeInTheDocument();
   });
 
   it("shows an error toast and does not open the dialog when OCR rejects", async () => {
