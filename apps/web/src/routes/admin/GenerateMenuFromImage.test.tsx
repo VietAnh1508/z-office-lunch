@@ -44,7 +44,7 @@ describe("GenerateMenuFromImage", () => {
 
     render();
 
-    await user.click(screen.getByRole("button", { name: "Generate menu" }));
+    await user.click(screen.getByRole("button", { name: "Generate menu from image" }));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Reading menu…" })).toBeDisabled();
 
@@ -62,7 +62,7 @@ describe("GenerateMenuFromImage", () => {
 
     render();
 
-    await user.click(screen.getByRole("button", { name: "Generate menu" }));
+    await user.click(screen.getByRole("button", { name: "Generate menu from image" }));
 
     expect(await screen.findByText("Could not read the menu image.")).toBeInTheDocument();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
@@ -75,7 +75,7 @@ describe("GenerateMenuFromImage", () => {
 
     render();
 
-    await user.click(screen.getByRole("button", { name: "Generate menu" }));
+    await user.click(screen.getByRole("button", { name: "Generate menu from image" }));
 
     expect(await screen.findByText("No menu items found in the image.")).toBeInTheDocument();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
@@ -88,7 +88,7 @@ describe("GenerateMenuFromImage", () => {
 
     render();
 
-    await user.click(screen.getByRole("button", { name: "Generate menu" }));
+    await user.click(screen.getByRole("button", { name: "Generate menu from image" }));
     await screen.findByRole("dialog");
 
     const removeButtons = screen.getAllByRole("button", { name: "Remove candidate" });
@@ -118,7 +118,7 @@ describe("GenerateMenuFromImage", () => {
 
     render();
 
-    await user.click(screen.getByRole("button", { name: "Generate menu" }));
+    await user.click(screen.getByRole("button", { name: "Generate menu from image" }));
     await screen.findByRole("dialog");
 
     const priceInput = screen.getByDisplayValue("45000");
@@ -149,7 +149,7 @@ describe("GenerateMenuFromImage", () => {
 
     render();
 
-    await user.click(screen.getByRole("button", { name: "Generate menu" }));
+    await user.click(screen.getByRole("button", { name: "Generate menu from image" }));
     await screen.findByRole("dialog");
     await user.click(screen.getByRole("button", { name: "Save" }));
 
@@ -175,7 +175,7 @@ describe("GenerateMenuFromImage", () => {
 
     render();
 
-    await user.click(screen.getByRole("button", { name: "Generate menu" }));
+    await user.click(screen.getByRole("button", { name: "Generate menu from image" }));
     await screen.findByRole("dialog");
     await user.click(screen.getByRole("button", { name: "Save" }));
 
@@ -205,7 +205,7 @@ describe("GenerateMenuFromImage", () => {
 
     render();
 
-    await user.click(screen.getByRole("button", { name: "Generate menu" }));
+    await user.click(screen.getByRole("button", { name: "Generate menu from image" }));
     await screen.findByRole("dialog");
     await user.click(screen.getByRole("button", { name: "Save" }));
     await user.click(await screen.findByRole("button", { name: "Replace current menu" }));
@@ -231,7 +231,7 @@ describe("GenerateMenuFromImage", () => {
 
     render();
 
-    await user.click(screen.getByRole("button", { name: "Generate menu" }));
+    await user.click(screen.getByRole("button", { name: "Generate menu from image" }));
     await screen.findByRole("dialog");
     await user.click(screen.getByRole("button", { name: "Save" }));
     await user.click(await screen.findByRole("button", { name: "Add to current menu" }));
@@ -252,7 +252,7 @@ describe("GenerateMenuFromImage", () => {
 
     render();
 
-    await user.click(screen.getByRole("button", { name: "Generate menu" }));
+    await user.click(screen.getByRole("button", { name: "Generate menu from image" }));
     await screen.findByRole("dialog");
 
     const nameInput = screen.getByDisplayValue("Pho Bo");

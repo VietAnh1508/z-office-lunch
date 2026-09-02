@@ -133,7 +133,7 @@ export function GenerateMenuFromImage({
         onClick={handleGenerate}
         className="self-start"
       >
-        {isRecognizing ? "Reading menu…" : "Generate menu"}
+        {isRecognizing ? "Reading menu…" : "Generate menu from image"}
       </Button>
 
       <Dialog open={reviewOpen} onOpenChange={setReviewOpen}>

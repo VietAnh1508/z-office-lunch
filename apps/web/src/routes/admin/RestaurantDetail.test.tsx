@@ -446,7 +446,7 @@ describe("RestaurantDetail", () => {
       expect(await screen.findByText("restaurant not found")).toBeInTheDocument();
     });
 
-    it("does not render a Generate menu button when there is no menu image", async () => {
+    it("does not render a Generate menu from image button when there is no menu image", async () => {
       server.use(
         http.get("/api/restaurants", () =>
           HttpResponse.json([
@@ -459,10 +459,10 @@ describe("RestaurantDetail", () => {
       renderDetail("1");
 
       await screen.findByLabelText("Name", { exact: false, selector: "#restaurant-detail-name" });
-      expect(screen.queryByRole("button", { name: "Generate menu" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Generate menu from image" })).not.toBeInTheDocument();
     });
 
-    it("renders a Generate menu button next to the uploaded menu image", async () => {
+    it("renders a Generate menu from image button next to the uploaded menu image", async () => {
       server.use(
         http.get("/api/restaurants", () =>
           HttpResponse.json([
@@ -482,7 +482,7 @@ describe("RestaurantDetail", () => {
 
       renderDetail("1");
 
-      expect(await screen.findByRole("button", { name: "Generate menu" })).toBeInTheDocument();
+      expect(await screen.findByRole("button", { name: "Generate menu from image" })).toBeInTheDocument();
     });
 
     it("uploads a menu image via the file picker and shows a preview + success toast", async () => {
