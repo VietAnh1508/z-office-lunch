@@ -1,7 +1,7 @@
 ---
 id: 036
 title: Parse OCR text into candidate menu items
-status: in_review
+status: done
 depends_on: []
 parallelizable_with: [035]
 epic: ocr-menu-generation
