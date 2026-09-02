@@ -132,7 +132,7 @@ describe("GenerateMenuFromImage", () => {
     expect(saveCalled).toBe(false);
   });
 
-  it("skips the confirmation and saves directly with mode append when the restaurant has zero menu items", async () => {
+  it("shows a single Save button and saves directly with mode append when the restaurant has zero menu items", async () => {
     const user = userEvent.setup({ pointerEventsCheck: 0 });
     mockMenuItemsList([]);
     mockedRecognize.mockResolvedValue("Pho Bo 45000");
@@ -151,6 +151,8 @@ describe("GenerateMenuFromImage", () => {
 
     await user.click(screen.getByRole("button", { name: "Generate menu from image" }));
     await screen.findByRole("dialog");
+    expect(screen.queryByRole("button", { name: "Add to current menu" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Replace current menu" })).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     await waitFor(() => expect(requestBody).not.toBeNull());
@@ -159,7 +161,52 @@ describe("GenerateMenuFromImage", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
-  it("opens an override/append confirmation when the restaurant already has menu items, and Cancel returns to the intact review dialog", async () => {
+  it("shows Add/Replace buttons instead of Save when the restaurant already has menu items", async () => {
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+    mockMenuItemsList([
+      { id: 99, restaurantId: 1, name: "Existing Item", price: null, active: true },
+    ]);
+    mockedRecognize.mockResolvedValue("Pho Bo 45000");
+
+    render();
+
+    await user.click(screen.getByRole("button", { name: "Generate menu from image" }));
+    await screen.findByRole("dialog");
+
+    expect(screen.getByRole("button", { name: "Add to current menu" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Replace current menu" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
+  });
+
+  it("opens a confirmation before replacing, and calls the bulk endpoint with mode override once confirmed", async () => {
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+    mockMenuItemsList([
+      { id: 99, restaurantId: 1, name: "Existing Item", price: null, active: true },
+    ]);
+    mockedRecognize.mockResolvedValue("Pho Bo 45000");
+    let requestBody: Record<string, unknown> | null = null;
+    server.use(
+      http.post("/api/restaurants/1/menu-items/bulk", async ({ request }) => {
+        requestBody = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json([], { status: 201 });
+      }),
+    );
+
+    render();
+
+    await user.click(screen.getByRole("button", { name: "Generate menu from image" }));
+    await screen.findByRole("dialog");
+    await user.click(screen.getByRole("button", { name: "Replace current menu" }));
+
+    expect(requestBody).toBeNull();
+    await user.click(await screen.findByRole("button", { name: "Yes, replace menu" }));
+
+    await waitFor(() => expect(requestBody).not.toBeNull());
+    expect(requestBody).toMatchObject({ mode: "override" });
+    expect(await screen.findByText("Menu items generated")).toBeInTheDocument();
+  });
+
+  it("cancelling the replace confirmation sends no request and keeps the review dialog intact", async () => {
     const user = userEvent.setup({ pointerEventsCheck: 0 });
     mockMenuItemsList([
       { id: 99, restaurantId: 1, name: "Existing Item", price: null, active: true },
@@ -177,19 +224,16 @@ describe("GenerateMenuFromImage", () => {
 
     await user.click(screen.getByRole("button", { name: "Generate menu from image" }));
     await screen.findByRole("dialog");
-    await user.click(screen.getByRole("button", { name: "Save" }));
+    await user.click(screen.getByRole("button", { name: "Replace current menu" }));
 
-    expect(await screen.findByRole("button", { name: "Replace current menu" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Add to current menu" })).toBeInTheDocument();
-
-    await user.click(screen.getByRole("button", { name: /cancel/i }));
+    await user.click(await screen.findByRole("button", { name: /cancel/i }));
 
     expect(saveCalled).toBe(false);
     expect(await screen.findByRole("dialog")).toBeInTheDocument();
     expect(screen.getByDisplayValue("Pho Bo")).toBeInTheDocument();
   });
 
-  it("calls the bulk endpoint with mode override when Replace current menu is chosen", async () => {
+  it("calls the bulk endpoint with mode append when Add to current menu is clicked", async () => {
     const user = userEvent.setup({ pointerEventsCheck: 0 });
     mockMenuItemsList([
       { id: 99, restaurantId: 1, name: "Existing Item", price: null, active: true },
@@ -207,37 +251,40 @@ describe("GenerateMenuFromImage", () => {
 
     await user.click(screen.getByRole("button", { name: "Generate menu from image" }));
     await screen.findByRole("dialog");
-    await user.click(screen.getByRole("button", { name: "Save" }));
-    await user.click(await screen.findByRole("button", { name: "Replace current menu" }));
-
-    await waitFor(() => expect(requestBody).not.toBeNull());
-    expect(requestBody).toMatchObject({ mode: "override" });
-    expect(await screen.findByText("Menu items generated")).toBeInTheDocument();
-  });
-
-  it("calls the bulk endpoint with mode append when Add to current menu is chosen", async () => {
-    const user = userEvent.setup({ pointerEventsCheck: 0 });
-    mockMenuItemsList([
-      { id: 99, restaurantId: 1, name: "Existing Item", price: null, active: true },
-    ]);
-    mockedRecognize.mockResolvedValue("Pho Bo 45000");
-    let requestBody: Record<string, unknown> | null = null;
-    server.use(
-      http.post("/api/restaurants/1/menu-items/bulk", async ({ request }) => {
-        requestBody = (await request.json()) as Record<string, unknown>;
-        return HttpResponse.json([], { status: 201 });
-      }),
-    );
-
-    render();
-
-    await user.click(screen.getByRole("button", { name: "Generate menu from image" }));
-    await screen.findByRole("dialog");
-    await user.click(screen.getByRole("button", { name: "Save" }));
-    await user.click(await screen.findByRole("button", { name: "Add to current menu" }));
+    await user.click(screen.getByRole("button", { name: "Add to current menu" }));
 
     await waitFor(() => expect(requestBody).not.toBeNull());
     expect(requestBody).toMatchObject({ mode: "append" });
+  });
+
+  it("blocks Replace/Add when an edited price is invalid, with the restaurant already having menu items", async () => {
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
+    mockMenuItemsList([
+      { id: 99, restaurantId: 1, name: "Existing Item", price: null, active: true },
+    ]);
+    mockedRecognize.mockResolvedValue("Pho Bo 45000");
+    let saveCalled = false;
+    server.use(
+      http.post("/api/restaurants/1/menu-items/bulk", () => {
+        saveCalled = true;
+        return HttpResponse.json([], { status: 201 });
+      }),
+    );
+
+    render();
+
+    await user.click(screen.getByRole("button", { name: "Generate menu from image" }));
+    await screen.findByRole("dialog");
+
+    const priceInput = screen.getByDisplayValue("45000");
+    await user.clear(priceInput);
+    await user.type(priceInput, "-5");
+    await user.click(screen.getByRole("button", { name: "Replace current menu" }));
+
+    expect(
+      await screen.findByText("Price must be a valid non-negative number."),
+    ).toBeInTheDocument();
+    expect(saveCalled).toBe(false);
   });
 
   it("shows an error toast and keeps the review dialog open with edits intact on save failure", async () => {

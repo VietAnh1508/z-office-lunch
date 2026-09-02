@@ -1,3 +1,4 @@
+import { TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import {
@@ -45,7 +46,7 @@ export function GenerateMenuFromImage({
   const [candidates, setCandidates] = useState<MenuCandidate[]>([]);
   const [priceErrors, setPriceErrors] = useState<Record<string, string | null>>({});
   const [reviewOpen, setReviewOpen] = useState(false);
-  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmReplaceOpen, setConfirmReplaceOpen] = useState(false);
 
   const hasExistingItems = (menuItems?.length ?? 0) > 0;
 
@@ -101,27 +102,28 @@ export function GenerateMenuFromImage({
     return valid;
   }
 
-  function handleSaveClick() {
-    if (!validateAllPrices()) return;
-    if (hasExistingItems) {
-      setConfirmOpen(true);
-      return;
-    }
-    save("append");
-  }
-
   function save(mode: "override" | "append") {
     bulkCreate.mutate(
       { mode, items: candidates.map((c) => ({ name: c.name, price: c.price.trim() })) },
       {
         onSuccess: () => {
           setReviewOpen(false);
-          setConfirmOpen(false);
+          setConfirmReplaceOpen(false);
           setCandidates([]);
           setPriceErrors({});
         },
       },
     );
+  }
+
+  function handleAddClick() {
+    if (!validateAllPrices()) return;
+    save("append");
+  }
+
+  function handleReplaceClick() {
+    if (!validateAllPrices()) return;
+    setConfirmReplaceOpen(true);
   }
 
   return (
@@ -156,32 +158,52 @@ export function GenerateMenuFromImage({
             ))}
           </ul>
           <DialogFooter>
-            <Button
-              type="button"
-              onClick={handleSaveClick}
-              disabled={candidates.length === 0 || bulkCreate.isPending}
-            >
-              Save
-            </Button>
+            {hasExistingItems ? (
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleAddClick}
+                  disabled={candidates.length === 0 || bulkCreate.isPending}
+                >
+                  Add to current menu
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleReplaceClick}
+                  disabled={candidates.length === 0 || bulkCreate.isPending}
+                >
+                  <TriangleAlert className="text-amber-600 dark:text-amber-400" />
+                  Replace current menu
+                </Button>
+              </>
+            ) : (
+              <Button
+                type="button"
+                onClick={handleAddClick}
+                disabled={candidates.length === 0 || bulkCreate.isPending}
+              >
+                Save
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+      <AlertDialog open={confirmReplaceOpen} onOpenChange={setConfirmReplaceOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Replace or add to the current menu?</AlertDialogTitle>
+            <AlertDialogTitle>Replace the current menu?</AlertDialogTitle>
             <AlertDialogDescription>
-              This restaurant already has menu items.
+              This deactivates the restaurant's current menu items and replaces them with the
+              generated ones. This cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction variant="outline" onClick={() => save("append")}>
-              Add to current menu
-            </AlertDialogAction>
             <AlertDialogAction variant="destructive" onClick={() => save("override")}>
-              Replace current menu
+              Yes, replace menu
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
