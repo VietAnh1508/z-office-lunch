@@ -77,7 +77,15 @@ in the path not owned by Cloudflare.
 Already provisioned (don't recreate — these are one-off, not part of a redeploy):
 
 - **Cloudflare Hyperdrive** config `z-office-lunch-db` (binding `HYPERDRIVE` in
-  `apps/api/wrangler.jsonc`), pointed at the Neon project's connection string.
+  `apps/api/wrangler.jsonc`), pointed at the Neon project's connection string. **Query caching is
+  deliberately disabled** (`wrangler hyperdrive update <id> --caching-disabled`) — Hyperdrive
+  caches eligible reads by default (60s max-age) and does not invalidate them on writes to the
+  same table, which caused stale reads right after an edit (e.g. saving a name on the Employees
+  admin page kept showing the old value for up to a minute). This is a low-traffic internal tool
+  where every admin write expects to see its own result immediately, so full disable was the
+  right call rather than splitting cached/fresh reads across two bindings. **If this config is
+  ever recreated, pass `--caching-disabled` again** (or set it on the new config immediately) —
+  a plain `wrangler hyperdrive create` silently re-enables caching and reintroduces this bug.
 - **Cloudflare R2** bucket `z-office-lunch-menu-images` (binding `MENU_IMAGES`).
 - **Neon** project + database, direct (non-pooled) connection string used above — Hyperdrive
   does its own pooling, so the pooled/pgbouncer connection string is the wrong one to hand it.
