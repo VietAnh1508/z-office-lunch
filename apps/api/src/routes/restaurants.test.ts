@@ -620,6 +620,52 @@ describe("restaurants routes", () => {
         expect(body.items).toEqual([{ name: "Banh Mi", price: "20000" }]);
       });
 
+      it("normalizes a dot-grouped thousands price instead of passing it through literally", async () => {
+        const restaurant = await createRestaurant();
+        const bucket = createFakeMenuImagesBucket();
+        await app.request(
+          `/api/restaurants/${restaurant.id}/menu-image`,
+          { method: "POST", body: menuImageFormData() },
+          { ...testEnv, MENU_IMAGES: bucket },
+        );
+
+        const ai = createFakeAiBinding();
+        ai.resolveWith({ items: [{ name: "Pho Bo", price: "25.000" }] });
+
+        const res = await app.request(
+          `/api/restaurants/${restaurant.id}/generate-menu`,
+          { method: "POST" },
+          { ...testEnv, MENU_IMAGES: bucket, AI: ai as unknown },
+        );
+
+        expect(res.status).toBe(200);
+        const body = (await res.json()) as { items: { name: string; price: string }[] };
+        expect(body.items).toEqual([{ name: "Pho Bo", price: "25000" }]);
+      });
+
+      it("coerces a price returned as a JSON number instead of a string", async () => {
+        const restaurant = await createRestaurant();
+        const bucket = createFakeMenuImagesBucket();
+        await app.request(
+          `/api/restaurants/${restaurant.id}/menu-image`,
+          { method: "POST", body: menuImageFormData() },
+          { ...testEnv, MENU_IMAGES: bucket },
+        );
+
+        const ai = createFakeAiBinding();
+        ai.resolveWith({ items: [{ name: "Ca Phe Den (S)", price: 29 }] });
+
+        const res = await app.request(
+          `/api/restaurants/${restaurant.id}/generate-menu`,
+          { method: "POST" },
+          { ...testEnv, MENU_IMAGES: bucket, AI: ai as unknown },
+        );
+
+        expect(res.status).toBe(200);
+        const body = (await res.json()) as { items: { name: string; price: string }[] };
+        expect(body.items).toEqual([{ name: "Ca Phe Den (S)", price: "29" }]);
+      });
+
       it("a free-text (non-JSON) model response returns a structured 500", async () => {
         const restaurant = await createRestaurant();
         const bucket = createFakeMenuImagesBucket();

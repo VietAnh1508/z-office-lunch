@@ -34,6 +34,30 @@ const GENERATE_MENU_PROMPT =
   'Respond with ONLY a single JSON object of the exact shape {"items":[{"name":string,"price":string}]} ' +
   "— no markdown, no code fences, no commentary before or after.";
 
+// Mirrors task 037's (now-deleted) parseMenuText/normalizePriceToken: even though the prompt
+// asks for "the plain printed number, with no currency symbol," the model has no schema
+// enforcement (see below) and can echo a Vietnamese-menu price verbatim, dot-grouped ("25.000")
+// — which `Number("25.000") === 25` and a Postgres `numeric` column both silently read as 25,
+// not 25000. Normalize the same handful of shapes task 037 handled before dropping this pipeline.
+function normalizeGeneratedPrice(token: string): string {
+  const kMultiplierMatch = /^(\d[\d.,]*)[kK]$/.exec(token);
+  if (kMultiplierMatch) {
+    return String(Number(kMultiplierMatch[1]!.replace(/[.,]/g, "")) * 1000);
+  }
+
+  const thousandsMatch = /^(\d+)[.,](\d{3})$/.exec(token);
+  if (thousandsMatch) {
+    return `${thousandsMatch[1]}${thousandsMatch[2]}`;
+  }
+
+  const decimalMatch = /^(\d+)[.,](\d{1,2})$/.exec(token);
+  if (decimalMatch) {
+    return `${decimalMatch[1]}.${decimalMatch[2]}`;
+  }
+
+  return token;
+}
+
 // Cloudflare's `response_format: json_schema` JSON mode is NOT usable here: this model's
 // input type has no `response_format` field at all (unlike e.g. Llama 3.3 70B's), and a real
 // call confirmed it silently ignores the option when passed anyway — the response comes back
@@ -64,15 +88,18 @@ function parseGeneratedItems(modelResponse: unknown): { name: string; price: str
   }
   const result: { name: string; price: string }[] = [];
   for (const item of items) {
-    if (
-      item === null ||
-      typeof item !== "object" ||
-      typeof (item as Record<string, unknown>).name !== "string" ||
-      typeof (item as Record<string, unknown>).price !== "string"
-    ) {
+    if (item === null || typeof item !== "object") {
       return null;
     }
-    result.push({ name: (item as { name: string }).name, price: (item as { price: string }).price });
+    const name = (item as Record<string, unknown>).name;
+    const price = (item as Record<string, unknown>).price;
+    // Without schema enforcement (see above), a model that gets the *value* of `price` right
+    // but the JSON *type* wrong (a bare number instead of a string) shouldn't 500 an otherwise
+    // good response — accept either and normalize to a string.
+    if (typeof name !== "string" || (typeof price !== "string" && typeof price !== "number")) {
+      return null;
+    }
+    result.push({ name, price: normalizeGeneratedPrice(String(price)) });
   }
   return result;
 }
