@@ -2,6 +2,7 @@ import { createDb, restaurants } from "db";
 import { TEST_DATABASE_URL, truncateAll } from "db/testing";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import app from "../index";
+import { createFakeAiBinding } from "../test/fake-ai-binding";
 import { createFakeMenuImagesBucket } from "../test/fake-menu-images-bucket";
 import { testEnv, unreachableEnv } from "../test/env";
 
@@ -535,6 +536,191 @@ describe("restaurants routes", () => {
         );
 
         expect(res.status).toBe(404);
+      });
+    });
+
+    describe("POST /:id/generate-menu", () => {
+      it("nonexistent restaurant returns 404 restaurantNotFound", async () => {
+        const res = await app.request(
+          "/api/restaurants/999999/generate-menu",
+          { method: "POST" },
+          { ...testEnv, MENU_IMAGES: createFakeMenuImagesBucket(), AI: createFakeAiBinding() as unknown },
+        );
+
+        expect(res.status).toBe(404);
+        const body = (await res.json()) as { error?: string };
+        expect(body.error).toBe("restaurant not found");
+      });
+
+      it("restaurant with no menu image returns 404 menuImageNotFound", async () => {
+        const restaurant = await createRestaurant();
+        const res = await app.request(
+          `/api/restaurants/${restaurant.id}/generate-menu`,
+          { method: "POST" },
+          { ...testEnv, MENU_IMAGES: createFakeMenuImagesBucket(), AI: createFakeAiBinding() as unknown },
+        );
+
+        expect(res.status).toBe(404);
+        const body = (await res.json()) as { error?: string };
+        expect(body.error).toBe("this restaurant has no menu image");
+      });
+
+      it("valid image and a well-formed model response returns 200 with items", async () => {
+        const restaurant = await createRestaurant();
+        const bucket = createFakeMenuImagesBucket();
+        const uploadRes = await app.request(
+          `/api/restaurants/${restaurant.id}/menu-image`,
+          { method: "POST", body: menuImageFormData() },
+          { ...testEnv, MENU_IMAGES: bucket },
+        );
+        expect(uploadRes.status).toBe(200);
+
+        const ai = createFakeAiBinding();
+        ai.resolveWith({
+          items: [
+            { name: "Ca Phe Den (S)", price: "29" },
+            { name: "Ca Phe Den (M)", price: "35" },
+          ],
+        });
+
+        const res = await app.request(
+          `/api/restaurants/${restaurant.id}/generate-menu`,
+          { method: "POST" },
+          { ...testEnv, MENU_IMAGES: bucket, AI: ai as unknown },
+        );
+
+        expect(res.status).toBe(200);
+        const body = (await res.json()) as { items: { name: string; price: string }[] };
+        expect(body.items).toEqual([
+          { name: "Ca Phe Den (S)", price: "29" },
+          { name: "Ca Phe Den (M)", price: "35" },
+        ]);
+      });
+
+      it("a well-formed model response encoded as a JSON string also returns 200 with items", async () => {
+        const restaurant = await createRestaurant();
+        const bucket = createFakeMenuImagesBucket();
+        await app.request(
+          `/api/restaurants/${restaurant.id}/menu-image`,
+          { method: "POST", body: menuImageFormData() },
+          { ...testEnv, MENU_IMAGES: bucket },
+        );
+
+        const ai = createFakeAiBinding();
+        ai.resolveWith(JSON.stringify({ items: [{ name: "Banh Mi", price: "20000" }] }));
+
+        const res = await app.request(
+          `/api/restaurants/${restaurant.id}/generate-menu`,
+          { method: "POST" },
+          { ...testEnv, MENU_IMAGES: bucket, AI: ai as unknown },
+        );
+
+        expect(res.status).toBe(200);
+        const body = (await res.json()) as { items: { name: string; price: string }[] };
+        expect(body.items).toEqual([{ name: "Banh Mi", price: "20000" }]);
+      });
+
+      it("a free-text (non-JSON) model response returns a structured 500", async () => {
+        const restaurant = await createRestaurant();
+        const bucket = createFakeMenuImagesBucket();
+        await app.request(
+          `/api/restaurants/${restaurant.id}/menu-image`,
+          { method: "POST", body: menuImageFormData() },
+          { ...testEnv, MENU_IMAGES: bucket },
+        );
+
+        const ai = createFakeAiBinding();
+        ai.resolveWith("Here is the menu:\n* Ca Phe Den (S) - 29");
+
+        const res = await app.request(
+          `/api/restaurants/${restaurant.id}/generate-menu`,
+          { method: "POST" },
+          { ...testEnv, MENU_IMAGES: bucket, AI: ai as unknown },
+        );
+
+        expect(res.status).toBe(500);
+        const body = (await res.json()) as { error?: string };
+        expect(body.error).toBeTruthy();
+      });
+
+      it("a model response with an item missing a required field returns a structured 500", async () => {
+        const restaurant = await createRestaurant();
+        const bucket = createFakeMenuImagesBucket();
+        await app.request(
+          `/api/restaurants/${restaurant.id}/menu-image`,
+          { method: "POST", body: menuImageFormData() },
+          { ...testEnv, MENU_IMAGES: bucket },
+        );
+
+        const ai = createFakeAiBinding();
+        ai.resolveWith({ items: [{ name: "Ca Phe Den (S)" }] });
+
+        const res = await app.request(
+          `/api/restaurants/${restaurant.id}/generate-menu`,
+          { method: "POST" },
+          { ...testEnv, MENU_IMAGES: bucket, AI: ai as unknown },
+        );
+
+        expect(res.status).toBe(500);
+        const body = (await res.json()) as { error?: string };
+        expect(body.error).toBeTruthy();
+      });
+
+      it("a rejected model call returns a structured 500", async () => {
+        const restaurant = await createRestaurant();
+        const bucket = createFakeMenuImagesBucket();
+        await app.request(
+          `/api/restaurants/${restaurant.id}/menu-image`,
+          { method: "POST", body: menuImageFormData() },
+          { ...testEnv, MENU_IMAGES: bucket },
+        );
+
+        const ai = createFakeAiBinding();
+        ai.rejectWith(new Error("model unavailable"));
+
+        const res = await app.request(
+          `/api/restaurants/${restaurant.id}/generate-menu`,
+          { method: "POST" },
+          { ...testEnv, MENU_IMAGES: bucket, AI: ai as unknown },
+        );
+
+        expect(res.status).toBe(500);
+        const body = (await res.json()) as { error?: string };
+        expect(body.error).toBeTruthy();
+      });
+
+      it("R2 object missing despite menuImage set on the row returns a structured 500", async () => {
+        const restaurant = await createRestaurant();
+        const bucket = createFakeMenuImagesBucket();
+        const uploadRes = await app.request(
+          `/api/restaurants/${restaurant.id}/menu-image`,
+          { method: "POST", body: menuImageFormData() },
+          { ...testEnv, MENU_IMAGES: bucket },
+        );
+        const uploaded = (await uploadRes.json()) as Restaurant;
+        bucket.objects.delete(uploaded.menuImage as string);
+
+        const res = await app.request(
+          `/api/restaurants/${restaurant.id}/generate-menu`,
+          { method: "POST" },
+          { ...testEnv, MENU_IMAGES: bucket, AI: createFakeAiBinding() as unknown },
+        );
+
+        expect(res.status).toBe(500);
+        const body = (await res.json()) as { error?: string };
+        expect(body.error).toBeTruthy();
+      });
+
+      it("returns a structured 500 when the database is unreachable", async () => {
+        const res = await app.request(
+          "/api/restaurants/1/generate-menu",
+          { method: "POST" },
+          { ...unreachableEnv, MENU_IMAGES: createFakeMenuImagesBucket(), AI: createFakeAiBinding() as unknown },
+        );
+
+        expect(res.status).toBe(500);
+        const body = (await res.json()) as { error?: string };
+        expect(body.error).toBeTruthy();
       });
     });
   });
