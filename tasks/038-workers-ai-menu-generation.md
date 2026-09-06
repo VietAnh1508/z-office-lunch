@@ -1,7 +1,7 @@
 ---
 id: 038
 title: Generate menu items via server-side Workers AI vision model
-status: approved
+status: in_review
 depends_on: [037]
 parallelizable_with: []
 epic:
@@ -57,11 +57,18 @@ way, so running two parsers in parallel would only double the maintenance surfac
 benefit.
 
 **Model:** `@cf/meta/llama-3.2-11b-vision-instruct`, not `@cf/moondream/moondream3.1-9B-A2B`.
-Moondream is OCR-specialized and likely more accurate on dense text, but Cloudflare's JSON-mode docs
-don't list it as a supported model — using it would mean prompting for JSON manually and writing our
-own parse/validate/retry-on-malformed-output logic. Llama 3.2 11B Vision's confirmed JSON-schema
-support means the output shape is enforced by Workers AI itself, which matters more than raw OCR
-accuracy for an admin-review-gated feature.
+Moondream is OCR-specialized and likely more accurate on dense text, but would mean prompting for
+JSON manually and writing our own parse/validate logic. **Correction, recorded during
+implementation:** the premise below this line ("Llama 3.2 11B Vision's confirmed JSON-schema
+support") turned out false on a real call — see Plan Deviations. `response_format: json_schema` is
+silently ignored by this model (confirmed both with and without an image; this model's Workers AI
+type definition has no `response_format` field at all, unlike text-only models such as Llama 3.3
+70B). So Llama ends up needing exactly the manual prompt-for-JSON + runtime-validate approach this
+paragraph rejected Moondream for — the choice stands anyway: Llama is confirmed working end-to-end
+on this account (license cleared, image shape confirmed, a real fixture image correctly read with
+S/M/L folded into names as predicted below), and switching to Moondream now would mean a fresh
+license gate and a fresh shape probe for no proven accuracy benefit on an admin-review-gated
+feature.
 
 **Multi-price items** (S/M/L sizes — the dominant real-world case that broke the old heuristic): the
 model emits one candidate item per size, with the size folded into the name (e.g. "Cà Phê Đen (S)" /
@@ -83,13 +90,17 @@ which both have local-friendly test doubles already. Automated tests stay networ
 - [ ] `POST /api/restaurants/:id/generate-menu` (new): validates the restaurant exists (404
       `restaurantNotFound`) and has a `menuImage` set (404 `menuImageNotFound`), reads the image
       bytes from `MENU_IMAGES` itself (the client does not re-send image bytes it already
-      uploaded), calls the vision model with `response_format: json_schema` constraining the output
-      to `{ items: { name: string; price: string }[] }`, and returns that shape with `200`.
+      uploaded), calls the vision model **(corrected during implementation — see Plan Deviations:
+      `response_format: json_schema` is silently ignored by this model on a real call, so the shape
+      is requested via prompt instruction only, not a schema-constraining option)** constraining the
+      output to `{ items: { name: string; price: string }[] }` by runtime validation, and returns
+      that shape with `200`.
 - [ ] The endpoint returns `500 { error: ERROR_MESSAGES.internal }` (structured `console.error`,
       matching `.claude/rules/api-error-handling.md`) when: the R2 object is missing despite
       `menuImage` being set on the row; the model call throws/rejects; or the model's output doesn't
-      validate against the expected shape at runtime (JSON mode narrows the *format* but Workers
-      AI's docs don't guarantee schema compliance). Nothing partially-valid is ever returned to the
+      validate against the expected shape at runtime (there is no schema-enforcement option for this
+      model at all — see above — so runtime validation is the *only* thing standing between a
+      malformed completion and the client). Nothing partially-valid is ever returned to the
       client.
 - [ ] A fake `AI` binding test double (`apps/api/src/test/fake-ai-binding.ts`) lets route tests
       exercise success, malformed-output, and rejected-call paths without any real network call —
@@ -145,21 +156,35 @@ which both have local-friendly test doubles already. Automated tests stay networ
 
 ### Model call
 
-- Model: `@cf/meta/llama-3.2-11b-vision-instruct`; `response_format: json_schema` constrained to
-  `{ items: { name: string; price: string }[] }`.
+- Model: `@cf/meta/llama-3.2-11b-vision-instruct`; shape requested via prompt instruction and
+  validated at runtime (not `response_format: json_schema` — see the correction above).
 - Prompt: list every distinct menu item; for a multi-price item (e.g. S/M/L), emit one entry per
   size with the size folded into the name (`"Cà Phê Đen (S)"`); ignore decorative images and
-  non-item text; price as the plain printed number, no currency symbol.
+  non-item text; price as the plain printed number, no currency symbol; respond with only the raw
+  JSON object, no markdown/commentary.
 - Read the image bytes from `MENU_IMAGES` server-side (the client doesn't re-send bytes it already
   uploaded).
 
-**Unresolved, resolve first during implementation, before writing the fake binding or any test:**
-the exact shape of the vision `image` content-part (byte array vs. `Uint8Array`/`ArrayBuffer` vs.
-base64 string) and the exact response envelope (e.g. `result.response.items` vs. `result.items`)
-for *this specific combination* — image input plus `response_format: json_schema` — aren't
-confirmed; Cloudflare's own docs are incomplete/inconsistent on this combination. Do one real
-`wrangler dev` call against a real menu image and a real Cloudflare account first, and let that
-confirm both shapes rather than assuming one up front.
+**Resolved during implementation** via a real `wrangler dev` call against this project's actual
+Cloudflare account, a real fixture menu image, and several probe shapes — see Plan Deviations for
+the full account. Headline findings:
+- One-time account gate hit first: this model requires submitting the literal prompt `"agree"`
+  once per account before it runs at all (`AiError: 5016`) — done for this account (see
+  `docs/deployment.md`).
+- Working image content-part shape: `messages[].content[]` entry
+  `{ type: "image_url", image_url: { url: "data:<mime>;base64,<b64>" } }` — *not* the
+  `{ type: "image", image: <data> }` shape shown on the model's own Cloudflare docs page, which
+  errored `AiError 8001: Invalid input` on a real call.
+- `response_format: json_schema` is silently ignored by this model, with or without an image —
+  see the Decision section's correction above. Dropped entirely; the shape is requested via
+  prompt instruction only.
+- Response envelope: `result.response` — a string when the completion isn't valid JSON (e.g.
+  truncated or free prose), but Workers AI appears to auto-parse a syntactically-valid JSON
+  completion into an object in place of the string (observed, not documented anywhere found). The
+  route and the fake binding both handle either case.
+- Default `max_tokens` (256) truncates well before a real multi-item menu completes; a real
+  ~90-item multi-column coffee menu needed ~1400 completion tokens. Uses `max_tokens: 4096` for
+  headroom.
 
 ### Test double
 
@@ -201,12 +226,123 @@ then the full `test_command`.
 
 ## Implementation Log
 
-(Filled in by `/implement-task`.)
+- Red: `5885727` — `test: cover POST /:id/generate-menu (Workers AI vision menu generation)`.
+  `pnpm -r typecheck && pnpm --filter web build && pnpm test` -> 9 failing (all 404s from the
+  not-yet-implemented route).
+- Green: `11d7de5` — `feat: generate menu items via server-side Workers AI vision model`.
+  `pnpm -r typecheck && pnpm --filter web build && pnpm test` -> all passing (348/348 vitest
+  tests across `apps/api`/`apps/web`, typecheck clean across all 3 packages, web build succeeds).
+  `pnpm test:e2e` also run manually (not part of `test_command`) — 11/11 passing, confirming the
+  new `ai` binding doesn't break `wrangler dev`'s webServer startup for e2e.
+- Real Cloudflare account probing (before writing any test, per the Plan's "Unresolved" note):
+  built a disposable scratch Worker with only an `ai` binding, ran `wrangler dev` against it, and
+  sent a real fixture menu-photo (a Vietnamese coffee shop menu, left over from task 037's manual
+  testing) through several candidate request shapes to nail down the image content-part shape,
+  the response envelope, and whether `response_format: json_schema` actually applies here — see
+  Plan Deviations. Cleaned up after use; not part of this PR's diff.
 
 ## Plan Deviations
 
-(Filled in by `/implement-task`.)
+- **The Decision section's premise for choosing Llama 3.2 11B Vision over Moondream — "confirmed
+  JSON-schema support" — was false.** A real call (image input, `response_format: json_schema`)
+  came back as free-text prose, not schema-constrained JSON; a follow-up real call with
+  `response_format` but *no* image was equally ignored, isolating the cause to the model itself
+  rather than the image+JSON-mode combination. This matches `@cloudflare/workers-types`: the
+  model's input type (`Ai_Cf_Meta_Llama_3_2_11B_Vision_Instruct_{Prompt,Messages}`) has no
+  `response_format` field at all, unlike e.g. Llama 3.3 70B's, which does. Corrected the Decision
+  section and the AC bullet in place (rather than only noting it here) since the task file is
+  what a PR reviewer checks against. Kept the model choice — see the corrected Decision section
+  for why switching to Moondream now wasn't worth it.
+- **Dropped `response_format` entirely instead of sending it anyway "just in case."** It would
+  need an `as any`/cast past the type (which correctly has no such field for this model), do
+  nothing, and mislead the next reader into thinking the output is schema-enforced when it isn't.
+  The shape is requested via prompt instruction only and validated at runtime — this was already
+  the AC's fallback path ("model output doesn't validate against the expected shape"), so no new
+  code path was needed, only a different reason the validation step is load-bearing.
+- **The vision content-part shape on the model's own Cloudflare docs page is wrong.** That page
+  shows `{ "type": "image", "image": "<image_data>" }`; a real call with that shape returned
+  `AiError 8001: Invalid input`. `{ type: "image_url", image_url: { url: "data:<mime>;base64,<b64>" } }`
+  is what actually works (confirmed against a real menu photo, which the model read correctly,
+  including folding S/M/L sizes into item names exactly as the (unmodified) Decision section
+  predicted).
+- **Default `max_tokens` (256) silently truncates a real menu's completion.** Not anticipated in
+  the Plan. A real ~90-item multi-column coffee menu needed ~1400 completion tokens; discovered
+  by hitting the truncation during probing (a cut-off, non-JSON response). Set `max_tokens: 4096`
+  for headroom — this only affects tokens actually generated, not a fixed cost.
+- **Workers AI requires a one-time per-account license acceptance for this model** (submitting
+  the literal prompt `"agree"`), not mentioned anywhere in the Plan or Context. Hit it as the very
+  first real-call error (`AiError 5016`) before any of the shape-probing above could even start.
+  This is a real external side effect on the project's actual Cloudflare account (the same one
+  used for production), not something to do silently — stopped and asked the user for explicit
+  confirmation before submitting it; user chose to have it submitted immediately. Recorded in
+  `docs/deployment.md` so a future fork/new-account setup knows this step exists.
+- **`bytesToBase64` (chunked `String.fromCharCode`) wasn't in the Plan.** Spreading a full (up to
+  10MB, per `MENU_IMAGE_MAX_BYTES`) image `Uint8Array` into `String.fromCharCode(...bytes)` risks
+  exceeding the JS engine's call-stack argument limit; noticed this while writing the route, ahead
+  of it ever failing in a test (the test fixtures are small).
+- **The code-reviewer agent (see Review Notes) caught two runtime-validation gaps the Plan
+  missed, both stemming from `response_format` being a no-op (nothing actually constrains the
+  model's price formatting or JSON value types):** a dot-grouped price (e.g. `"25.000"`) passed
+  shape validation as a string but silently became `25` (not `25000`) once `Number()`'d
+  downstream and stored in the `numeric` column — exactly what task 037's now-deleted
+  `normalizePriceToken` used to catch, ported into the new endpoint (`normalizeGeneratedPrice`);
+  and a price returned as a bare JSON number (right value, wrong JSON type) 500'd an
+  otherwise-good response outright, now accepted and coerced to a string. Fixed in `e5de3a7` with
+  two new regression tests.
+- Otherwise implemented as planned: endpoint contract, fake `AI` binding test double shape/pattern,
+  frontend `handleGenerate` swap and UX contract, and the cleanup of `ocr.ts`/`parse-menu-text.ts`/
+  `tesseract.js` all matched the Plan as written.
 
 ## Review Notes
 
-(Output of the `feature-dev:code-reviewer` agent, appended by `/implement-task`.)
+Output of the `feature-dev:code-reviewer` agent, run against the red→green diff
+(`5885727`..`11d7de5`):
+
+### Critical
+
+**1. Deleting `parse-menu-text.ts` removed price normalization with nothing server-side replacing
+it — silent 1000x price corruption for dot-grouped Vietnamese prices (confidence 90).**
+
+- `apps/api/src/routes/restaurants.ts:29-33` — `GENERATE_MENU_PROMPT` explicitly asks the model for
+  "the plain printed number, with no currency symbol," which for the dominant real-world case this
+  task exists to fix (Vietnamese menus, e.g. "25.000" = 25,000 VND with a dot as thousands
+  separator) invites the model to echo that literal formatting.
+- Neither validation layer rejects or normalizes a dot-grouped number: frontend `validatePrice`
+  and backend `parsePrice` both do `Number(trimmed)` — and `Number("25.000") === 25`, which is
+  finite and non-negative, so it passes as valid.
+- `packages/db/src/schema.ts:32` declares `price: numeric("price")`. Postgres interprets the
+  stored string `"25.000"` as the decimal value `25`. The admin review UI still displays "25.000"
+  in the field (looks correct), so the review-before-save safety net this task relies on elsewhere
+  won't catch it.
+- Task 037's deleted `normalizePriceToken` explicitly handled exactly this case. This diff removes
+  that normalization without adding any replacement, silently reintroducing a bug task 037 had
+  already fixed.
+- **Outcome: fixed** in `e5de3a7` — ported `normalizePriceToken` into the new endpoint as
+  `normalizeGeneratedPrice`, applied to every item's price before returning. Regression test added
+  ("normalizes a dot-grouped thousands price instead of passing it through literally").
+
+### Important
+
+**2. `parseGeneratedItems` rejects the entire response if any single item's `price` comes back as
+a JSON number instead of a string (confidence 82).**
+
+- Since `response_format: json_schema` is confirmed (per this same task's Plan Deviations) to be
+  silently ignored by this model, there is no schema enforcement on JSON *value types*, only what
+  the prompt asks for. A model emitting `"price": 29` as a bare number for one item (out of
+  possibly 90) throws away the entire successful response and turns a good menu-read into a 500.
+- **Outcome: fixed** in `e5de3a7` — `parseGeneratedItems` now accepts `typeof price === "number"`
+  in addition to `"string"` and coerces via `String(price)` (through the same
+  `normalizeGeneratedPrice` path as finding 1). Regression test added ("coerces a price returned
+  as a JSON number instead of a string").
+
+### Notes (not flagged as violations)
+
+- `toastApiError(error, "Could not generate menu items from the image.")` will show the raw
+  backend message (`"internal error"`) instead of the friendlier fallback whenever the route
+  actually returns a `500 { error: ERROR_MESSAGES.internal }`, because `ApiError.message` is
+  populated from the response body and `toastApiError` prefers it. This is the established,
+  rule-compliant pattern across the whole app (`.claude/rules/mutation-feedback.md`), not
+  something introduced incorrectly by this diff — no change made.
+- Everything else checked out clean: `.claude/rules/api-error-handling.md` compliance, chunked
+  base64 encoding correctness, empty-items 200 path, button label/disabled-state UX contract,
+  and repo-wide OCR/tesseract cleanup completeness were all confirmed with no issues.
