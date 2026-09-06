@@ -132,12 +132,7 @@ function RestaurantDetailsForm({ restaurant }: { restaurant: Restaurant }) {
                 className="max-w-xs rounded-lg border border-border"
               />
             )}
-            {menuImage && (
-              <GenerateMenuFromImage
-                restaurantId={restaurant.id}
-                menuImageSrc={`/api/restaurants/${restaurant.id}/menu-image?v=${menuImage}`}
-              />
-            )}
+            {menuImage && <GenerateMenuFromImage restaurantId={restaurant.id} />}
             <div className="flex items-center gap-2">
               <Button
                 type="button"

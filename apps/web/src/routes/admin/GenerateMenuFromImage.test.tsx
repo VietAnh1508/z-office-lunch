@@ -1,77 +1,88 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { HttpResponse, http } from "msw";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { renderWithProviders } from "@/test/render";
 import { server } from "@/test/mocks/server";
-import { recognizeMenuImage } from "@/lib/ocr";
 import { GenerateMenuFromImage } from "./GenerateMenuFromImage";
 
-vi.mock("@/lib/ocr");
-
-const mockedRecognize = vi.mocked(recognizeMenuImage);
-
 function mockMenuItemsList(items: unknown[] = []) {
+  server.use(http.get("/api/restaurants/1/menu-items", () => HttpResponse.json(items)));
+}
+
+function mockGenerateMenu(
+  handler: () => { items: { name: string; price: string }[] } | { error: string; status: number },
+) {
   server.use(
-    http.get("/api/restaurants/1/menu-items", () => HttpResponse.json(items)),
-    http.get(
-      "/api/restaurants/1/menu-image",
-      () => new HttpResponse(new Blob(["fake-image"], { type: "image/jpeg" })),
-    ),
+    http.post("/api/restaurants/1/generate-menu", () => {
+      const result = handler();
+      if ("error" in result) {
+        return HttpResponse.json({ error: result.error }, { status: result.status });
+      }
+      return HttpResponse.json(result);
+    }),
   );
 }
 
 function render() {
-  return renderWithProviders(
-    <GenerateMenuFromImage restaurantId={1} menuImageSrc="/api/restaurants/1/menu-image?v=abc" />,
-  );
+  return renderWithProviders(<GenerateMenuFromImage restaurantId={1} />);
 }
 
 describe("GenerateMenuFromImage", () => {
   beforeEach(() => {
-    mockedRecognize.mockReset();
+    mockMenuItemsList([]);
   });
 
-  it("does not open the review dialog synchronously on click, only after OCR resolves", async () => {
+  it("does not open the review dialog synchronously on click, only after the request resolves", async () => {
     const user = userEvent.setup({ pointerEventsCheck: 0 });
-    mockMenuItemsList([]);
-    let resolveRecognize: (value: string) => void = () => {};
-    mockedRecognize.mockReturnValue(
-      new Promise((resolve) => {
-        resolveRecognize = resolve;
-      }),
+    let resolveRequest: (value: Response) => void = () => {};
+    server.use(
+      http.post(
+        "/api/restaurants/1/generate-menu",
+        () =>
+          new Promise((resolve) => {
+            resolveRequest = resolve;
+          }),
+      ),
     );
 
     render();
 
     await user.click(screen.getByRole("button", { name: "Generate menu from image" }));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Reading menu…" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Generating menu…" })).toBeDisabled();
 
-    resolveRecognize("Pho Bo 45000\nBanh Mi 20000");
+    resolveRequest(
+      HttpResponse.json({
+        items: [
+          { name: "Pho Bo", price: "45000" },
+          { name: "Banh Mi", price: "20000" },
+        ],
+      }),
+    );
 
     expect(await screen.findByRole("dialog")).toBeInTheDocument();
     expect(screen.getByDisplayValue("Pho Bo")).toBeInTheDocument();
     expect(screen.getByDisplayValue("Banh Mi")).toBeInTheDocument();
   });
 
-  it("shows an error toast and does not open the dialog when OCR rejects", async () => {
+  it("shows an error toast and does not open the dialog when the request fails", async () => {
     const user = userEvent.setup({ pointerEventsCheck: 0 });
-    mockMenuItemsList([]);
-    mockedRecognize.mockRejectedValue(new Error("ocr failed"));
+    server.use(http.post("/api/restaurants/1/generate-menu", () => HttpResponse.error()));
 
     render();
 
     await user.click(screen.getByRole("button", { name: "Generate menu from image" }));
 
-    expect(await screen.findByText("Could not read the menu image.")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Could not generate menu items from the image."),
+    ).toBeInTheDocument();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
   it("shows an error toast and does not open the dialog when no candidates are found", async () => {
     const user = userEvent.setup({ pointerEventsCheck: 0 });
-    mockMenuItemsList([]);
-    mockedRecognize.mockResolvedValue("   \n   ");
+    mockGenerateMenu(() => ({ items: [] }));
 
     render();
 
@@ -83,8 +94,13 @@ describe("GenerateMenuFromImage", () => {
 
   it("removing one row never misidentifies another when editing after removal", async () => {
     const user = userEvent.setup({ pointerEventsCheck: 0 });
-    mockMenuItemsList([]);
-    mockedRecognize.mockResolvedValue("Pho Bo 45000\nBanh Mi 20000\nCom Tam 30000");
+    mockGenerateMenu(() => ({
+      items: [
+        { name: "Pho Bo", price: "45000" },
+        { name: "Banh Mi", price: "20000" },
+        { name: "Com Tam", price: "30000" },
+      ],
+    }));
 
     render();
 
@@ -106,8 +122,7 @@ describe("GenerateMenuFromImage", () => {
 
   it("blocks Save when an edited price is invalid", async () => {
     const user = userEvent.setup({ pointerEventsCheck: 0 });
-    mockMenuItemsList([]);
-    mockedRecognize.mockResolvedValue("Pho Bo 45000");
+    mockGenerateMenu(() => ({ items: [{ name: "Pho Bo", price: "45000" }] }));
     let saveCalled = false;
     server.use(
       http.post("/api/restaurants/1/menu-items/bulk", () => {
@@ -134,8 +149,7 @@ describe("GenerateMenuFromImage", () => {
 
   it("shows a single Save button and saves directly with mode append when the restaurant has zero menu items", async () => {
     const user = userEvent.setup({ pointerEventsCheck: 0 });
-    mockMenuItemsList([]);
-    mockedRecognize.mockResolvedValue("Pho Bo 45000");
+    mockGenerateMenu(() => ({ items: [{ name: "Pho Bo", price: "45000" }] }));
     let requestBody: Record<string, unknown> | null = null;
     server.use(
       http.post("/api/restaurants/1/menu-items/bulk", async ({ request }) => {
@@ -166,7 +180,7 @@ describe("GenerateMenuFromImage", () => {
     mockMenuItemsList([
       { id: 99, restaurantId: 1, name: "Existing Item", price: null, active: true },
     ]);
-    mockedRecognize.mockResolvedValue("Pho Bo 45000");
+    mockGenerateMenu(() => ({ items: [{ name: "Pho Bo", price: "45000" }] }));
 
     render();
 
@@ -183,7 +197,7 @@ describe("GenerateMenuFromImage", () => {
     mockMenuItemsList([
       { id: 99, restaurantId: 1, name: "Existing Item", price: null, active: true },
     ]);
-    mockedRecognize.mockResolvedValue("Pho Bo 45000");
+    mockGenerateMenu(() => ({ items: [{ name: "Pho Bo", price: "45000" }] }));
     let requestBody: Record<string, unknown> | null = null;
     server.use(
       http.post("/api/restaurants/1/menu-items/bulk", async ({ request }) => {
@@ -211,7 +225,7 @@ describe("GenerateMenuFromImage", () => {
     mockMenuItemsList([
       { id: 99, restaurantId: 1, name: "Existing Item", price: null, active: true },
     ]);
-    mockedRecognize.mockResolvedValue("Pho Bo 45000");
+    mockGenerateMenu(() => ({ items: [{ name: "Pho Bo", price: "45000" }] }));
     let saveCalled = false;
     server.use(
       http.post("/api/restaurants/1/menu-items/bulk", () => {
@@ -238,7 +252,7 @@ describe("GenerateMenuFromImage", () => {
     mockMenuItemsList([
       { id: 99, restaurantId: 1, name: "Existing Item", price: null, active: true },
     ]);
-    mockedRecognize.mockResolvedValue("Pho Bo 45000");
+    mockGenerateMenu(() => ({ items: [{ name: "Pho Bo", price: "45000" }] }));
     let requestBody: Record<string, unknown> | null = null;
     server.use(
       http.post("/api/restaurants/1/menu-items/bulk", async ({ request }) => {
@@ -262,7 +276,7 @@ describe("GenerateMenuFromImage", () => {
     mockMenuItemsList([
       { id: 99, restaurantId: 1, name: "Existing Item", price: null, active: true },
     ]);
-    mockedRecognize.mockResolvedValue("Pho Bo 45000");
+    mockGenerateMenu(() => ({ items: [{ name: "Pho Bo", price: "45000" }] }));
     let saveCalled = false;
     server.use(
       http.post("/api/restaurants/1/menu-items/bulk", () => {
@@ -289,8 +303,7 @@ describe("GenerateMenuFromImage", () => {
 
   it("shows an error toast and keeps the review dialog open with edits intact on save failure", async () => {
     const user = userEvent.setup({ pointerEventsCheck: 0 });
-    mockMenuItemsList([]);
-    mockedRecognize.mockResolvedValue("Pho Bo 45000");
+    mockGenerateMenu(() => ({ items: [{ name: "Pho Bo", price: "45000" }] }));
     server.use(
       http.post("/api/restaurants/1/menu-items/bulk", () =>
         HttpResponse.json({ error: "Could not save" }, { status: 500 }),

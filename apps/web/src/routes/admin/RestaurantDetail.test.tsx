@@ -2,12 +2,10 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { HttpResponse, http } from "msw";
 import { MemoryRouter, Route, Routes } from "react-router";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { renderWithProviders } from "@/test/render";
 import { server } from "@/test/mocks/server";
 import { RestaurantDetail } from "./RestaurantDetail";
-
-vi.mock("@/lib/ocr");
 
 function renderDetail(id: string) {
   return renderWithProviders(

@@ -72,6 +72,9 @@ in the path not owned by Cloudflare.
                   └─────────────────────┘
 ```
 
+Not pictured: an `AI` binding (Cloudflare Workers AI, task 038) — no separate resource or
+connection to draw, since it's billed directly to the account like any other binding.
+
 ## One-time cloud resources
 
 Already provisioned (don't recreate — these are one-off, not part of a redeploy):
@@ -87,6 +90,13 @@ Already provisioned (don't recreate — these are one-off, not part of a redeplo
   ever recreated, pass `--caching-disabled` again** (or set it on the new config immediately) —
   a plain `wrangler hyperdrive create` silently re-enables caching and reintroduces this bug.
 - **Cloudflare R2** bucket `z-office-lunch-menu-images` (binding `MENU_IMAGES`).
+- **Cloudflare Workers AI** (binding `AI`, no separate resource to provision — billed like any
+  other binding on this account). The specific model used, `@cf/meta/llama-3.2-11b-vision-instruct`
+  (task 038, "Generate menu from image"), required a one-time per-account license acceptance
+  (submitting the literal prompt `"agree"`) before it would run at all — already done for this
+  project's one Cloudflare account. If this ever needs redoing on a different account (e.g. a
+  fork), a single `env.AI.run("@cf/meta/llama-3.2-11b-vision-instruct", { prompt: "agree" })` call
+  clears it; until then, the model errors with `AiError: 5016`.
 - **Neon** project + database, direct (non-pooled) connection string used above — Hyperdrive
   does its own pooling, so the pooled/pgbouncer connection string is the wrong one to hand it.
 

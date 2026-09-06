@@ -20,10 +20,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { recognizeMenuImage } from "@/lib/ocr";
-import { parseMenuText } from "@/lib/parse-menu-text";
 import { MenuCandidateRow, type MenuCandidate } from "./MenuCandidateRow";
-import { useBulkCreateMenuItems, useMenuItems } from "./useMenuItems";
+import { useBulkCreateMenuItems, useGenerateMenuFromImage, useMenuItems } from "./useMenuItems";
 
 function validatePrice(price: string): string | null {
   const trimmed = price.trim();
@@ -33,16 +31,10 @@ function validatePrice(price: string): string | null {
   return null;
 }
 
-export function GenerateMenuFromImage({
-  restaurantId,
-  menuImageSrc,
-}: {
-  restaurantId: number;
-  menuImageSrc: string;
-}) {
+export function GenerateMenuFromImage({ restaurantId }: { restaurantId: number }) {
   const { data: menuItems } = useMenuItems(restaurantId);
   const bulkCreate = useBulkCreateMenuItems(restaurantId);
-  const [isRecognizing, setIsRecognizing] = useState(false);
+  const generateMenu = useGenerateMenuFromImage(restaurantId);
   const [candidates, setCandidates] = useState<MenuCandidate[]>([]);
   const [priceErrors, setPriceErrors] = useState<Record<string, string | null>>({});
   const [reviewOpen, setReviewOpen] = useState(false);
@@ -50,25 +42,18 @@ export function GenerateMenuFromImage({
 
   const hasExistingItems = (menuItems?.length ?? 0) > 0;
 
-  async function handleGenerate() {
-    setIsRecognizing(true);
-    try {
-      const res = await fetch(menuImageSrc);
-      const blob = await res.blob();
-      const text = await recognizeMenuImage(blob);
-      const parsed = parseMenuText(text);
-      if (parsed.length === 0) {
-        toast.error("No menu items found in the image.");
-        return;
-      }
-      setCandidates(parsed.map((item) => ({ rowId: crypto.randomUUID(), ...item })));
-      setPriceErrors({});
-      setReviewOpen(true);
-    } catch {
-      toast.error("Could not read the menu image.");
-    } finally {
-      setIsRecognizing(false);
-    }
+  function handleGenerate() {
+    generateMenu.mutate(undefined, {
+      onSuccess: ({ items }) => {
+        if (items.length === 0) {
+          toast.error("No menu items found in the image.");
+          return;
+        }
+        setCandidates(items.map((item) => ({ rowId: crypto.randomUUID(), ...item })));
+        setPriceErrors({});
+        setReviewOpen(true);
+      },
+    });
   }
 
   function handleCandidateChange(
@@ -131,11 +116,11 @@ export function GenerateMenuFromImage({
       <Button
         type="button"
         variant="outline"
-        disabled={isRecognizing}
+        disabled={generateMenu.isPending}
         onClick={handleGenerate}
         className="self-start"
       >
-        {isRecognizing ? "Reading menu…" : "Generate menu from image"}
+        {generateMenu.isPending ? "Generating menu…" : "Generate menu from image"}
       </Button>
 
       <Dialog open={reviewOpen} onOpenChange={setReviewOpen}>

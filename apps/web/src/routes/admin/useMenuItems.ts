@@ -75,6 +75,17 @@ export function useBulkCreateMenuItems(restaurantId: number) {
   });
 }
 
+export function useGenerateMenuFromImage(restaurantId: number) {
+  return useMutation({
+    mutationFn: () =>
+      api.post<{ items: { name: string; price: string }[] }>(
+        `/restaurants/${restaurantId}/generate-menu`,
+        {},
+      ),
+    onError: (error) => toastApiError(error, "Could not generate menu items from the image."),
+  });
+}
+
 export function useUpdateMenuItem(restaurantId: number) {
   const queryClient = useQueryClient();
 

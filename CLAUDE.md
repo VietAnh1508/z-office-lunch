@@ -74,6 +74,7 @@ Non-obvious bits the scripts themselves don't tell you:
 - If `wrangler dev` fails to start, check `apps/api/.env` exists first — that's expected, not a bug.
 - Ignore the `REPLACE_ME`/`replace-me` placeholders in `apps/api/wrangler.jsonc` (Hyperdrive id, R2 bucket) — local dev doesn't need them filled in.
 - `pnpm dev`/`dev:hot` and `pnpm test:e2e` can run at the same time in separate terminals — they use different ports (`:8787` vs `:8788`) and different databases.
+- Workers AI (`env.AI`, used by "Generate menu from image") has no local emulation: every `wrangler dev` invocation establishes a real remote connection to the Cloudflare account at startup, and manually clicking that button calls the real API. `pnpm test`/`pnpm test:e2e` stay network-free via a fake `AI` binding double — this only affects manual local testing, not the automated test suites. See `docs/architecture.md`'s task 038 entry.
 
 ## Fresh-session bootstrap
 
