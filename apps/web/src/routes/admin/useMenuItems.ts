@@ -78,7 +78,7 @@ export function useBulkCreateMenuItems(restaurantId: number) {
 export function useGenerateMenuFromImage(restaurantId: number) {
   return useMutation({
     mutationFn: () =>
-      api.post<{ items: { name: string; price: string }[] }>(
+      api.post<{ items: { name: string }[] }>(
         `/restaurants/${restaurantId}/generate-menu`,
         {},
       ),

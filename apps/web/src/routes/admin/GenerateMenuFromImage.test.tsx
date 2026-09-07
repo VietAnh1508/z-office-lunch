@@ -11,7 +11,7 @@ function mockMenuItemsList(items: unknown[] = []) {
 }
 
 function mockGenerateMenu(
-  handler: () => { items: { name: string; price: string }[] } | { error: string; status: number },
+  handler: () => { items: { name: string }[] } | { error: string; status: number },
 ) {
   server.use(
     http.post("/api/restaurants/1/generate-menu", () => {
@@ -54,10 +54,7 @@ describe("GenerateMenuFromImage", () => {
 
     resolveRequest(
       HttpResponse.json({
-        items: [
-          { name: "Pho Bo", price: "45000" },
-          { name: "Banh Mi", price: "20000" },
-        ],
+        items: [{ name: "Pho Bo" }, { name: "Banh Mi" }],
       }),
     );
 
@@ -95,11 +92,7 @@ describe("GenerateMenuFromImage", () => {
   it("removing one row never misidentifies another when editing after removal", async () => {
     const user = userEvent.setup({ pointerEventsCheck: 0 });
     mockGenerateMenu(() => ({
-      items: [
-        { name: "Pho Bo", price: "45000" },
-        { name: "Banh Mi", price: "20000" },
-        { name: "Com Tam", price: "30000" },
-      ],
+      items: [{ name: "Pho Bo" }, { name: "Banh Mi" }, { name: "Com Tam" }],
     }));
 
     render();
@@ -122,7 +115,7 @@ describe("GenerateMenuFromImage", () => {
 
   it("blocks Save when an edited price is invalid", async () => {
     const user = userEvent.setup({ pointerEventsCheck: 0 });
-    mockGenerateMenu(() => ({ items: [{ name: "Pho Bo", price: "45000" }] }));
+    mockGenerateMenu(() => ({ items: [{ name: "Pho Bo" }] }));
     let saveCalled = false;
     server.use(
       http.post("/api/restaurants/1/menu-items/bulk", () => {
@@ -136,8 +129,7 @@ describe("GenerateMenuFromImage", () => {
     await user.click(screen.getByRole("button", { name: "Generate menu from image" }));
     await screen.findByRole("dialog");
 
-    const priceInput = screen.getByDisplayValue("45000");
-    await user.clear(priceInput);
+    const priceInput = screen.getByLabelText("Candidate price");
     await user.type(priceInput, "-5");
     await user.click(screen.getByRole("button", { name: "Save" }));
 
@@ -149,7 +141,7 @@ describe("GenerateMenuFromImage", () => {
 
   it("shows a single Save button and saves directly with mode append when the restaurant has zero menu items", async () => {
     const user = userEvent.setup({ pointerEventsCheck: 0 });
-    mockGenerateMenu(() => ({ items: [{ name: "Pho Bo", price: "45000" }] }));
+    mockGenerateMenu(() => ({ items: [{ name: "Pho Bo" }] }));
     let requestBody: Record<string, unknown> | null = null;
     server.use(
       http.post("/api/restaurants/1/menu-items/bulk", async ({ request }) => {
@@ -180,7 +172,7 @@ describe("GenerateMenuFromImage", () => {
     mockMenuItemsList([
       { id: 99, restaurantId: 1, name: "Existing Item", price: null, active: true },
     ]);
-    mockGenerateMenu(() => ({ items: [{ name: "Pho Bo", price: "45000" }] }));
+    mockGenerateMenu(() => ({ items: [{ name: "Pho Bo" }] }));
 
     render();
 
@@ -197,7 +189,7 @@ describe("GenerateMenuFromImage", () => {
     mockMenuItemsList([
       { id: 99, restaurantId: 1, name: "Existing Item", price: null, active: true },
     ]);
-    mockGenerateMenu(() => ({ items: [{ name: "Pho Bo", price: "45000" }] }));
+    mockGenerateMenu(() => ({ items: [{ name: "Pho Bo" }] }));
     let requestBody: Record<string, unknown> | null = null;
     server.use(
       http.post("/api/restaurants/1/menu-items/bulk", async ({ request }) => {
@@ -225,7 +217,7 @@ describe("GenerateMenuFromImage", () => {
     mockMenuItemsList([
       { id: 99, restaurantId: 1, name: "Existing Item", price: null, active: true },
     ]);
-    mockGenerateMenu(() => ({ items: [{ name: "Pho Bo", price: "45000" }] }));
+    mockGenerateMenu(() => ({ items: [{ name: "Pho Bo" }] }));
     let saveCalled = false;
     server.use(
       http.post("/api/restaurants/1/menu-items/bulk", () => {
@@ -252,7 +244,7 @@ describe("GenerateMenuFromImage", () => {
     mockMenuItemsList([
       { id: 99, restaurantId: 1, name: "Existing Item", price: null, active: true },
     ]);
-    mockGenerateMenu(() => ({ items: [{ name: "Pho Bo", price: "45000" }] }));
+    mockGenerateMenu(() => ({ items: [{ name: "Pho Bo" }] }));
     let requestBody: Record<string, unknown> | null = null;
     server.use(
       http.post("/api/restaurants/1/menu-items/bulk", async ({ request }) => {
@@ -276,7 +268,7 @@ describe("GenerateMenuFromImage", () => {
     mockMenuItemsList([
       { id: 99, restaurantId: 1, name: "Existing Item", price: null, active: true },
     ]);
-    mockGenerateMenu(() => ({ items: [{ name: "Pho Bo", price: "45000" }] }));
+    mockGenerateMenu(() => ({ items: [{ name: "Pho Bo" }] }));
     let saveCalled = false;
     server.use(
       http.post("/api/restaurants/1/menu-items/bulk", () => {
@@ -290,8 +282,7 @@ describe("GenerateMenuFromImage", () => {
     await user.click(screen.getByRole("button", { name: "Generate menu from image" }));
     await screen.findByRole("dialog");
 
-    const priceInput = screen.getByDisplayValue("45000");
-    await user.clear(priceInput);
+    const priceInput = screen.getByLabelText("Candidate price");
     await user.type(priceInput, "-5");
     await user.click(screen.getByRole("button", { name: "Replace current menu" }));
 
@@ -303,7 +294,7 @@ describe("GenerateMenuFromImage", () => {
 
   it("shows an error toast and keeps the review dialog open with edits intact on save failure", async () => {
     const user = userEvent.setup({ pointerEventsCheck: 0 });
-    mockGenerateMenu(() => ({ items: [{ name: "Pho Bo", price: "45000" }] }));
+    mockGenerateMenu(() => ({ items: [{ name: "Pho Bo" }] }));
     server.use(
       http.post("/api/restaurants/1/menu-items/bulk", () =>
         HttpResponse.json({ error: "Could not save" }, { status: 500 }),

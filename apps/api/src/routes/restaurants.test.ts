@@ -577,10 +577,7 @@ describe("restaurants routes", () => {
 
         const ai = createFakeAiBinding();
         ai.resolveWith({
-          items: [
-            { name: "Ca Phe Den (S)", price: "29" },
-            { name: "Ca Phe Den (M)", price: "35" },
-          ],
+          items: [{ name: "Ca Phe Den" }, { name: "Banh Mi" }],
         });
 
         const res = await app.request(
@@ -590,11 +587,8 @@ describe("restaurants routes", () => {
         );
 
         expect(res.status).toBe(200);
-        const body = (await res.json()) as { items: { name: string; price: string }[] };
-        expect(body.items).toEqual([
-          { name: "Ca Phe Den (S)", price: "29" },
-          { name: "Ca Phe Den (M)", price: "35" },
-        ]);
+        const body = (await res.json()) as { items: { name: string }[] };
+        expect(body.items).toEqual([{ name: "Ca Phe Den" }, { name: "Banh Mi" }]);
       });
 
       it("a well-formed model response encoded as a JSON string also returns 200 with items", async () => {
@@ -607,7 +601,7 @@ describe("restaurants routes", () => {
         );
 
         const ai = createFakeAiBinding();
-        ai.resolveWith(JSON.stringify({ items: [{ name: "Banh Mi", price: "20000" }] }));
+        ai.resolveWith(JSON.stringify({ items: [{ name: "Banh Mi" }] }));
 
         const res = await app.request(
           `/api/restaurants/${restaurant.id}/generate-menu`,
@@ -616,11 +610,11 @@ describe("restaurants routes", () => {
         );
 
         expect(res.status).toBe(200);
-        const body = (await res.json()) as { items: { name: string; price: string }[] };
-        expect(body.items).toEqual([{ name: "Banh Mi", price: "20000" }]);
+        const body = (await res.json()) as { items: { name: string }[] };
+        expect(body.items).toEqual([{ name: "Banh Mi" }]);
       });
 
-      it("normalizes a dot-grouped thousands price instead of passing it through literally", async () => {
+      it("ignores a price the model returns anyway", async () => {
         const restaurant = await createRestaurant();
         const bucket = createFakeMenuImagesBucket();
         await app.request(
@@ -639,31 +633,8 @@ describe("restaurants routes", () => {
         );
 
         expect(res.status).toBe(200);
-        const body = (await res.json()) as { items: { name: string; price: string }[] };
-        expect(body.items).toEqual([{ name: "Pho Bo", price: "25000" }]);
-      });
-
-      it("coerces a price returned as a JSON number instead of a string", async () => {
-        const restaurant = await createRestaurant();
-        const bucket = createFakeMenuImagesBucket();
-        await app.request(
-          `/api/restaurants/${restaurant.id}/menu-image`,
-          { method: "POST", body: menuImageFormData() },
-          { ...testEnv, MENU_IMAGES: bucket },
-        );
-
-        const ai = createFakeAiBinding();
-        ai.resolveWith({ items: [{ name: "Ca Phe Den (S)", price: 29 }] });
-
-        const res = await app.request(
-          `/api/restaurants/${restaurant.id}/generate-menu`,
-          { method: "POST" },
-          { ...testEnv, MENU_IMAGES: bucket, AI: ai as unknown },
-        );
-
-        expect(res.status).toBe(200);
-        const body = (await res.json()) as { items: { name: string; price: string }[] };
-        expect(body.items).toEqual([{ name: "Ca Phe Den (S)", price: "29" }]);
+        const body = (await res.json()) as { items: { name: string }[] };
+        expect(body.items).toEqual([{ name: "Pho Bo" }]);
       });
 
       it("a free-text (non-JSON) model response returns a structured 500", async () => {
@@ -699,7 +670,7 @@ describe("restaurants routes", () => {
         );
 
         const ai = createFakeAiBinding();
-        ai.resolveWith({ items: [{ name: "Ca Phe Den (S)" }] });
+        ai.resolveWith({ items: [{}] });
 
         const res = await app.request(
           `/api/restaurants/${restaurant.id}/generate-menu`,

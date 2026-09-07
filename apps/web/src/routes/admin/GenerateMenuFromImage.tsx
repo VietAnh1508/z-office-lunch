@@ -49,7 +49,9 @@ export function GenerateMenuFromImage({ restaurantId }: { restaurantId: number }
           toast.error("No menu items found in the image.");
           return;
         }
-        setCandidates(items.map((item) => ({ rowId: crypto.randomUUID(), ...item })));
+        setCandidates(
+          items.map((item) => ({ rowId: crypto.randomUUID(), name: item.name, price: "" })),
+        );
         setPriceErrors({});
         setReviewOpen(true);
       },

@@ -70,10 +70,15 @@ S/M/L folded into names as predicted below), and switching to Moondream now woul
 license gate and a fresh shape probe for no proven accuracy benefit on an admin-review-gated
 feature.
 
-**Multi-price items** (S/M/L sizes — the dominant real-world case that broke the old heuristic): the
-model emits one candidate item per size, with the size folded into the name (e.g. "Cà Phê Đen (S)" /
-"(M)" / "(L)"), each with its own single price. Fits the existing one-price-per-item data model
-exactly — no schema changes needed to `menu-items.bulk`.
+**Correction, recorded post-review (2026-09-07):** the paragraph above (multi-price S/M/L items,
+one candidate per size) is superseded. Reviewing the merged implementation, the model is not asked
+for price at all anymore — `price` is already optional on `MenuItem` and admin-entered by hand in
+the review dialog, so there's no price for the model to misread, normalize, or need a schema for.
+The prompt now asks for distinct item **names only**, once each (a multi-size item like Cà Phê Đen
+is listed once, not split per size — there's no per-size price left to distinguish the entries).
+This drops `normalizeGeneratedPrice` and its dot-grouping/JSON-number-coercion handling entirely
+(see Plan Deviations for what those covered) — the runtime-validation surface shrinks to just
+"is `name` a string," and a model that returns a price anyway has it silently ignored.
 
 **New local-dev caveat, accepted:** Workers AI has no local emulation — `wrangler dev` always hits
 the real Cloudflare account for `env.AI.run()` calls, even in local dev (per Cloudflare's own docs).
@@ -93,8 +98,9 @@ which both have local-friendly test doubles already. Automated tests stay networ
       uploaded), calls the vision model **(corrected during implementation — see Plan Deviations:
       `response_format: json_schema` is silently ignored by this model on a real call, so the shape
       is requested via prompt instruction only, not a schema-constraining option)** constraining the
-      output to `{ items: { name: string; price: string }[] }` by runtime validation, and returns
-      that shape with `200`.
+      output to `{ items: { name: string }[] }` by runtime validation, and returns that shape with
+      `200`. **Post-review correction:** originally `{ name: string; price: string }[]` — price
+      extraction was dropped entirely (see the corrected Decision section).
 - [ ] The endpoint returns `500 { error: ERROR_MESSAGES.internal }` (structured `console.error`,
       matching `.claude/rules/api-error-handling.md`) when: the R2 object is missing despite
       `menuImage` being set on the row; the model call throws/rejects; or the model's output doesn't
@@ -111,9 +117,9 @@ which both have local-friendly test doubles already. Automated tests stay networ
       Same UX otherwise: button disables and relabels while pending (`"Generating menu…"`),
       zero-items response shows `"No menu items found in the image."` via `toast.error`, a request
       failure shows `"Could not generate menu items from the image."` via `toast.error`, success
-      seeds `candidates` (each tagged with a locally-minted `rowId`) and opens the review dialog.
-      Everything downstream of `candidates` (editing, removing, override/append confirm, save) is
-      unchanged.
+      seeds `candidates` (each tagged with a locally-minted `rowId`, `price` starting empty for the
+      admin to fill in by hand) and opens the review dialog. Everything downstream of `candidates`
+      (editing, removing, override/append confirm, save) is unchanged.
 - [ ] `apps/web/src/lib/ocr.ts`, `apps/web/src/lib/parse-menu-text.ts` and its test file, the
       `tesseract.js` dependency (`apps/web/package.json`), and its `pnpm-workspace.yaml`
       `allowBuilds` entry are all removed. No dead code, no dead dependency.
@@ -148,7 +154,9 @@ which both have local-friendly test doubles already. Automated tests stay networ
 
 - `404 { error: ERROR_MESSAGES.restaurantNotFound }` — id not an integer, or no matching row.
 - `404 { error: ERROR_MESSAGES.menuImageNotFound }` — row exists but `menuImage` is unset.
-- `200 { items: { name: string; price: string }[] }` — success.
+- `200 { items: { name: string }[] }` — success. **Post-review correction:** originally
+  `{ name: string; price: string }[]`; price extraction was dropped after review (see the
+  corrected Decision section) — `price` is admin-entered by hand in the review dialog instead.
 - `500 { error: ERROR_MESSAGES.internal }` (structured `console.error`, per
   `.claude/rules/api-error-handling.md`) — R2 object missing despite `menuImage` set; the model
   call throws/rejects; or the model's output fails a runtime shape check (JSON mode narrows
@@ -158,10 +166,13 @@ which both have local-friendly test doubles already. Automated tests stay networ
 
 - Model: `@cf/meta/llama-3.2-11b-vision-instruct`; shape requested via prompt instruction and
   validated at runtime (not `response_format: json_schema` — see the correction above).
-- Prompt: list every distinct menu item; for a multi-price item (e.g. S/M/L), emit one entry per
-  size with the size folded into the name (`"Cà Phê Đen (S)"`); ignore decorative images and
-  non-item text; price as the plain printed number, no currency symbol; respond with only the raw
-  JSON object, no markdown/commentary.
+- Prompt: list every distinct menu item by name only, once each; ignore prices, decorative
+  images, and non-item text; respond with only the raw JSON object, no markdown/commentary.
+  **Post-review
+  correction:** originally asked for price too (plain printed number, no currency symbol) and
+  split a multi-size item (S/M/L) into one entry per size with the size folded into the name
+  (`"Cà Phê Đen (S)"`). Both dropped — price is admin-entered by hand afterward, so there's no
+  per-size price left to justify splitting the entries; see the corrected Decision section.
 - Read the image bytes from `MENU_IMAGES` server-side (the client doesn't re-send bytes it already
   uploaded).
 
@@ -240,6 +251,15 @@ then the full `test_command`.
   testing) through several candidate request shapes to nail down the image content-part shape,
   the response envelope, and whether `response_format: json_schema` actually applies here — see
   Plan Deviations. Cleaned up after use; not part of this PR's diff.
+- Post-review simplification (2026-09-07, not yet committed): during PR review the user asked to
+  simplify extraction to name-only and drop price entirely, since `price` is already optional in
+  this app's data model. Reworked `GENERATE_MENU_PROMPT`/`parseGeneratedItems` (dropped
+  `normalizeGeneratedPrice` and the numeric-price-coercion branch), the frontend seed (`price`
+  starts `""` for manual entry), both test suites, and this task file's Decision/Plan/Plan
+  Deviations/Review Notes sections to match — see the corrections in place above. Verified
+  `parsePrice` (`menu-items.ts`) already treats `""` as `null`, so an unfilled generated price
+  saves cleanly. `pnpm -r typecheck && pnpm --filter web build && pnpm test` -> all passing
+  (349/349 vitest tests).
 
 ## Plan Deviations
 
@@ -288,7 +308,10 @@ then the full `test_command`.
   `normalizePriceToken` used to catch, ported into the new endpoint (`normalizeGeneratedPrice`);
   and a price returned as a bare JSON number (right value, wrong JSON type) 500'd an
   otherwise-good response outright, now accepted and coerced to a string. Fixed in `e5de3a7` with
-  two new regression tests.
+  two new regression tests. **Post-review correction (2026-09-07):** this whole surface — price
+  extraction, `normalizeGeneratedPrice`, the JSON-number coercion — was removed rather than kept
+  fixed; see the corrected Decision section for why (price is admin-entered by hand now, so
+  there's no model-emitted price left to normalize or coerce).
 - Otherwise implemented as planned: endpoint contract, fake `AI` binding test double shape/pattern,
   frontend `handleGenerate` swap and UX contract, and the cleanup of `ocr.ts`/`parse-menu-text.ts`/
   `tesseract.js` all matched the Plan as written.
@@ -320,6 +343,9 @@ it — silent 1000x price corruption for dot-grouped Vietnamese prices (confiden
 - **Outcome: fixed** in `e5de3a7` — ported `normalizePriceToken` into the new endpoint as
   `normalizeGeneratedPrice`, applied to every item's price before returning. Regression test added
   ("normalizes a dot-grouped thousands price instead of passing it through literally").
+  **Superseded post-review (2026-09-07):** the model no longer extracts price at all — see the
+  corrected Decision section — so this finding is now moot by removal rather than fixed by
+  normalization: there's no model-emitted price string left for a dot-grouped format to corrupt.
 
 ### Important
 
@@ -333,7 +359,10 @@ a JSON number instead of a string (confidence 82).**
 - **Outcome: fixed** in `e5de3a7` — `parseGeneratedItems` now accepts `typeof price === "number"`
   in addition to `"string"` and coerces via `String(price)` (through the same
   `normalizeGeneratedPrice` path as finding 1). Regression test added ("coerces a price returned
-  as a JSON number instead of a string").
+  as a JSON number instead of a string"). **Superseded post-review (2026-09-07):** moot by removal
+  — `parseGeneratedItems` no longer reads `price` at all, so there's no JSON-type mismatch left to
+  coerce. A model that returns a price anyway now has it silently ignored (a regression test
+  covers this, "ignores a price the model returns anyway").
 
 ### Notes (not flagged as violations)
 
