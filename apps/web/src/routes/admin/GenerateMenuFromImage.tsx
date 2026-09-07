@@ -1,4 +1,4 @@
-import { TriangleAlert } from "lucide-react";
+import { Sparkles, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import {
@@ -115,11 +115,12 @@ export function GenerateMenuFromImage({ restaurantId }: { restaurantId: number }
     <>
       <Button
         type="button"
-        variant="outline"
+        variant="secondary"
         disabled={generateMenu.isPending}
         onClick={handleGenerate}
-        className="self-start"
+        className="border border-violet-600/30 bg-violet-600/10 text-violet-700 hover:bg-violet-600/20 dark:border-violet-400/30 dark:bg-violet-400/10 dark:text-violet-300 dark:hover:bg-violet-400/20"
       >
+        <Sparkles />
         {generateMenu.isPending ? "Generating menu…" : "Generate menu from image"}
       </Button>
 
