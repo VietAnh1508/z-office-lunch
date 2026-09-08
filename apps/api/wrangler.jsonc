@@ -21,5 +21,8 @@
       "binding": "MENU_IMAGES",
       "bucket_name": "z-office-lunch-menu-images"
     }
-  ]
+  ],
+  "ai": {
+    "binding": "AI"
+  }
 }

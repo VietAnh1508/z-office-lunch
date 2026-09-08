@@ -1,4 +1,4 @@
-import { ArrowLeft, CircleCheck, CircleX, Pencil } from "lucide-react";
+import { ArrowLeft, CircleCheck, CircleX, Pencil, Trash2, Upload } from "lucide-react";
 import { type ChangeEvent, type SubmitEvent, useRef, useState } from "react";
 import { Link, useParams } from "react-router";
 import { Button } from "@/components/ui/button";
@@ -132,32 +132,31 @@ function RestaurantDetailsForm({ restaurant }: { restaurant: Restaurant }) {
                 className="max-w-xs rounded-lg border border-border"
               />
             )}
-            {menuImage && (
-              <GenerateMenuFromImage
-                restaurantId={restaurant.id}
-                menuImageSrc={`/api/restaurants/${restaurant.id}/menu-image?v=${menuImage}`}
-              />
-            )}
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                disabled={uploadMenuImage.isPending}
-                onClick={() => menuImageInputRef.current?.click()}
-                className="self-start"
-              >
-                Upload menu image
-              </Button>
-              {menuImage && (
+            <div className="flex flex-wrap items-center gap-4">
+              {menuImage && <GenerateMenuFromImage restaurantId={restaurant.id} />}
+              <div className="flex items-center gap-2">
                 <Button
                   type="button"
-                  variant="ghost"
-                  onClick={handleRemoveMenuImage}
-                  disabled={deleteMenuImage.isPending}
+                  variant="outline"
+                  disabled={uploadMenuImage.isPending}
+                  onClick={() => menuImageInputRef.current?.click()}
                 >
-                  Remove image
+                  <Upload />
+                  Upload menu image
                 </Button>
-              )}
+                {menuImage && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={handleRemoveMenuImage}
+                    disabled={deleteMenuImage.isPending}
+                    className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                  >
+                    <Trash2 />
+                    Remove image
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
           <Button type="submit" disabled={updateRestaurant.isPending} className="self-start">
