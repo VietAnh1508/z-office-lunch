@@ -10,16 +10,52 @@ test_command: "pnpm -r typecheck && pnpm --filter web build && pnpm test"
 created: 2026-09-04
 ---
 
-## Planning-approach note
+## Planning-approach experiment verdict (recorded 2026-09-08, reference file deleted)
 
 This task's Plan section was written under `plan-task.md`'s revised guidance (2026-09-04):
-decisions/findings/interface shapes only, no full implementation bodies (route handlers, component
-internals). `tasks/experiment-038-full-code-plan-reference.md` is the original code-heavy Plan for
-this same task, kept solely so that once this task reaches `status: done`, its Implementation Log
-and Plan Deviations can be compared against what that fuller Plan would have carried — see that
-file's "Comparison protocol" section for the exact steps and where to record the verdict. Do that
-comparison before deleting the reference file; it's otherwise excluded from `pnpm tasks:status` and
-safe to ignore for normal task-loop purposes.
+decisions/findings/interface shapes only, no full implementation bodies. A sibling file,
+`tasks/experiment-038-full-code-plan-reference.md`, held the original code-heavy Plan for this same
+task (full route handler, `isValidGeneratedItems`, `fake-ai-binding.ts`, `handleGenerate` bodies) so
+the two could be compared once this task reached `done`. That comparison is now done; verdict below,
+per the reference file's "Comparison protocol."
+
+Per-file classification against the actual merged code (PR 37):
+
+- **`restaurants.ts` route handler + validation fn — diverged, plan would've needed fixing anyway.**
+  The reference's snippet was wrong in three independent ways only discoverable via a live call:
+  `response_format: json_schema` is silently ignored by this model (no such field in its type at
+  all), the `{type:"image", image:...}` content-part errored (`AiError 8001`) — the real shape is
+  `{type:"image_url", image_url:{url:"data:..."}}` — and its implicit default `max_tokens` (256)
+  truncates any real menu (needed 4096). This is exactly the risk the reference itself flagged as
+  unresolved and told the implementer to probe live first. Pre-writing the body bought nothing.
+- **`fake-ai-binding.ts` — diverged, plan was usable but deviated by choice.** Reference sketched a
+  thin `createFakeAiBinding(run) => {run}` passthrough; actual is a stateful
+  `resolveWith`/`rejectWith` factory. The reference's version would have compiled and worked — this
+  was a stylistic choice to match the sibling `fake-menu-images-bucket.ts` idiom more closely, not a
+  forced correction.
+- **`GenerateMenuFromImage.tsx` `handleGenerate` — diverged, plan violated an established
+  convention.** Reference wrote a raw `async function` with local `try/catch/finally` and manual
+  `isRecognizing` state. Actual code routes through a `useGenerateMenuFromImage` mutation hook, per
+  this repo's own `.claude/rules/mutation-feedback.md` (toasts/pending state live in the hook, not
+  the component) — an existing convention the reference simply didn't follow, not something a live
+  call revealed.
+- **`RestaurantDetail.tsx`, cleanup, docs — match.** Landed essentially as described; the leaner Plan
+  already captured these as prose, so there was nothing to compare code-for-code.
+
+**Answer to the protocol's question:** the reference's pre-written code bodies would not have saved
+real effort here — three of four snippets needed substantive rewriting anyway, two because of facts
+only a live call could surface (no shortcut existed for those) and one because it didn't follow an
+established project convention the leaner Plan's Acceptance Criteria already implicitly deferred to.
+`/implement-task` ended up writing essentially the same code test-first regardless of how much the
+Plan pre-wrote.
+
+**Refinement proposed (not yet applied to `plan-task.md`):** a full code body is worth writing only
+when the planner can currently answer "yes" to both (a) no live external system involved, and (b) no
+established repo pattern to defer to instead — narrower than "keep full bodies only for the single
+highest-risk file," since the highest-risk file here was exactly the one touching an unverified
+external API, i.e. the worst candidate for pre-written code. Treating this as n=1 (backend/
+integration-heavy task) per the protocol — holding off on changing `plan-task.md` until a second,
+frontend-heavy comparison is available.
 
 ## Goal
 
