@@ -1,7 +1,7 @@
 ---
 id: 039
 title: Parse pasted menu item names + Checkbox UI primitive
-status: in_review
+status: done
 depends_on: []
 parallelizable_with: [040]
 epic: bulk-paste-menu-items
