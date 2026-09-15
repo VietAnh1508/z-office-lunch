@@ -1,3 +1,4 @@
+import { Share } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router";
 import {
@@ -14,6 +15,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { copyRoundShareLink } from "@/lib/share-link";
 import { RoundStatusBadge } from "./RoundStatusBadge";
 import { useRestaurants } from "./useRestaurants";
 import { useDeleteRound, useRounds, type Round } from "./useRounds";
@@ -103,38 +106,55 @@ export function RoundList() {
                         Deadline {new Date(round.deadline).toLocaleString()}
                       </p>
                     </div>
-                    {round.status === "draft" && (
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
                           <Button
                             type="button"
-                            variant="destructive"
-                            size="sm"
-                            className="shrink-0"
-                            disabled={deleteRound.isPending && deleteRound.variables === round.id}
+                            variant="outline"
+                            size="icon-sm"
+                            onClick={() => copyRoundShareLink(round.id)}
                           >
-                            Delete
+                            <Share aria-hidden="true" />
+                            <span className="sr-only">Copy share link</span>
                           </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Delete this round?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              This cannot be undone.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction
+                        </TooltipTrigger>
+                        <TooltipContent>Copy share link</TooltipContent>
+                      </Tooltip>
+                      {round.status === "draft" && (
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              type="button"
                               variant="destructive"
-                              onClick={() => deleteRound.mutate(round.id)}
+                              size="sm"
+                              disabled={
+                                deleteRound.isPending && deleteRound.variables === round.id
+                              }
                             >
-                              Delete round
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    )}
+                              Delete
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete this round?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                variant="destructive"
+                                onClick={() => deleteRound.mutate(round.id)}
+                              >
+                                Delete round
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      )}
+                    </div>
                   </li>
                 ))}
               </ul>

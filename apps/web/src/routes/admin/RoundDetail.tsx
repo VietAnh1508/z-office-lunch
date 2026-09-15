@@ -1,4 +1,4 @@
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Share } from "lucide-react";
 import { type SubmitEvent, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import {
@@ -16,9 +16,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useRequiredField } from "@/hooks/useRequiredField";
 import { toCsv } from "@/lib/csv";
 import { downloadCsv } from "@/lib/download";
+import { copyRoundShareLink } from "@/lib/share-link";
 import { RoundStatusBadge } from "./RoundStatusBadge";
 import type { MenuItem } from "./useMenuItems";
 import { useMenuItems } from "./useMenuItems";
@@ -280,6 +282,20 @@ export function RoundDetail() {
         <div className="mt-1 flex items-baseline gap-2">
           <h1 className="text-2xl font-semibold tracking-tight">{round.label}</h1>
           <RoundStatusBadge status={round.status} />
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon-sm"
+                onClick={() => copyRoundShareLink(round.id)}
+              >
+                <Share aria-hidden="true" />
+                <span className="sr-only">Copy share link</span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Copy share link</TooltipContent>
+          </Tooltip>
         </div>
       </div>
 
