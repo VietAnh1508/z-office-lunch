@@ -1,7 +1,7 @@
 ---
 id: 041
 title: Bulk-add menu items via pasted text
-status: in_review
+status: done
 depends_on: [039, 040]
 parallelizable_with: []
 epic: bulk-paste-menu-items
