@@ -491,12 +491,14 @@ describe("Round (public view)", () => {
     it("shows a confirm dialog with the existing submission's details instead of submitting immediately", async () => {
       const user = userEvent.setup();
       let posted = false;
+      let lookupRequested = false;
       server.use(
         http.get("/api/rounds/1/public", () => HttpResponse.json(OPEN_ROUND_WITH_DRINK)),
         http.get("/api/employees", () => HttpResponse.json(EMPLOYEES)),
         http.get("/api/rounds/1/submissions", ({ request }) => {
           const url = new URL(request.url);
           if (url.searchParams.get("employeeId") === "1") {
+            lookupRequested = true;
             return HttpResponse.json([
               {
                 id: 5,
@@ -523,7 +525,11 @@ describe("Round (public view)", () => {
 
       await pickEmployee(user, "An Nguyen");
       await pickFoodItem(user, "Pho Bo");
-      await waitFor(() => user.click(screen.getByRole("button", { name: "Submit" })));
+      // Wait for the background per-employee lookup to actually resolve
+      // before submitting -- otherwise this test would pass or fail
+      // depending on timing, not on the dialog logic itself.
+      await waitFor(() => expect(lookupRequested).toBe(true));
+      await user.click(screen.getByRole("button", { name: "Submit" }));
 
       expect(
         await screen.findByText("You already have a submission for this round"),
@@ -536,12 +542,14 @@ describe("Round (public view)", () => {
     it("submits the form's current values on 'Submit anyway'", async () => {
       const user = userEvent.setup();
       let submittedBody: unknown = null;
+      let lookupRequested = false;
       server.use(
         http.get("/api/rounds/1/public", () => HttpResponse.json(OPEN_ROUND_FOOD_ONLY)),
         http.get("/api/employees", () => HttpResponse.json(EMPLOYEES)),
         http.get("/api/rounds/1/submissions", ({ request }) => {
           const url = new URL(request.url);
           if (url.searchParams.get("employeeId") === "1") {
+            lookupRequested = true;
             return HttpResponse.json([
               {
                 id: 5,
@@ -568,7 +576,8 @@ describe("Round (public view)", () => {
 
       await pickEmployee(user, "An Nguyen");
       await pickFoodItem(user, "Pho Bo");
-      await waitFor(() => user.click(screen.getByRole("button", { name: "Submit" })));
+      await waitFor(() => expect(lookupRequested).toBe(true));
+      await user.click(screen.getByRole("button", { name: "Submit" }));
       await screen.findByText("You already have a submission for this round");
       await user.click(screen.getByRole("button", { name: "Submit anyway" }));
 
@@ -584,12 +593,14 @@ describe("Round (public view)", () => {
     it("'Cancel' closes the dialog, sends no request, and keeps the entered values", async () => {
       const user = userEvent.setup();
       let posted = false;
+      let lookupRequested = false;
       server.use(
         http.get("/api/rounds/1/public", () => HttpResponse.json(OPEN_ROUND_FOOD_ONLY)),
         http.get("/api/employees", () => HttpResponse.json(EMPLOYEES)),
         http.get("/api/rounds/1/submissions", ({ request }) => {
           const url = new URL(request.url);
           if (url.searchParams.get("employeeId") === "1") {
+            lookupRequested = true;
             return HttpResponse.json([
               {
                 id: 5,
@@ -617,6 +628,7 @@ describe("Round (public view)", () => {
       await pickEmployee(user, "An Nguyen");
       await pickFoodItem(user, "Pho Bo");
       await user.type(screen.getByLabelText("Food note", { exact: false }), "Extra spicy");
+      await waitFor(() => expect(lookupRequested).toBe(true));
       await user.click(screen.getByRole("button", { name: "Submit" }));
       await screen.findByText("You already have a submission for this round");
 
