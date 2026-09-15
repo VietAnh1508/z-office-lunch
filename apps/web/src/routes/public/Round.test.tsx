@@ -454,4 +454,20 @@ describe("Round (public view)", () => {
       expect(screen.queryByRole("img")).not.toBeInTheDocument();
     });
   });
+
+  describe("no submissions list or edit affordance", () => {
+    it("renders no submissions table or Edit action on the public page", async () => {
+      server.use(
+        http.get("/api/rounds/1/public", () => HttpResponse.json(OPEN_ROUND_FOOD_ONLY)),
+        http.get("/api/employees", () => HttpResponse.json(EMPLOYEES)),
+      );
+
+      renderRound("1");
+
+      await screen.findByText("Place your order");
+      expect(screen.queryByText("No submissions yet.")).not.toBeInTheDocument();
+      expect(screen.queryByRole("table")).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Edit submission" })).not.toBeInTheDocument();
+    });
+  });
 });

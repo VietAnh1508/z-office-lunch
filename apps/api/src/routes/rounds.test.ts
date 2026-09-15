@@ -2445,6 +2445,8 @@ describe("rounds routes", () => {
         foodNote: string | null;
         drinkName: string | null;
         drinkNote: string | null;
+        foodRoundMenuItemId: number | null;
+        drinkRoundMenuItemId: number | null;
       };
 
       it("GET returns resolved names, excluding price and raw FKs", async () => {
@@ -2468,8 +2470,35 @@ describe("rounds routes", () => {
         expect(body[0]?.drinkName).toBeNull();
         expect(body[0]?.drinkNote).toBeNull();
         expect(JSON.stringify(body)).not.toContain("price");
-        expect(JSON.stringify(body)).not.toContain("RoundMenuItemId");
         expect(JSON.stringify(body)).not.toContain("employeeId");
+      });
+
+      it("GET includes foodRoundMenuItemId/drinkRoundMenuItemId alongside the resolved names", async () => {
+        const { round, foodRoundMenuItem } = await seedOpenFoodRound();
+        const drink = await seedRestaurant(db, { name: "Tra Da Corner", type: "drink" });
+        const drinkMenuItem = await seedMenuItem(db, { restaurantId: drink!.id, name: "Tra Da" });
+        await db
+          .update(rounds)
+          .set({ drinkRestaurantId: drink!.id })
+          .where(eq(rounds.id, round.id));
+        const drinkRoundMenuItem = await seedRoundMenuItem(db, {
+          roundId: round.id,
+          menuItemId: drinkMenuItem!.id,
+        });
+        const employee = await seedEmployee(db);
+        await seedSubmission(db, {
+          roundId: round.id,
+          employeeId: employee!.id,
+          foodRoundMenuItemId: foodRoundMenuItem.id,
+          drinkRoundMenuItemId: drinkRoundMenuItem!.id,
+        });
+
+        const res = await app.request(`/api/rounds/${round.id}/submissions`, {}, testEnv);
+
+        expect(res.status).toBe(200);
+        const body = (await res.json()) as SubmissionRow[];
+        expect(body[0]?.foodRoundMenuItemId).toBe(foodRoundMenuItem.id);
+        expect(body[0]?.drinkRoundMenuItemId).toBe(drinkRoundMenuItem!.id);
       });
 
       it("GET includes drinkName and drinkNote when a drink was submitted", async () => {
@@ -2543,6 +2572,282 @@ describe("rounds routes", () => {
 
       it("GET returns a structured 500 when the database is unreachable", async () => {
         const res = await app.request("/api/rounds/1/submissions", {}, unreachableEnv);
+
+        expect(res.status).toBe(500);
+        const body = (await res.json()) as { error?: string };
+        expect(body.error).toBeTruthy();
+      });
+    });
+
+    describe("PATCH /:id/submissions/:submissionId", () => {
+      async function patchSubmission(roundId: number, submissionId: number, body: unknown) {
+        return app.request(
+          `/api/rounds/${roundId}/submissions/${submissionId}`,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+          },
+          testEnv,
+        );
+      }
+
+      it.each(["draft", "open", "closed"] as const)(
+        "edits a submission's food/drink picks and notes when the round is %s",
+        async (status) => {
+          const { round, food, foodRoundMenuItem } = await seedOpenFoodRound({ status });
+          const secondFoodMenuItem = await seedMenuItem(db, {
+            restaurantId: food!.id,
+            name: "Pho Ga",
+          });
+          const secondFoodRoundMenuItem = await seedRoundMenuItem(db, {
+            roundId: round.id,
+            menuItemId: secondFoodMenuItem!.id,
+          });
+          const drink = await seedRestaurant(db, { name: "Tra Da Corner", type: "drink" });
+          const drinkMenuItem = await seedMenuItem(db, { restaurantId: drink!.id, name: "Tra Da" });
+          await db
+            .update(rounds)
+            .set({ drinkRestaurantId: drink!.id })
+            .where(eq(rounds.id, round.id));
+          const drinkRoundMenuItem = await seedRoundMenuItem(db, {
+            roundId: round.id,
+            menuItemId: drinkMenuItem!.id,
+          });
+          const employee = await seedEmployee(db, { fullName: "An Nguyen" });
+          const submission = await seedSubmission(db, {
+            roundId: round.id,
+            employeeId: employee!.id,
+            foodRoundMenuItemId: foodRoundMenuItem.id,
+            foodNote: "No cilantro",
+          });
+
+          const res = await patchSubmission(round.id, submission!.id, {
+            foodRoundMenuItemId: secondFoodRoundMenuItem!.id,
+            foodNote: "Extra spicy",
+            drinkRoundMenuItemId: drinkRoundMenuItem!.id,
+            drinkNote: "Less ice",
+          });
+
+          expect(res.status).toBe(200);
+          const body = (await res.json()) as Submission;
+          expect(body.foodRoundMenuItemId).toBe(secondFoodRoundMenuItem!.id);
+          expect(body.foodNote).toBe("Extra spicy");
+          expect(body.drinkRoundMenuItemId).toBe(drinkRoundMenuItem!.id);
+          expect(body.drinkNote).toBe("Less ice");
+        },
+      );
+
+      it("edits past the deadline, since an admin edit has no deadline check", async () => {
+        const { round, foodRoundMenuItem } = await seedOpenFoodRound({
+          deadline: new Date("2000-01-01T00:00:00.000Z"),
+        });
+        const employee = await seedEmployee(db);
+        const submission = await seedSubmission(db, {
+          roundId: round.id,
+          employeeId: employee!.id,
+          foodRoundMenuItemId: foodRoundMenuItem.id,
+        });
+
+        const res = await patchSubmission(round.id, submission!.id, {
+          foodRoundMenuItemId: foodRoundMenuItem.id,
+          foodNote: "Extra spicy",
+        });
+
+        expect(res.status).toBe(200);
+      });
+
+      it("clears the drink by omitting drinkRoundMenuItemId", async () => {
+        const { round, foodRoundMenuItem } = await seedOpenFoodRound();
+        const drink = await seedRestaurant(db, { name: "Tra Da Corner", type: "drink" });
+        const drinkMenuItem = await seedMenuItem(db, { restaurantId: drink!.id, name: "Tra Da" });
+        await db
+          .update(rounds)
+          .set({ drinkRestaurantId: drink!.id })
+          .where(eq(rounds.id, round.id));
+        const drinkRoundMenuItem = await seedRoundMenuItem(db, {
+          roundId: round.id,
+          menuItemId: drinkMenuItem!.id,
+        });
+        const employee = await seedEmployee(db);
+        const submission = await seedSubmission(db, {
+          roundId: round.id,
+          employeeId: employee!.id,
+          foodRoundMenuItemId: foodRoundMenuItem.id,
+          drinkRoundMenuItemId: drinkRoundMenuItem!.id,
+          drinkNote: "Less ice",
+        });
+
+        const res = await patchSubmission(round.id, submission!.id, {
+          foodRoundMenuItemId: foodRoundMenuItem.id,
+        });
+
+        expect(res.status).toBe(200);
+        const body = (await res.json()) as Submission;
+        expect(body.drinkRoundMenuItemId).toBeNull();
+        expect(body.drinkNote).toBeNull();
+      });
+
+      it("edits a submission whose foodRoundMenuItemId was previously nulled by a curated-item deletion", async () => {
+        const { round, foodRoundMenuItem } = await seedOpenFoodRound();
+        const employee = await seedEmployee(db);
+        const submission = await seedSubmission(db, {
+          roundId: round.id,
+          employeeId: employee!.id,
+          foodRoundMenuItemId: foodRoundMenuItem.id,
+        });
+        await db
+          .update(submissions)
+          .set({ foodRoundMenuItemId: null })
+          .where(eq(submissions.id, submission!.id));
+
+        const res = await patchSubmission(round.id, submission!.id, {
+          foodRoundMenuItemId: foodRoundMenuItem.id,
+        });
+
+        expect(res.status).toBe(200);
+        const body = (await res.json()) as Submission;
+        expect(body.foodRoundMenuItemId).toBe(foodRoundMenuItem.id);
+      });
+
+      it("rejects with 400 when foodRoundMenuItemId is missing", async () => {
+        const { round, foodRoundMenuItem } = await seedOpenFoodRound();
+        const employee = await seedEmployee(db);
+        const submission = await seedSubmission(db, {
+          roundId: round.id,
+          employeeId: employee!.id,
+          foodRoundMenuItemId: foodRoundMenuItem.id,
+        });
+
+        const res = await patchSubmission(round.id, submission!.id, {});
+
+        expect(res.status).toBe(400);
+        const body = (await res.json()) as { error?: string };
+        expect(body.error).toBe(ERROR_MESSAGES.foodRoundMenuItemIdRequired);
+      });
+
+      it("rejects with 404 when foodRoundMenuItemId belongs to a different round", async () => {
+        const { round, foodRoundMenuItem } = await seedOpenFoodRound();
+        const { foodRoundMenuItem: otherFoodRoundMenuItem } = await seedOpenFoodRound();
+        const employee = await seedEmployee(db);
+        const submission = await seedSubmission(db, {
+          roundId: round.id,
+          employeeId: employee!.id,
+          foodRoundMenuItemId: foodRoundMenuItem.id,
+        });
+
+        const res = await patchSubmission(round.id, submission!.id, {
+          foodRoundMenuItemId: otherFoodRoundMenuItem.id,
+        });
+
+        expect(res.status).toBe(404);
+        const body = (await res.json()) as { error?: string };
+        expect(body.error).toBe(ERROR_MESSAGES.roundMenuItemNotFound);
+      });
+
+      it("rejects with 400 when drinkRoundMenuItemId is given but the round has no drink restaurant", async () => {
+        const { round, foodRoundMenuItem } = await seedOpenFoodRound();
+        const employee = await seedEmployee(db);
+        const submission = await seedSubmission(db, {
+          roundId: round.id,
+          employeeId: employee!.id,
+          foodRoundMenuItemId: foodRoundMenuItem.id,
+        });
+
+        const res = await patchSubmission(round.id, submission!.id, {
+          foodRoundMenuItemId: foodRoundMenuItem.id,
+          drinkRoundMenuItemId: foodRoundMenuItem.id,
+        });
+
+        expect(res.status).toBe(400);
+        const body = (await res.json()) as { error?: string };
+        expect(body.error).toBe(ERROR_MESSAGES.submissionNoDrinkRestaurant);
+      });
+
+      it("returns 404 for a nonexistent submissionId", async () => {
+        const { round, foodRoundMenuItem } = await seedOpenFoodRound();
+
+        const res = await patchSubmission(round.id, 999999, {
+          foodRoundMenuItemId: foodRoundMenuItem.id,
+        });
+
+        expect(res.status).toBe(404);
+        const body = (await res.json()) as { error?: string };
+        expect(body.error).toBe(ERROR_MESSAGES.submissionNotFound);
+      });
+
+      it("returns 404 when the submission exists but belongs to a different round", async () => {
+        const { round, foodRoundMenuItem } = await seedOpenFoodRound();
+        const { round: otherRound, foodRoundMenuItem: otherFoodRoundMenuItem } =
+          await seedOpenFoodRound();
+        const employee = await seedEmployee(db);
+        const submission = await seedSubmission(db, {
+          roundId: otherRound.id,
+          employeeId: employee!.id,
+          foodRoundMenuItemId: otherFoodRoundMenuItem.id,
+        });
+
+        const res = await patchSubmission(round.id, submission!.id, {
+          foodRoundMenuItemId: foodRoundMenuItem.id,
+        });
+
+        expect(res.status).toBe(404);
+        const body = (await res.json()) as { error?: string };
+        expect(body.error).toBe(ERROR_MESSAGES.submissionNotFound);
+      });
+
+      it("returns 404 for a non-integer round id", async () => {
+        const employee = await seedEmployee(db);
+        const { round, foodRoundMenuItem } = await seedOpenFoodRound();
+        const submission = await seedSubmission(db, {
+          roundId: round.id,
+          employeeId: employee!.id,
+          foodRoundMenuItemId: foodRoundMenuItem.id,
+        });
+
+        const res = await app.request(
+          `/api/rounds/abc/submissions/${submission!.id}`,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ foodRoundMenuItemId: foodRoundMenuItem.id }),
+          },
+          testEnv,
+        );
+
+        expect(res.status).toBe(404);
+        const body = (await res.json()) as { error?: string };
+        expect(body.error).toBe(ERROR_MESSAGES.roundNotFound);
+      });
+
+      it("returns 404 for a non-integer submissionId", async () => {
+        const { round, foodRoundMenuItem } = await seedOpenFoodRound();
+
+        const res = await app.request(
+          `/api/rounds/${round.id}/submissions/abc`,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ foodRoundMenuItemId: foodRoundMenuItem.id }),
+          },
+          testEnv,
+        );
+
+        expect(res.status).toBe(404);
+        const body = (await res.json()) as { error?: string };
+        expect(body.error).toBe(ERROR_MESSAGES.submissionNotFound);
+      });
+
+      it("returns a structured 500 when the database is unreachable", async () => {
+        const res = await app.request(
+          "/api/rounds/1/submissions/1",
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ foodRoundMenuItemId: 1 }),
+          },
+          unreachableEnv,
+        );
 
         expect(res.status).toBe(500);
         const body = (await res.json()) as { error?: string };
