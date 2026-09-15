@@ -19,6 +19,7 @@ export function SubmissionsTable({
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b text-left text-muted-foreground">
+            <th className="py-1.5 pr-4 font-medium">No.</th>
             {SUBMISSION_COLUMNS.map((column, index) => (
               <th
                 key={column}
@@ -35,8 +36,9 @@ export function SubmissionsTable({
           </tr>
         </thead>
         <tbody className="divide-y divide-border">
-          {submissions.map((submission) => (
+          {submissions.map((submission, index) => (
             <tr key={submission.id}>
+              <td className="py-1.5 pr-4 text-muted-foreground">{index + 1}</td>
               <td className="py-1.5 pr-4">{submission.employeeName}</td>
               <td className="py-1.5 pr-4">{submission.foodName}</td>
               <td className="py-1.5 pr-4">{submission.foodNote}</td>
