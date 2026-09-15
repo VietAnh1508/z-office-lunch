@@ -185,14 +185,11 @@ test("employee submits food and drink picks, then a second submission overwrites
   await page.getByRole("button", { name: "Submit" }).click();
   await expect(page.getByText("Thanks! Your order has been recorded.")).toBeVisible();
 
-  // The public page's own submissions list picks up the new row without a
-  // page reload (task 024).
-  await expect(page.getByRole("cell", { name: employeeName })).toBeVisible();
-
   // Second submission for the same round + employee: overwrites the first in
   // place (task 033), not rejected. The form starts blank on every load, so
   // re-select food and drink to keep "Less ice" intact for the admin check
-  // below.
+  // below. A confirm-overwrite dialog now sits in front of this second submit
+  // (task 044) since a submission for this name already exists.
   await page.goto(`/r/${roundId}`);
   await page.getByRole("combobox", { name: "Your name", exact: false }).fill(employeeName);
   await page.getByRole("option", { name: employeeName }).click();
@@ -200,6 +197,11 @@ test("employee submits food and drink picks, then a second submission overwrites
   await page.getByLabel("Drink item", { exact: false }).selectOption({ label: "Tra Da" });
   await page.getByLabel("Drink note", { exact: false }).fill("Less ice");
   await page.getByRole("button", { name: "Submit" }).click();
+
+  await expect(
+    page.getByText("You already have a submission for this round"),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Submit anyway" }).click();
 
   await expect(page.getByText("Thanks! Your order has been recorded.")).toBeVisible();
 

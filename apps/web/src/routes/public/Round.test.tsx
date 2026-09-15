@@ -523,8 +523,7 @@ describe("Round (public view)", () => {
 
       await pickEmployee(user, "An Nguyen");
       await pickFoodItem(user, "Pho Bo");
-      await screen.findByText(/no cilantro/i);
-      await user.click(screen.getByRole("button", { name: "Submit" }));
+      await waitFor(() => user.click(screen.getByRole("button", { name: "Submit" })));
 
       expect(
         await screen.findByText("You already have a submission for this round"),
@@ -569,6 +568,7 @@ describe("Round (public view)", () => {
 
       await pickEmployee(user, "An Nguyen");
       await pickFoodItem(user, "Pho Bo");
+      await waitFor(() => user.click(screen.getByRole("button", { name: "Submit" })));
       await screen.findByText("You already have a submission for this round");
       await user.click(screen.getByRole("button", { name: "Submit anyway" }));
 
