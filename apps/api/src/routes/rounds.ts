@@ -607,22 +607,31 @@ roundsRoute.patch("/:id/status", async (c) => {
   }
 });
 
-roundsRoute.post("/:id/submissions", async (c) => {
-  const roundId = Number(c.req.param("id"));
-  const body = await c.req.json().catch(() => ({}));
-  const employeeId = Number(body.employeeId);
-  const foodRoundMenuItemId = Number(body.foodRoundMenuItemId);
-  const foodNote = typeof body.foodNote === "string" && body.foodNote.trim() ? body.foodNote.trim() : null;
+type SubmissionFieldsResult =
+  | {
+      ok: true;
+      foodRoundMenuItemId: number;
+      foodNote: string | null;
+      drinkRoundMenuItemId: number | null;
+      drinkNote: string | null;
+    }
+  | { ok: false; error: string; status: 400 | 404 };
 
-  if (!Number.isInteger(roundId)) {
-    return c.json({ error: ERROR_MESSAGES.roundNotFound }, 404);
-  }
-  if (!Number.isInteger(employeeId)) {
-    return c.json({ error: ERROR_MESSAGES.employeeIdRequired }, 400);
-  }
+// Shared by POST (self-service submit) and PATCH (admin edit): parses and
+// validates foodRoundMenuItemId/drinkRoundMenuItemId/notes against the given
+// round's curated items. Callers own everything status/deadline/ownership
+// related -- this only knows about field shape and restaurant ownership.
+async function parseSubmissionFields(
+  db: ReturnType<typeof getDb>,
+  round: typeof rounds.$inferSelect,
+  body: Record<string, unknown>,
+): Promise<SubmissionFieldsResult> {
+  const foodRoundMenuItemId = Number(body.foodRoundMenuItemId);
   if (!Number.isInteger(foodRoundMenuItemId)) {
-    return c.json({ error: ERROR_MESSAGES.foodRoundMenuItemIdRequired }, 400);
+    return { ok: false, error: ERROR_MESSAGES.foodRoundMenuItemIdRequired, status: 400 };
   }
+  const foodNote =
+    typeof body.foodNote === "string" && body.foodNote.trim() ? body.foodNote.trim() : null;
 
   let drinkRoundMenuItemId: number | null = null;
   if (
@@ -632,7 +641,7 @@ roundsRoute.post("/:id/submissions", async (c) => {
   ) {
     const parsed = Number(body.drinkRoundMenuItemId);
     if (!Number.isInteger(parsed)) {
-      return c.json({ error: ERROR_MESSAGES.drinkRoundMenuItemIdInvalid }, 400);
+      return { ok: false, error: ERROR_MESSAGES.drinkRoundMenuItemIdInvalid, status: 400 };
     }
     drinkRoundMenuItemId = parsed;
   }
@@ -640,6 +649,49 @@ roundsRoute.post("/:id/submissions", async (c) => {
     drinkRoundMenuItemId !== null && typeof body.drinkNote === "string" && body.drinkNote.trim()
       ? body.drinkNote.trim()
       : null;
+
+  const selectRoundMenuItem = (id: number) =>
+    db
+      .select({ id: roundMenuItems.id, restaurantId: menuItems.restaurantId })
+      .from(roundMenuItems)
+      .innerJoin(menuItems, eq(roundMenuItems.menuItemId, menuItems.id))
+      .where(and(eq(roundMenuItems.id, id), eq(roundMenuItems.roundId, round.id)));
+
+  const [foodItem] = await selectRoundMenuItem(foodRoundMenuItemId);
+  if (!foodItem) {
+    return { ok: false, error: ERROR_MESSAGES.roundMenuItemNotFound, status: 404 };
+  }
+  if (foodItem.restaurantId !== round.foodRestaurantId) {
+    return { ok: false, error: ERROR_MESSAGES.foodRoundMenuItemInvalid, status: 400 };
+  }
+
+  if (drinkRoundMenuItemId !== null) {
+    if (round.drinkRestaurantId === null) {
+      return { ok: false, error: ERROR_MESSAGES.submissionNoDrinkRestaurant, status: 400 };
+    }
+    const [drinkItem] = await selectRoundMenuItem(drinkRoundMenuItemId);
+    if (!drinkItem) {
+      return { ok: false, error: ERROR_MESSAGES.roundMenuItemNotFound, status: 404 };
+    }
+    if (drinkItem.restaurantId !== round.drinkRestaurantId) {
+      return { ok: false, error: ERROR_MESSAGES.drinkRoundMenuItemInvalid, status: 400 };
+    }
+  }
+
+  return { ok: true, foodRoundMenuItemId, foodNote, drinkRoundMenuItemId, drinkNote };
+}
+
+roundsRoute.post("/:id/submissions", async (c) => {
+  const roundId = Number(c.req.param("id"));
+  const body = await c.req.json().catch(() => ({}));
+  const employeeId = Number(body.employeeId);
+
+  if (!Number.isInteger(roundId)) {
+    return c.json({ error: ERROR_MESSAGES.roundNotFound }, 404);
+  }
+  if (!Number.isInteger(employeeId)) {
+    return c.json({ error: ERROR_MESSAGES.employeeIdRequired }, 400);
+  }
 
   const db = getDb(c);
   try {
@@ -662,33 +714,11 @@ roundsRoute.post("/:id/submissions", async (c) => {
       return c.json({ error: ERROR_MESSAGES.employeeNotFound }, 404);
     }
 
-    const selectRoundMenuItem = (id: number) =>
-      db
-        .select({ id: roundMenuItems.id, restaurantId: menuItems.restaurantId })
-        .from(roundMenuItems)
-        .innerJoin(menuItems, eq(roundMenuItems.menuItemId, menuItems.id))
-        .where(and(eq(roundMenuItems.id, id), eq(roundMenuItems.roundId, roundId)));
-
-    const [foodItem] = await selectRoundMenuItem(foodRoundMenuItemId);
-    if (!foodItem) {
-      return c.json({ error: ERROR_MESSAGES.roundMenuItemNotFound }, 404);
+    const fields = await parseSubmissionFields(db, round, body);
+    if (!fields.ok) {
+      return c.json({ error: fields.error }, fields.status);
     }
-    if (foodItem.restaurantId !== round.foodRestaurantId) {
-      return c.json({ error: ERROR_MESSAGES.foodRoundMenuItemInvalid }, 400);
-    }
-
-    if (drinkRoundMenuItemId !== null) {
-      if (round.drinkRestaurantId === null) {
-        return c.json({ error: ERROR_MESSAGES.submissionNoDrinkRestaurant }, 400);
-      }
-      const [drinkItem] = await selectRoundMenuItem(drinkRoundMenuItemId);
-      if (!drinkItem) {
-        return c.json({ error: ERROR_MESSAGES.roundMenuItemNotFound }, 404);
-      }
-      if (drinkItem.restaurantId !== round.drinkRestaurantId) {
-        return c.json({ error: ERROR_MESSAGES.drinkRoundMenuItemInvalid }, 400);
-      }
-    }
+    const { foodRoundMenuItemId, foodNote, drinkRoundMenuItemId, drinkNote } = fields;
 
     const [existing] = await db
       .select()
@@ -724,6 +754,58 @@ roundsRoute.post("/:id/submissions", async (c) => {
   }
 });
 
+// Admin data-correction action: no round-status or deadline gate (unlike
+// POST above, which is the self-service submission path) -- the round can be
+// draft/open/closed and past its deadline. The target row is found by
+// (id, roundId) ownership instead of (roundId, employeeId), since the admin
+// is editing a specific table row, not upserting for "the current employee".
+roundsRoute.patch("/:id/submissions/:submissionId", async (c) => {
+  const roundId = Number(c.req.param("id"));
+  const submissionId = Number(c.req.param("submissionId"));
+  const body = await c.req.json().catch(() => ({}));
+
+  if (!Number.isInteger(roundId)) {
+    return c.json({ error: ERROR_MESSAGES.roundNotFound }, 404);
+  }
+  if (!Number.isInteger(submissionId)) {
+    return c.json({ error: ERROR_MESSAGES.submissionNotFound }, 404);
+  }
+
+  const db = getDb(c);
+  try {
+    const [round] = await db.select().from(rounds).where(eq(rounds.id, roundId));
+    if (!round) {
+      return c.json({ error: ERROR_MESSAGES.roundNotFound }, 404);
+    }
+
+    const [submission] = await db
+      .select()
+      .from(submissions)
+      .where(and(eq(submissions.id, submissionId), eq(submissions.roundId, roundId)));
+    if (!submission) {
+      return c.json({ error: ERROR_MESSAGES.submissionNotFound }, 404);
+    }
+
+    const fields = await parseSubmissionFields(db, round, body);
+    if (!fields.ok) {
+      return c.json({ error: fields.error }, fields.status);
+    }
+    const { foodRoundMenuItemId, foodNote, drinkRoundMenuItemId, drinkNote } = fields;
+
+    const [row] = await db
+      .update(submissions)
+      .set({ foodRoundMenuItemId, foodNote, drinkRoundMenuItemId, drinkNote, updatedAt: new Date() })
+      .where(eq(submissions.id, submissionId))
+      .returning();
+    return c.json(row);
+  } catch (e) {
+    console.error(JSON.stringify({ message: "failed to update submission", error: String(e) }));
+    return c.json({ error: ERROR_MESSAGES.internal }, 500);
+  } finally {
+    await db.$client.end();
+  }
+});
+
 roundsRoute.get("/:id/submissions", async (c) => {
   const roundId = Number(c.req.param("id"));
   if (!Number.isInteger(roundId)) {
@@ -732,9 +814,11 @@ roundsRoute.get("/:id/submissions", async (c) => {
 
   const db = getDb(c);
   try {
-    // Explicit column selection (never `price`, never a raw *RoundMenuItemId
-    // FK) so the client gets already-resolved names and never has to
-    // re-join or remember to drop a field itself.
+    // Explicit column selection (never `price`) so the client gets
+    // already-resolved names and never has to re-join itself. The raw
+    // *RoundMenuItemId FKs are included alongside the resolved names so the
+    // admin edit dialog can pre-select the right `<option>` -- the resolved
+    // names alone aren't enough to prefill a form.
     const rows = await db
       .select({
         id: submissions.id,
@@ -743,6 +827,8 @@ roundsRoute.get("/:id/submissions", async (c) => {
         foodNote: submissions.foodNote,
         drinkName: drinkMenuItemAlias.name,
         drinkNote: submissions.drinkNote,
+        foodRoundMenuItemId: submissions.foodRoundMenuItemId,
+        drinkRoundMenuItemId: submissions.drinkRoundMenuItemId,
       })
       .from(submissions)
       .innerJoin(employees, eq(submissions.employeeId, employees.id))

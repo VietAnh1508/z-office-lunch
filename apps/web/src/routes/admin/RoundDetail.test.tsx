@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { HttpResponse, http } from "msw";
 import { MemoryRouter, Route, Routes } from "react-router";
@@ -712,6 +712,210 @@ describe("RoundDetail", () => {
       expect(csv).toContain("An Nguyen");
       expect(csv).toContain("Pho Bo");
       expect(csv).toContain("No cilantro");
+    });
+  });
+
+  describe("submission edit", () => {
+    const CURATED_ROUND_MENU_ITEMS = [
+      { id: 10, roundId: 1, menuItemId: 100 },
+      { id: 11, roundId: 1, menuItemId: 101 },
+      { id: 20, roundId: 1, menuItemId: 200 },
+    ];
+    const FOOD_MENU_ITEMS = [
+      { id: 100, restaurantId: 1, name: "Pho Bo", price: "11000", active: true },
+      { id: 101, restaurantId: 1, name: "Pho Ga", price: "10000", active: true },
+      { id: 102, restaurantId: 1, name: "Bun Cha", price: "12000", active: true },
+    ];
+    const DRINK_MENU_ITEMS = [{ id: 200, restaurantId: 2, name: "Tra Da", price: "5000", active: true }];
+    const SUBMISSION = {
+      id: 1,
+      employeeName: "An Nguyen",
+      foodName: "Pho Bo",
+      foodNote: "No cilantro",
+      drinkName: "Tra Da",
+      drinkNote: null,
+      foodRoundMenuItemId: 10,
+      drinkRoundMenuItemId: 20,
+    };
+
+    function baseHandlers() {
+      return [
+        http.get("/api/rounds/1", () => HttpResponse.json(draftRound({ drinkRestaurantId: 2 }))),
+        http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+        http.get("/api/rounds/1/menu-items", () => HttpResponse.json(CURATED_ROUND_MENU_ITEMS)),
+        http.get("/api/restaurants/1/menu-items", () => HttpResponse.json(FOOD_MENU_ITEMS)),
+        http.get("/api/restaurants/2/menu-items", () => HttpResponse.json(DRINK_MENU_ITEMS)),
+      ];
+    }
+
+    it("shows an Edit action per submission row", async () => {
+      server.use(
+        ...baseHandlers(),
+        http.get("/api/rounds/1/submissions", () => HttpResponse.json([SUBMISSION])),
+      );
+
+      renderDetail("1");
+
+      expect(await screen.findByRole("button", { name: "Edit submission" })).toBeInTheDocument();
+    });
+
+    it("opens the edit dialog pre-filled with the row's current values, offering only curated items", async () => {
+      const user = userEvent.setup({ pointerEventsCheck: 0 });
+      server.use(
+        ...baseHandlers(),
+        http.get("/api/rounds/1/submissions", () => HttpResponse.json([SUBMISSION])),
+      );
+
+      renderDetail("1");
+      await user.click(await screen.findByRole("button", { name: "Edit submission" }));
+
+      const dialog = within(await screen.findByRole("dialog"));
+      expect(dialog.getByText("An Nguyen")).toBeInTheDocument();
+      expect(dialog.getByLabelText("Food item", { exact: false })).toHaveValue("10");
+      expect(dialog.getByLabelText("Food note")).toHaveValue("No cilantro");
+      expect(dialog.getByLabelText("Drink item")).toHaveValue("20");
+      expect(dialog.getByLabelText("Drink note")).toHaveValue("");
+      expect(dialog.queryByText("Bun Cha")).not.toBeInTheDocument();
+    });
+
+    it("submitting PATCHes the round-menu-item ids (not menu-item ids), closes the dialog, and the row reflects the new values with a success toast", async () => {
+      const user = userEvent.setup({ pointerEventsCheck: 0 });
+      let patchBody: Record<string, unknown> | null = null;
+      let submissionsCallCount = 0;
+      server.use(
+        ...baseHandlers(),
+        http.get("/api/rounds/1/submissions", () => {
+          submissionsCallCount += 1;
+          if (submissionsCallCount === 1) return HttpResponse.json([SUBMISSION]);
+          return HttpResponse.json([
+            { ...SUBMISSION, foodName: "Pho Ga", foodNote: "Extra spicy", foodRoundMenuItemId: 11 },
+          ]);
+        }),
+        http.patch("/api/rounds/1/submissions/1", async ({ request }) => {
+          patchBody = (await request.json()) as Record<string, unknown>;
+          return HttpResponse.json({ id: 1, roundId: 1, employeeId: 1, ...patchBody });
+        }),
+      );
+
+      renderDetail("1");
+      await user.click(await screen.findByRole("button", { name: "Edit submission" }));
+
+      const dialog = within(await screen.findByRole("dialog"));
+      await user.selectOptions(dialog.getByLabelText("Food item", { exact: false }), "11");
+      await user.clear(dialog.getByLabelText("Food note"));
+      await user.type(dialog.getByLabelText("Food note"), "Extra spicy");
+      await user.click(dialog.getByRole("button", { name: "Save" }));
+
+      await waitFor(() => expect(patchBody).not.toBeNull());
+      expect(patchBody).toMatchObject({
+        foodRoundMenuItemId: 11,
+        foodNote: "Extra spicy",
+        drinkRoundMenuItemId: 20,
+      });
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      expect(await screen.findByText("Submission updated")).toBeInTheDocument();
+      expect(await within(screen.getByRole("table")).findByText("Pho Ga")).toBeInTheDocument();
+    });
+
+    it("reopening the dialog after a save shows the newly saved values, not the original ones", async () => {
+      const user = userEvent.setup({ pointerEventsCheck: 0 });
+      let submissionsCallCount = 0;
+      server.use(
+        ...baseHandlers(),
+        http.get("/api/rounds/1/submissions", () => {
+          submissionsCallCount += 1;
+          if (submissionsCallCount === 1) return HttpResponse.json([SUBMISSION]);
+          return HttpResponse.json([
+            { ...SUBMISSION, foodName: "Pho Ga", foodNote: "Extra spicy", foodRoundMenuItemId: 11 },
+          ]);
+        }),
+        http.patch("/api/rounds/1/submissions/1", () =>
+          HttpResponse.json({
+            id: 1,
+            roundId: 1,
+            employeeId: 1,
+            foodRoundMenuItemId: 11,
+            foodNote: "Extra spicy",
+            drinkRoundMenuItemId: 20,
+            drinkNote: null,
+          }),
+        ),
+      );
+
+      renderDetail("1");
+      await user.click(await screen.findByRole("button", { name: "Edit submission" }));
+      let dialog = within(await screen.findByRole("dialog"));
+      await user.selectOptions(dialog.getByLabelText("Food item", { exact: false }), "11");
+      await user.clear(dialog.getByLabelText("Food note"));
+      await user.type(dialog.getByLabelText("Food note"), "Extra spicy");
+      await user.click(dialog.getByRole("button", { name: "Save" }));
+
+      await within(screen.getByRole("table")).findByText("Pho Ga");
+      await user.click(screen.getByRole("button", { name: "Edit submission" }));
+
+      dialog = within(await screen.findByRole("dialog"));
+      expect(dialog.getByLabelText("Food item", { exact: false })).toHaveValue("11");
+      expect(dialog.getByLabelText("Food note")).toHaveValue("Extra spicy");
+    });
+
+    it("shows an error toast and keeps the dialog open when the PATCH fails", async () => {
+      const user = userEvent.setup({ pointerEventsCheck: 0 });
+      server.use(
+        ...baseHandlers(),
+        http.get("/api/rounds/1/submissions", () => HttpResponse.json([SUBMISSION])),
+        http.patch("/api/rounds/1/submissions/1", () =>
+          HttpResponse.json({ error: "food round menu item not found" }, { status: 404 }),
+        ),
+      );
+
+      renderDetail("1");
+      await user.click(await screen.findByRole("button", { name: "Edit submission" }));
+      const dialog = within(await screen.findByRole("dialog"));
+      await user.click(dialog.getByRole("button", { name: "Save" }));
+
+      expect(await screen.findByText("food round menu item not found")).toBeInTheDocument();
+      expect(screen.getByRole("dialog")).toBeInTheDocument();
+    });
+
+    it("shows a required-field error and sends no request when the food item is cleared to None", async () => {
+      const user = userEvent.setup({ pointerEventsCheck: 0 });
+      let patchCalled = false;
+      server.use(
+        ...baseHandlers(),
+        http.get("/api/rounds/1/submissions", () =>
+          HttpResponse.json([{ ...SUBMISSION, foodName: null, foodNote: null, foodRoundMenuItemId: null }]),
+        ),
+        http.patch("/api/rounds/1/submissions/1", () => {
+          patchCalled = true;
+          return HttpResponse.json({});
+        }),
+      );
+
+      renderDetail("1");
+      await user.click(await screen.findByRole("button", { name: "Edit submission" }));
+      const dialog = within(await screen.findByRole("dialog"));
+      expect(dialog.getByLabelText("Food item", { exact: false })).toHaveValue("");
+      await user.click(dialog.getByRole("button", { name: "Save" }));
+
+      expect(dialog.getByText("Please select a food item.")).toBeInTheDocument();
+      expect(patchCalled).toBe(false);
+    });
+
+    it("does not add an Actions column to the exported CSV", async () => {
+      const user = userEvent.setup();
+      server.use(
+        ...baseHandlers(),
+        http.get("/api/rounds/1/submissions", () => HttpResponse.json([SUBMISSION])),
+      );
+
+      renderDetail("1");
+
+      await user.click(await screen.findByRole("button", { name: "Export CSV" }));
+
+      const calls = vi.mocked(downloadCsv).mock.calls;
+      const [, csv] = calls[calls.length - 1]!;
+      const header = csv.replace(/^﻿/, "").split("\r\n")[0];
+      expect(header?.split("\t")).toEqual(["Employee", "Food", "Food note", "Drink", "Drink note"]);
     });
   });
 });

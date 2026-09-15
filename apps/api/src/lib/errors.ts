@@ -39,4 +39,5 @@ export const ERROR_MESSAGES = {
   menuImageNotFound: "this restaurant has no menu image",
   bulkModeInvalid: "mode must be override or append",
   bulkItemsRequired: "items must be a non-empty array",
+  submissionNotFound: "submission not found",
 } as const;
