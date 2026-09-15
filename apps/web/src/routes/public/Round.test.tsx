@@ -475,6 +475,7 @@ describe("Round (public view)", () => {
       server.use(
         http.get("/api/rounds/1/public", () => HttpResponse.json(OPEN_ROUND_FOOD_ONLY)),
         http.get("/api/employees", () => HttpResponse.json(EMPLOYEES)),
+        http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
       );
 
       renderRound("1");
@@ -483,6 +484,151 @@ describe("Round (public view)", () => {
       expect(screen.queryByText("No submissions yet.")).not.toBeInTheDocument();
       expect(screen.queryByRole("table")).not.toBeInTheDocument();
       expect(screen.queryByRole("button", { name: "Edit submission" })).not.toBeInTheDocument();
+    });
+  });
+
+  describe("confirm-overwrite dialog on resubmission", () => {
+    it("shows a confirm dialog with the existing submission's details instead of submitting immediately", async () => {
+      const user = userEvent.setup();
+      let posted = false;
+      server.use(
+        http.get("/api/rounds/1/public", () => HttpResponse.json(OPEN_ROUND_WITH_DRINK)),
+        http.get("/api/employees", () => HttpResponse.json(EMPLOYEES)),
+        http.get("/api/rounds/1/submissions", ({ request }) => {
+          const url = new URL(request.url);
+          if (url.searchParams.get("employeeId") === "1") {
+            return HttpResponse.json([
+              {
+                id: 5,
+                employeeName: "An Nguyen",
+                foodName: "Pho Bo",
+                foodNote: "No cilantro",
+                drinkName: null,
+                drinkNote: null,
+                foodRoundMenuItemId: 10,
+                drinkRoundMenuItemId: null,
+              },
+            ]);
+          }
+          return HttpResponse.json([]);
+        }),
+        http.post("/api/rounds/1/submissions", () => {
+          posted = true;
+          return HttpResponse.json({ id: 1 });
+        }),
+      );
+
+      renderRound("1");
+      await screen.findByRole("combobox", { name: /food item/i });
+
+      await pickEmployee(user, "An Nguyen");
+      await pickFoodItem(user, "Pho Bo");
+      await screen.findByText(/no cilantro/i);
+      await user.click(screen.getByRole("button", { name: "Submit" }));
+
+      expect(
+        await screen.findByText("You already have a submission for this round"),
+      ).toBeInTheDocument();
+      expect(screen.getByText(/Pho Bo/)).toBeInTheDocument();
+      expect(screen.getByText(/No cilantro/)).toBeInTheDocument();
+      expect(posted).toBe(false);
+    });
+
+    it("submits the form's current values on 'Submit anyway'", async () => {
+      const user = userEvent.setup();
+      let submittedBody: unknown = null;
+      server.use(
+        http.get("/api/rounds/1/public", () => HttpResponse.json(OPEN_ROUND_FOOD_ONLY)),
+        http.get("/api/employees", () => HttpResponse.json(EMPLOYEES)),
+        http.get("/api/rounds/1/submissions", ({ request }) => {
+          const url = new URL(request.url);
+          if (url.searchParams.get("employeeId") === "1") {
+            return HttpResponse.json([
+              {
+                id: 5,
+                employeeName: "An Nguyen",
+                foodName: "Banh Mi",
+                foodNote: null,
+                drinkName: null,
+                drinkNote: null,
+                foodRoundMenuItemId: 99,
+                drinkRoundMenuItemId: null,
+              },
+            ]);
+          }
+          return HttpResponse.json([]);
+        }),
+        http.post("/api/rounds/1/submissions", async ({ request }) => {
+          submittedBody = await request.json();
+          return HttpResponse.json({ id: 1 });
+        }),
+      );
+
+      renderRound("1");
+      await screen.findByRole("combobox", { name: /food item/i });
+
+      await pickEmployee(user, "An Nguyen");
+      await pickFoodItem(user, "Pho Bo");
+      await screen.findByText("You already have a submission for this round");
+      await user.click(screen.getByRole("button", { name: "Submit anyway" }));
+
+      expect(
+        await screen.findByText("Thanks! Your order has been recorded."),
+      ).toBeInTheDocument();
+      expect(submittedBody).toEqual({
+        employeeId: 1,
+        foodRoundMenuItemId: 10,
+      });
+    });
+
+    it("'Cancel' closes the dialog, sends no request, and keeps the entered values", async () => {
+      const user = userEvent.setup();
+      let posted = false;
+      server.use(
+        http.get("/api/rounds/1/public", () => HttpResponse.json(OPEN_ROUND_FOOD_ONLY)),
+        http.get("/api/employees", () => HttpResponse.json(EMPLOYEES)),
+        http.get("/api/rounds/1/submissions", ({ request }) => {
+          const url = new URL(request.url);
+          if (url.searchParams.get("employeeId") === "1") {
+            return HttpResponse.json([
+              {
+                id: 5,
+                employeeName: "An Nguyen",
+                foodName: "Pho Bo",
+                foodNote: null,
+                drinkName: null,
+                drinkNote: null,
+                foodRoundMenuItemId: 10,
+                drinkRoundMenuItemId: null,
+              },
+            ]);
+          }
+          return HttpResponse.json([]);
+        }),
+        http.post("/api/rounds/1/submissions", () => {
+          posted = true;
+          return HttpResponse.json({ id: 1 });
+        }),
+      );
+
+      renderRound("1");
+      await screen.findByRole("combobox", { name: /food item/i });
+
+      await pickEmployee(user, "An Nguyen");
+      await pickFoodItem(user, "Pho Bo");
+      await user.type(screen.getByLabelText("Food note", { exact: false }), "Extra spicy");
+      await user.click(screen.getByRole("button", { name: "Submit" }));
+      await screen.findByText("You already have a submission for this round");
+
+      await user.click(screen.getByRole("button", { name: "Cancel" }));
+
+      await waitFor(() => {
+        expect(
+          screen.queryByText("You already have a submission for this round"),
+        ).not.toBeInTheDocument();
+      });
+      expect(posted).toBe(false);
+      expect(screen.getByLabelText("Food note", { exact: false })).toHaveValue("Extra spicy");
     });
   });
 });
