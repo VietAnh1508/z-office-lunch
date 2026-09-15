@@ -1,6 +1,8 @@
 import { expect, test } from "@playwright/test";
+import { unlockAdmin } from "./helpers";
 
 test("admin can add a menu item to a restaurant and toggle it inactive", async ({ page }) => {
+  await unlockAdmin(page);
   await page.goto("/admin/restaurants");
 
   const restaurantName = `Detail Test Restaurant ${Date.now()}`;

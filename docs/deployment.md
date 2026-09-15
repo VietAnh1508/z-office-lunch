@@ -15,10 +15,17 @@ Live at: `https://z-office-lunch-api.vietanhtong1508.workers.dev` (Cloudflare's 
 subdomain — no custom domain set up; add one later via the Cloudflare dashboard without
 touching anything else here).
 
-**No auth in front of it.** The app has no authorization by design (see `docs/architecture.md`),
-which means admin routes (create/delete restaurants, employees, rounds) are writable by anyone
-with the URL. Deliberate call for now — revisit with Cloudflare Access (Zero Trust, free tier)
-in front of the Worker before real usage/data goes through it.
+**No auth on the API.** The app has no backend authorization by design (see
+`docs/architecture.md`), which means admin API endpoints (create/delete restaurants, employees,
+rounds) are writable by anyone who calls them directly (curl/devtools), regardless of the UI
+gate below. Deliberate call for now — revisit with Cloudflare Access (Zero Trust, free tier) in
+front of the Worker before real usage/data goes through it.
+
+**The `/admin` UI itself is password-gated (task 043)**, client-side only — a speed bump against
+casual URL guessing, not real access control (the password is baked into the shipped JS bundle).
+Production builds need `VITE_ADMIN_PASSWORD` set as a Cloudflare Workers Builds environment
+variable (dashboard → Workers & Pages → the Worker → Settings → Build → Environment variables) —
+without it, the build embeds an empty string and the gate can never be unlocked.
 
 ### Diagram
 
@@ -156,7 +163,8 @@ Hyperdrive stores the credential on Cloudflare's side, so the Worker itself neve
 
 ## Known follow-ups
 
-- No Cloudflare Access / auth in front of the Worker — see topology note above.
+- No Cloudflare Access / backend auth in front of the Worker — see topology note above. The
+  `/admin` UI password gate (task 043) is a deterrent, not a substitute for this.
 - Migrations are still run manually from a local machine (see above) — deploys are automated
   (Cloudflare Workers Builds) but there's no equivalent for running migrations against Neon yet.
 - pg's `sslmode=require` on the Neon connection string triggers a deprecation warning during

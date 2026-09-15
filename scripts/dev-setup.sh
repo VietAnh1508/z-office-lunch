@@ -25,3 +25,8 @@ if [ ! -f apps/api/.env ]; then
   echo "==> Creating apps/api/.env from .env.example..."
   cp apps/api/.env.example apps/api/.env
 fi
+
+if [ ! -f apps/web/.env ]; then
+  echo "==> Creating apps/web/.env from .env.example..."
+  cp apps/web/.env.example apps/web/.env
+fi

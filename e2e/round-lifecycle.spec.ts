@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { unlockAdmin } from "./helpers";
 
 // These three tests each open one round, and the app only allows one round
 // open at a time app-wide (409 if you try to open a second). Keeping them
@@ -13,6 +14,7 @@ test("admin curates a round's menu items and opens then closes it", async ({ pag
   const restaurantName = `Round Detail Test Restaurant ${Date.now()}`;
   const roundLabel = `Round Detail Test ${Date.now()}`;
 
+  await unlockAdmin(page);
   await page.goto("/admin/restaurants");
   await page.getByLabel("Name", { exact: false }).fill(restaurantName);
   await page.getByRole("button", { name: "Add restaurant" }).click();
@@ -58,6 +60,7 @@ test("employee-facing public round link reflects open then closed state", async 
   const restaurantName = `Public Round Test Restaurant ${Date.now()}`;
   const roundLabel = `Public Round Test ${Date.now()}`;
 
+  await unlockAdmin(page);
   await page.goto("/admin/restaurants");
   await page.getByLabel("Name", { exact: false }).fill(restaurantName);
   await page.getByRole("button", { name: "Add restaurant" }).click();
@@ -119,6 +122,7 @@ test("employee submits food and drink picks, then a second submission overwrites
   const employeeName = `Submission Test Employee ${Date.now()}`;
 
   // Food restaurant + menu item.
+  await unlockAdmin(page);
   await page.goto("/admin/restaurants");
   await page.locator("#restaurant-name").fill(foodRestaurantName);
   await page.getByRole("button", { name: "Add restaurant" }).click();

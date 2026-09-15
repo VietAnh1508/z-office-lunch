@@ -36,7 +36,7 @@ describe("AdminLayout", () => {
     renderApp("/admin");
 
     expect(
-      screen.getByRole("heading", { name: "Admin" }),
+      screen.queryByRole("heading", { name: "Admin" }),
     ).not.toBeInTheDocument();
     expect(screen.getByLabelText("Password")).toBeInTheDocument();
   });

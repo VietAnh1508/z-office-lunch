@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { unlockAdmin } from "./helpers";
 
 test("Add restaurant form validates the Name field without native HTML5 validation", async ({
   page,
@@ -10,6 +11,7 @@ test("Add restaurant form validates the Name field without native HTML5 validati
     }
   });
 
+  await unlockAdmin(page);
   await page.goto("/admin/restaurants");
 
   const nameInput = page.getByLabel("Name");
@@ -29,6 +31,7 @@ test("Add restaurant form validates the Name field without native HTML5 validati
 });
 
 test("admin can create a drink restaurant and see its type label", async ({ page }) => {
+  await unlockAdmin(page);
   await page.goto("/admin/restaurants");
 
   const restaurantName = `Drink Restaurant ${Date.now()}`;
