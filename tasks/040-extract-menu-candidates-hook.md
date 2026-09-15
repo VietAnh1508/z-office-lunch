@@ -1,7 +1,7 @@
 ---
 id: 040
 title: Extract useMenuCandidates hook and neutralize the bulk-save toast
-status: in_review
+status: done
 depends_on: []
 parallelizable_with: [039]
 epic: bulk-paste-menu-items
