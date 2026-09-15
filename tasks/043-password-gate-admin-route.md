@@ -1,7 +1,7 @@
 ---
 id: 043
 title: Password-gate the /admin route
-status: in_review
+status: done
 depends_on: []
 parallelizable_with: []
 epic:
