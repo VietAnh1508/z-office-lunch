@@ -44,6 +44,7 @@ describe("RoundDetail", () => {
     server.use(
       http.get("/api/rounds/999", () => HttpResponse.json({ error: "round not found" }, { status: 404 })),
       http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+      http.get("/api/employees", () => HttpResponse.json([])),
       http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
     );
 
@@ -56,6 +57,7 @@ describe("RoundDetail", () => {
     server.use(
       http.get("/api/rounds/1", () => HttpResponse.json(draftRound())),
       http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+      http.get("/api/employees", () => HttpResponse.json([])),
       http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
       http.get("/api/rounds/1/menu-items", () => HttpResponse.json([{ id: 5, roundId: 1, menuItemId: 10 }])),
       http.get("/api/restaurants/1/menu-items", () =>
@@ -77,6 +79,7 @@ describe("RoundDetail", () => {
     server.use(
       http.get("/api/rounds/1", () => HttpResponse.json(draftRound({ status: "open" }))),
       http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+      http.get("/api/employees", () => HttpResponse.json([])),
       http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
       http.get("/api/rounds/1/menu-items", () => HttpResponse.json([{ id: 5, roundId: 1, menuItemId: 10 }])),
       http.get("/api/restaurants/1/menu-items", () =>
@@ -93,6 +96,7 @@ describe("RoundDetail", () => {
     server.use(
       http.get("/api/rounds/1", () => HttpResponse.json(draftRound({ status: "closed" }))),
       http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+      http.get("/api/employees", () => HttpResponse.json([])),
       http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
       http.get("/api/rounds/1/menu-items", () => HttpResponse.json([{ id: 5, roundId: 1, menuItemId: 10 }])),
       http.get("/api/restaurants/1/menu-items", () =>
@@ -112,6 +116,7 @@ describe("RoundDetail", () => {
     server.use(
       http.get("/api/rounds/1", () => HttpResponse.json(draftRound())),
       http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+      http.get("/api/employees", () => HttpResponse.json([])),
       http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
       http.get("/api/rounds/1/menu-items", () => HttpResponse.json(curated)),
       http.get("/api/restaurants/1/menu-items", () =>
@@ -145,6 +150,7 @@ describe("RoundDetail", () => {
     server.use(
       http.get("/api/rounds/1", () => HttpResponse.json(draftRound())),
       http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+      http.get("/api/employees", () => HttpResponse.json([])),
       http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
       http.get("/api/rounds/1/menu-items", () => HttpResponse.json(curated)),
       http.get("/api/restaurants/1/menu-items", () =>
@@ -176,6 +182,7 @@ describe("RoundDetail", () => {
     server.use(
       http.get("/api/rounds/1", () => HttpResponse.json(round)),
       http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+      http.get("/api/employees", () => HttpResponse.json([])),
       http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
       http.get("/api/rounds/1/menu-items", () => HttpResponse.json([{ id: 5, roundId: 1, menuItemId: 10 }])),
       http.get("/api/restaurants/1/menu-items", () =>
@@ -202,6 +209,7 @@ describe("RoundDetail", () => {
     server.use(
       http.get("/api/rounds/1", () => HttpResponse.json(draftRound())),
       http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+      http.get("/api/employees", () => HttpResponse.json([])),
       http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
       http.get("/api/rounds/1/menu-items", () => HttpResponse.json([])),
       http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
@@ -229,6 +237,7 @@ describe("RoundDetail", () => {
     server.use(
       http.get("/api/rounds/1", () => HttpResponse.json(round)),
       http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+      http.get("/api/employees", () => HttpResponse.json([])),
       http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
       http.get("/api/rounds/1/menu-items", () => HttpResponse.json([{ id: 5, roundId: 1, menuItemId: 10 }])),
       http.get("/api/restaurants/1/menu-items", () =>
@@ -253,6 +262,7 @@ describe("RoundDetail", () => {
     server.use(
       http.get("/api/rounds/1", () => HttpResponse.json(draftRound())),
       http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+      http.get("/api/employees", () => HttpResponse.json([])),
       http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
       http.get("/api/rounds/1/menu-items", () => HttpResponse.json([])),
       http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
@@ -268,6 +278,7 @@ describe("RoundDetail", () => {
     server.use(
       http.get("/api/rounds/1", () => HttpResponse.json(draftRound({ status: "closed" }))),
       http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+      http.get("/api/employees", () => HttpResponse.json([])),
       http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
       http.get("/api/rounds/1/menu-items", () => HttpResponse.json([])),
       http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
@@ -286,6 +297,7 @@ describe("RoundDetail", () => {
     server.use(
       http.get("/api/rounds/1", () => HttpResponse.json(round)),
       http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+      http.get("/api/employees", () => HttpResponse.json([])),
       http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
       http.get("/api/rounds/1/menu-items", () => HttpResponse.json([])),
       http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
@@ -311,6 +323,7 @@ describe("RoundDetail", () => {
     server.use(
       http.get("/api/rounds/1", () => HttpResponse.json(draftRound({ status: "open" }))),
       http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+      http.get("/api/employees", () => HttpResponse.json([])),
       http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
       http.get("/api/rounds/1/menu-items", () => HttpResponse.json([])),
       http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
@@ -334,6 +347,7 @@ describe("RoundDetail", () => {
     server.use(
       http.get("/api/rounds/1", () => HttpResponse.json(draftRound({ status: "closed" }))),
       http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+      http.get("/api/employees", () => HttpResponse.json([])),
       http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
       http.get("/api/rounds/1/menu-items", () => HttpResponse.json([])),
       http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
@@ -350,6 +364,7 @@ describe("RoundDetail", () => {
     server.use(
       http.get("/api/rounds/1", () => HttpResponse.json(draftRound({ drinkRestaurantId: 2 }))),
       http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+      http.get("/api/employees", () => HttpResponse.json([])),
       http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
       http.get("/api/rounds/1/menu-items", () => HttpResponse.json([])),
       http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
@@ -368,6 +383,7 @@ describe("RoundDetail", () => {
     server.use(
       http.get("/api/rounds/1", () => HttpResponse.json(draftRound({ status: "open" }))),
       http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+      http.get("/api/employees", () => HttpResponse.json([])),
       http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
       http.get("/api/rounds/1/menu-items", () => HttpResponse.json([])),
       http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
@@ -385,6 +401,7 @@ describe("RoundDetail", () => {
     server.use(
       http.get("/api/rounds/1", () => HttpResponse.json(draftRound())),
       http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+      http.get("/api/employees", () => HttpResponse.json([])),
       http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
       http.get("/api/rounds/1/menu-items", () => HttpResponse.json([])),
       http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
@@ -406,6 +423,7 @@ describe("RoundDetail", () => {
       server.use(
         http.get("/api/rounds/1", () => HttpResponse.json(draftRound())),
         http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+        http.get("/api/employees", () => HttpResponse.json([])),
         http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
         http.get("/api/rounds/1/menu-items", () => HttpResponse.json([])),
         http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
@@ -421,6 +439,7 @@ describe("RoundDetail", () => {
       server.use(
         http.get("/api/rounds/1", () => HttpResponse.json(draftRound({ status: "open" }))),
         http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+        http.get("/api/employees", () => HttpResponse.json([])),
         http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
         http.get("/api/rounds/1/menu-items", () => HttpResponse.json([])),
         http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
@@ -439,6 +458,7 @@ describe("RoundDetail", () => {
       server.use(
         http.get("/api/rounds/1", () => HttpResponse.json(draftRound())),
         http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+        http.get("/api/employees", () => HttpResponse.json([])),
         http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
         http.get("/api/rounds/1/menu-items", () => HttpResponse.json([])),
         http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
@@ -475,6 +495,7 @@ describe("RoundDetail", () => {
       server.use(
         http.get("/api/rounds/1", () => HttpResponse.json(draftRound())),
         http.get("/api/restaurants", () => HttpResponse.json(foodRestaurants)),
+        http.get("/api/employees", () => HttpResponse.json([])),
         http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
         http.get("/api/rounds/1/menu-items", () => HttpResponse.json([])),
         http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
@@ -509,6 +530,7 @@ describe("RoundDetail", () => {
       server.use(
         http.get("/api/rounds/1", () => HttpResponse.json(draftRound({ drinkRestaurantId: 2 }))),
         http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+        http.get("/api/employees", () => HttpResponse.json([])),
         http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
         http.get("/api/rounds/1/menu-items", () => HttpResponse.json([])),
         http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
@@ -538,6 +560,7 @@ describe("RoundDetail", () => {
       server.use(
         http.get("/api/rounds/1", () => HttpResponse.json(draftRound())),
         http.get("/api/restaurants", () => HttpResponse.json(foodRestaurants)),
+        http.get("/api/employees", () => HttpResponse.json([])),
         http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
         http.get("/api/rounds/1/menu-items", () => HttpResponse.json([])),
         http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
@@ -567,6 +590,7 @@ describe("RoundDetail", () => {
       server.use(
         http.get("/api/rounds/1", () => HttpResponse.json(draftRound())),
         http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+        http.get("/api/employees", () => HttpResponse.json([])),
         http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
         http.get("/api/rounds/1/menu-items", () => HttpResponse.json([])),
         http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
@@ -590,6 +614,7 @@ describe("RoundDetail", () => {
       server.use(
         http.get("/api/rounds/1", () => HttpResponse.json(draftRound())),
         http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+        http.get("/api/employees", () => HttpResponse.json([])),
         http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
         http.get("/api/rounds/1/menu-items", () => HttpResponse.json([])),
         http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
@@ -615,6 +640,7 @@ describe("RoundDetail", () => {
       server.use(
         http.get("/api/rounds/1", () => HttpResponse.json(draftRound())),
         http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+        http.get("/api/employees", () => HttpResponse.json([])),
         http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
         http.get("/api/rounds/1/menu-items", () => HttpResponse.json([])),
         http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
@@ -630,6 +656,7 @@ describe("RoundDetail", () => {
       server.use(
         http.get("/api/rounds/1", () => HttpResponse.json(draftRound())),
         http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+        http.get("/api/employees", () => HttpResponse.json([])),
         http.get("/api/rounds/1/submissions", () =>
           HttpResponse.json([
             {
@@ -654,10 +681,43 @@ describe("RoundDetail", () => {
       expect(screen.getByText("Tra Da")).toBeInTheDocument();
     });
 
+    it("shows the submission count against the number of active employees", async () => {
+      server.use(
+        http.get("/api/rounds/1", () => HttpResponse.json(draftRound())),
+        http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+        http.get("/api/employees", () =>
+          HttpResponse.json([
+            { id: 1, fullName: "An Nguyen", active: true },
+            { id: 2, fullName: "Binh Tran", active: true },
+            { id: 3, fullName: "Cuong Le", active: false },
+          ]),
+        ),
+        http.get("/api/rounds/1/submissions", () =>
+          HttpResponse.json([
+            {
+              id: 1,
+              employeeName: "An Nguyen",
+              foodName: "Pho Bo",
+              foodNote: null,
+              drinkName: null,
+              drinkNote: null,
+            },
+          ]),
+        ),
+        http.get("/api/rounds/1/menu-items", () => HttpResponse.json([])),
+        http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
+      );
+
+      renderDetail("1");
+
+      expect(await screen.findByText("1 / 2 submitted")).toBeInTheDocument();
+    });
+
     it("renders a blank food cell when foodName is null", async () => {
       server.use(
         http.get("/api/rounds/1", () => HttpResponse.json(draftRound())),
         http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+        http.get("/api/employees", () => HttpResponse.json([])),
         http.get("/api/rounds/1/submissions", () =>
           HttpResponse.json([
             {
@@ -686,6 +746,7 @@ describe("RoundDetail", () => {
       server.use(
         http.get("/api/rounds/1", () => HttpResponse.json(draftRound())),
         http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+        http.get("/api/employees", () => HttpResponse.json([])),
         http.get("/api/rounds/1/submissions", () =>
           HttpResponse.json([
             {
@@ -742,6 +803,7 @@ describe("RoundDetail", () => {
       return [
         http.get("/api/rounds/1", () => HttpResponse.json(draftRound({ drinkRestaurantId: 2 }))),
         http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+        http.get("/api/employees", () => HttpResponse.json([])),
         http.get("/api/rounds/1/menu-items", () => HttpResponse.json(CURATED_ROUND_MENU_ITEMS)),
         http.get("/api/restaurants/1/menu-items", () => HttpResponse.json(FOOD_MENU_ITEMS)),
         http.get("/api/restaurants/2/menu-items", () => HttpResponse.json(DRINK_MENU_ITEMS)),
