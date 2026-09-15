@@ -107,9 +107,6 @@ function MenuPanel({ round }: { round: PublicRound }) {
   );
 }
 
-const selectClassName =
-  "h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20";
-
 function SubmissionForm({
   roundId,
   round,
@@ -125,7 +122,7 @@ function SubmissionForm({
   const [foodItemId, setFoodItemId] = useState<number | null>(null);
   const [foodItemError, setFoodItemError] = useState<string | null>(null);
   const [foodNote, setFoodNote] = useState("");
-  const [drinkItemId, setDrinkItemId] = useState("");
+  const [drinkItemId, setDrinkItemId] = useState<number | null>(null);
   const [drinkNote, setDrinkNote] = useState("");
   const [submitted, setSubmitted] = useState(false);
 
@@ -145,9 +142,11 @@ function SubmissionForm({
         employeeId: employeeId,
         foodRoundMenuItemId: foodItemId,
         foodNote: foodNote.trim() || undefined,
-        drinkRoundMenuItemId: drinkItemId ? Number(drinkItemId) : undefined,
+        drinkRoundMenuItemId: drinkItemId ?? undefined,
         drinkNote:
-          drinkItemId && drinkNote.trim() ? drinkNote.trim() : undefined,
+          drinkItemId !== null && drinkNote.trim()
+            ? drinkNote.trim()
+            : undefined,
       },
       { onSuccess: () => setSubmitted(true) },
     );
@@ -211,22 +210,15 @@ function SubmissionForm({
 
           {round.drinkItems && (
             <>
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="submission-drink-item">Drink item</Label>
-                <select
-                  id="submission-drink-item"
-                  className={selectClassName}
-                  value={drinkItemId}
-                  onChange={(e) => setDrinkItemId(e.target.value)}
-                >
-                  <option value="">None</option>
-                  {round.drinkItems.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <ItemCombobox
+                id="submission-drink-item"
+                label="Drink item"
+                items={round.drinkItems}
+                value={drinkItemId}
+                onChange={setDrinkItemId}
+                error={null}
+                placeholder="Search drink items…"
+              />
               <MenuLink restaurant={round.drinkRestaurant!} />
               <MenuImage
                 restaurant={round.drinkRestaurant!}

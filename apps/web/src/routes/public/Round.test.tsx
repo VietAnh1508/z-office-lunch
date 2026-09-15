@@ -52,6 +52,12 @@ async function pickFoodItem(user: ReturnType<typeof userEvent.setup>, name: stri
   await user.click(await screen.findByRole("option", { name }));
 }
 
+async function pickDrinkItem(user: ReturnType<typeof userEvent.setup>, name: string) {
+  const input = screen.getByRole("combobox", { name: /drink item/i });
+  await user.type(input, name);
+  await user.click(await screen.findByRole("option", { name }));
+}
+
 describe("Round (public view)", () => {
   it("shows the same generic message for a draft round as for a nonexistent one", async () => {
     server.use(
@@ -142,6 +148,7 @@ describe("Round (public view)", () => {
   });
 
   it("renders a drink item picker when the round has a drinkRestaurantId", async () => {
+    const user = userEvent.setup();
     server.use(
       http.get("/api/rounds/1/public", () => HttpResponse.json(OPEN_ROUND_WITH_DRINK)),
       http.get("/api/employees", () => HttpResponse.json(EMPLOYEES)),
@@ -151,8 +158,10 @@ describe("Round (public view)", () => {
     renderRound("1");
 
     expect(await screen.findByLabelText("Food item", { exact: false })).toBeInTheDocument();
-    expect(screen.getByLabelText("Drink item", { exact: false })).toBeInTheDocument();
-    expect(screen.getByRole("option", { name: "Tra Da" })).toBeInTheDocument();
+    const drinkInput = screen.getByLabelText("Drink item", { exact: false });
+    expect(drinkInput).toBeInTheDocument();
+    await user.click(drinkInput);
+    expect(await screen.findByRole("option", { name: "Tra Da" })).toBeInTheDocument();
   });
 
   it("filters the employee combobox as the user types and selects on click", async () => {
@@ -266,7 +275,7 @@ describe("Round (public view)", () => {
 
     await pickEmployee(user, "An Nguyen");
     await pickFoodItem(user, "Pho Bo");
-    await user.selectOptions(screen.getByLabelText("Drink item", { exact: false }), "20");
+    await pickDrinkItem(user, "Tra Da");
     await user.type(screen.getByLabelText("Drink note", { exact: false }), "Less ice");
     await user.click(screen.getByRole("button", { name: "Submit" }));
 
