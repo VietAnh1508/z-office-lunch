@@ -8,12 +8,23 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { type SubmitEvent, useState } from "react";
+import type { RoundSubmission } from "../../shared/useRoundSubmissions";
+import { useSubmissionForEmployee } from "../../shared/useRoundSubmissions";
 import type { PublicRound } from "../usePublicRound";
 import { useActiveEmployees, useCreateSubmission } from "../useSubmission";
 import { EmployeeCombobox } from "./EmployeeCombobox";
 import { ItemCombobox } from "./ItemCombobox";
 import { MenuImage } from "./MenuImage";
 import { MenuLink } from "./MenuLink";
+import { OverwriteSubmissionDialog } from "./OverwriteSubmissionDialog";
+
+type SubmissionInput = {
+  employeeId: number;
+  foodRoundMenuItemId: number;
+  foodNote?: string;
+  drinkRoundMenuItemId?: number;
+  drinkNote?: string;
+};
 
 export function SubmissionForm({
   roundId,
@@ -34,6 +45,22 @@ export function SubmissionForm({
   const [drinkNote, setDrinkNote] = useState("");
   const [submitted, setSubmitted] = useState(false);
 
+  const { data: existingSubmissions } = useSubmissionForEmployee(roundId, employeeId);
+
+  const [pendingInput, setPendingInput] = useState<SubmissionInput | null>(null);
+  const [existingSubmission, setExistingSubmission] = useState<RoundSubmission | null>(null);
+
+  function buildInput(): SubmissionInput {
+    return {
+      employeeId: employeeId as number,
+      foodRoundMenuItemId: foodItemId as number,
+      foodNote: foodNote.trim() || undefined,
+      drinkRoundMenuItemId: drinkItemId ?? undefined,
+      drinkNote:
+        drinkItemId !== null && drinkNote.trim() ? drinkNote.trim() : undefined,
+    };
+  }
+
   function handleSubmit(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
 
@@ -45,19 +72,26 @@ export function SubmissionForm({
 
     if (!employeeValid || !foodValid) return;
 
-    createSubmission.mutate(
-      {
-        employeeId: employeeId,
-        foodRoundMenuItemId: foodItemId,
-        foodNote: foodNote.trim() || undefined,
-        drinkRoundMenuItemId: drinkItemId ?? undefined,
-        drinkNote:
-          drinkItemId !== null && drinkNote.trim()
-            ? drinkNote.trim()
-            : undefined,
-      },
-      { onSuccess: () => setSubmitted(true) },
-    );
+    const existing = existingSubmissions?.[0] ?? null;
+    if (existing) {
+      setPendingInput(buildInput());
+      setExistingSubmission(existing);
+      return;
+    }
+
+    createSubmission.mutate(buildInput(), { onSuccess: () => setSubmitted(true) });
+  }
+
+  function handleCancelOverwrite() {
+    setPendingInput(null);
+    setExistingSubmission(null);
+  }
+
+  function handleConfirmOverwrite() {
+    if (!pendingInput) return;
+    createSubmission.mutate(pendingInput, { onSuccess: () => setSubmitted(true) });
+    setPendingInput(null);
+    setExistingSubmission(null);
   }
 
   if (submitted) {
@@ -154,6 +188,14 @@ export function SubmissionForm({
           </Button>
         </form>
       </CardContent>
+
+      <OverwriteSubmissionDialog
+        open={existingSubmission !== null}
+        existing={existingSubmission}
+        pending={createSubmission.isPending}
+        onCancel={handleCancelOverwrite}
+        onConfirm={handleConfirmOverwrite}
+      />
     </Card>
   );
 }

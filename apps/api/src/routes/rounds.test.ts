@@ -2577,6 +2577,49 @@ describe("rounds routes", () => {
         const body = (await res.json()) as { error?: string };
         expect(body.error).toBeTruthy();
       });
+
+      it("GET ?employeeId= filters to just that employee's row when others exist", async () => {
+        const { round, foodRoundMenuItem } = await seedOpenFoodRound();
+        const employee = await seedEmployee(db, { fullName: "An Nguyen" });
+        const otherEmployee = await seedEmployee(db, { fullName: "Binh Tran" });
+        await seedSubmission(db, {
+          roundId: round.id,
+          employeeId: employee!.id,
+          foodRoundMenuItemId: foodRoundMenuItem.id,
+        });
+        await seedSubmission(db, {
+          roundId: round.id,
+          employeeId: otherEmployee!.id,
+          foodRoundMenuItemId: foodRoundMenuItem.id,
+        });
+
+        const res = await app.request(
+          `/api/rounds/${round.id}/submissions?employeeId=${employee!.id}`,
+          {},
+          testEnv,
+        );
+
+        expect(res.status).toBe(200);
+        const body = (await res.json()) as SubmissionRow[];
+        expect(body).toHaveLength(1);
+        expect(body[0]?.employeeName).toBe("An Nguyen");
+        expect(JSON.stringify(body)).not.toContain("employeeId");
+        expect(JSON.stringify(body)).not.toContain("price");
+      });
+
+      it("GET ?employeeId= returns [] when that employee has no submission", async () => {
+        const { round } = await seedOpenFoodRound();
+        const employee = await seedEmployee(db);
+
+        const res = await app.request(
+          `/api/rounds/${round.id}/submissions?employeeId=${employee!.id}`,
+          {},
+          testEnv,
+        );
+
+        expect(res.status).toBe(200);
+        expect(await res.json()).toEqual([]);
+      });
     });
 
     describe("PATCH /:id/submissions/:submissionId", () => {

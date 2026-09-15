@@ -812,6 +812,10 @@ roundsRoute.get("/:id/submissions", async (c) => {
     return c.json([]);
   }
 
+  const employeeIdParam = c.req.query("employeeId");
+  const employeeId = employeeIdParam !== undefined ? Number(employeeIdParam) : undefined;
+  const filterByEmployee = employeeId !== undefined && Number.isInteger(employeeId);
+
   const db = getDb(c);
   try {
     // Explicit column selection (never `price`) so the client gets
@@ -842,7 +846,11 @@ roundsRoute.get("/:id/submissions", async (c) => {
         eq(submissions.drinkRoundMenuItemId, drinkRoundMenuItemAlias.id),
       )
       .leftJoin(drinkMenuItemAlias, eq(drinkRoundMenuItemAlias.menuItemId, drinkMenuItemAlias.id))
-      .where(eq(submissions.roundId, roundId))
+      .where(
+        filterByEmployee
+          ? and(eq(submissions.roundId, roundId), eq(submissions.employeeId, employeeId))
+          : eq(submissions.roundId, roundId),
+      )
       .orderBy(submissions.id);
     return c.json(rows);
   } catch (e) {
