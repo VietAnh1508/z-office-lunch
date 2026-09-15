@@ -39,6 +39,13 @@ function renderDetail(id: string) {
   );
 }
 
+// Food/drink item lists are collapsed by default -- expand a section before
+// asserting on or interacting with its contents.
+async function expandSection(label: "food items" | "drink items") {
+  const user = userEvent.setup();
+  await user.click(await screen.findByRole("button", { name: `Expand ${label}` }));
+}
+
 describe("RoundDetail", () => {
   it("shows a not-found message for an unknown round id", async () => {
     server.use(
@@ -71,6 +78,7 @@ describe("RoundDetail", () => {
     renderDetail("1");
 
     expect(await screen.findByRole("heading", { name: "Week 1" })).toBeInTheDocument();
+    await expandSection("food items");
     expect(await screen.findByLabelText("Pho Bo")).toBeChecked();
     expect(screen.getByLabelText("Banh Mi")).not.toBeChecked();
   });
@@ -89,6 +97,7 @@ describe("RoundDetail", () => {
 
     renderDetail("1");
 
+    await expandSection("food items");
     expect(await screen.findByLabelText("Pho Bo")).toBeDisabled();
   });
 
@@ -106,6 +115,7 @@ describe("RoundDetail", () => {
 
     renderDetail("1");
 
+    await expandSection("food items");
     expect(await screen.findByLabelText("Pho Bo")).toBeDisabled();
   });
 
@@ -132,6 +142,7 @@ describe("RoundDetail", () => {
 
     renderDetail("1");
 
+    await expandSection("food items");
     await screen.findByLabelText("Pho Bo");
     expect(screen.getByLabelText("Pho Bo")).not.toBeChecked();
 
@@ -164,6 +175,7 @@ describe("RoundDetail", () => {
 
     renderDetail("1");
 
+    await expandSection("food items");
     await screen.findByLabelText("Pho Bo");
     expect(screen.getByLabelText("Pho Bo")).toBeChecked();
 
@@ -375,8 +387,9 @@ describe("RoundDetail", () => {
 
     renderDetail("1");
 
+    expect(await screen.findByText("Drink items", { exact: false })).toBeInTheDocument();
+    await expandSection("drink items");
     expect(await screen.findByText("Tra Da")).toBeInTheDocument();
-    expect(screen.getByText("Drink items", { exact: false })).toBeInTheDocument();
   });
 
   it("shows a Delete button only for a draft round", async () => {

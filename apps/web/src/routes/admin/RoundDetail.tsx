@@ -32,6 +32,7 @@ import { downloadCsv } from "@/lib/download";
 import { copyRoundShareLink } from "@/lib/share-link";
 import { cn } from "@/lib/utils";
 import { RoundStatusBadge } from "./RoundStatusBadge";
+import { SUBMISSION_COLUMNS, SubmissionsTable } from "./SubmissionsTable";
 import type { MenuItem } from "./useMenuItems";
 import { useMenuItems } from "./useMenuItems";
 import type { Restaurant } from "./useRestaurants";
@@ -41,11 +42,10 @@ import {
   useRemoveRoundMenuItem,
   useRoundMenuItems,
 } from "./useRoundMenuItems";
-import { SUBMISSION_COLUMNS, SubmissionsTable } from "../shared/SubmissionsTable";
-import type { RoundSubmission } from "../shared/useRoundSubmissions";
-import { useRoundSubmissions, useUpdateRoundSubmission } from "../shared/useRoundSubmissions";
 import { useDeleteRound, useRound, useUpdateRound, useUpdateRoundStatus } from "./useRounds";
 import type { Round } from "./useRounds";
+import type { RoundSubmission } from "../shared/useRoundSubmissions";
+import { useRoundSubmissions, useUpdateRoundSubmission } from "../shared/useRoundSubmissions";
 
 const selectClassName =
   "h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20";
@@ -361,8 +361,8 @@ export function RoundDetail() {
   const { id } = useParams<{ id: string }>();
   const roundId = Number(id);
   const navigate = useNavigate();
-  const [foodItemsOpen, setFoodItemsOpen] = useState(true);
-  const [drinkItemsOpen, setDrinkItemsOpen] = useState(true);
+  const [foodItemsOpen, setFoodItemsOpen] = useState(false);
+  const [drinkItemsOpen, setDrinkItemsOpen] = useState(false);
 
   const { data: round, isPending: roundPending } = useRound(roundId);
   const { data: restaurants } = useRestaurants();

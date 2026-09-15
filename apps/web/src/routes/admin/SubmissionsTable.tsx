@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import { useEmployees } from "../admin/useEmployees";
-import type { RoundSubmission } from "./useRoundSubmissions";
+import type { RoundSubmission } from "../shared/useRoundSubmissions";
+import { useEmployees } from "./useEmployees";
 
 export const SUBMISSION_COLUMNS = ["Employee", "Food", "Food note", "Drink", "Drink note"];
 
@@ -29,9 +29,9 @@ export function SubmissionsTable({
   return (
     <div className="flex flex-col gap-2">
       {countLabel && <p className="text-sm text-muted-foreground">{countLabel}</p>}
-      <div className="overflow-x-auto">
+      <div className="max-h-96 overflow-auto">
         <table className="w-full text-sm">
-          <thead>
+          <thead className="sticky top-0 bg-card">
             <tr className="border-b text-left text-muted-foreground">
               <th className="py-1.5 pr-4 font-medium">No.</th>
               {SUBMISSION_COLUMNS.map((column, index) => (
