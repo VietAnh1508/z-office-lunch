@@ -1,7 +1,7 @@
 ---
 id: 039
 title: Parse pasted menu item names + Checkbox UI primitive
-status: approved
+status: in_review
 depends_on: []
 parallelizable_with: [040]
 epic: bulk-paste-menu-items
@@ -52,12 +52,23 @@ Test file `apps/web/src/lib/parse-menu-item-names.test.ts` (same convention as `
 
 ## Implementation Log
 
-(Filled in by /implement-task.)
+- red commit: `7e13d3e` — `pnpm test -- apps/web/src/lib/parse-menu-item-names.test.ts` -> 1 failing (module not found)
+- green commit: `409a3a5` — `pnpm test -- apps/web/src/lib/parse-menu-item-names.test.ts` -> all passing (358/358 across full suite); `pnpm typecheck` and `pnpm lint` both clean.
 
 ## Plan Deviations
 
-(Filled in by /implement-task.)
+- Confirmed the exact Radix data-attribute convention before writing `checkbox.tsx`: `@radix-ui/react-checkbox` sets `data-state="checked"|"unchecked"|"indeterminate"` (verified by reading the installed package's source), and this repo's `shadcn/tailwind.css` import defines `@custom-variant data-checked` mapping `data-checked:` classes to `[data-state="checked"]` — matching the plan's guess, but verified rather than assumed before writing the styling classes.
+- Local environment blocker, unrelated to the task itself: port 5432 was held by an unrelated project's Postgres container (`staffing-postgres`), blocking `pnpm db:up` and thus all `pnpm test` runs (the vitest global setup connects to Postgres regardless of which file is targeted). Stopped for the user to free the port themselves rather than touching another project's container; resumed once confirmed free. No code or plan impact, but worth flagging since it'll recur if that other project's container is left running.
+- Everything else matched the Plan section as written.
 
 ## Review Notes
 
-(Output of the feature-dev:code-reviewer agent, appended by /implement-task.)
+Reviewed the full task 039 diff (`apps/web/src/lib/parse-menu-item-names.ts`, `apps/web/src/lib/parse-menu-item-names.test.ts`, `apps/web/src/components/ui/checkbox.tsx`) against the task spec and the `label.tsx`/`dialog.tsx` wrapper conventions.
+
+No issues at or above the confidence-80 threshold. Summary of what was checked:
+
+1. `parseMenuItemNames`: one-line implementation matches the plan verbatim (`split(/\r?\n/).map(trim).filter(length>0)`). Verified against all 9 test cases (multi-line, CRLF, leading/trailing blanks, interspersed whitespace-only lines, trimming, duplicates kept, empty string, whitespace-only string, single line no trailing newline) — all correctly satisfied. No dedup, no bullet-stripping, both explicitly out of scope per the acceptance criteria and correctly not attempted. `\r`-only (old Mac) line endings aren't handled, but that's outside the stated acceptance criteria, not a real gap.
+
+2. `checkbox.tsx`: structurally matches `label.tsx`'s wrapper convention — named import from `radix-ui`, `ComponentProps<typeof CheckboxPrimitive.Root>` typing, `data-slot` on both Root and Indicator, `cn(...)` with `className` merged last (so consumer overrides win), named export `{ Checkbox }`, `lucide-react` Check icon import matching `dialog.tsx`'s `X` icon convention. Independently verified (rather than trusting the task file's own Plan Deviations note) that `data-checked:` actually resolves: `@custom-variant data-checked { ... }` is defined in `shadcn/tailwind.css`, pulled in via `apps/web/src/index.css`'s `@import "shadcn/tailwind.css"` — so the styling classes are live, not dead code. `ring-3`/`ring-ring/50` and `border-input`/`shadow-xs` are already precedented elsewhere (`dialog.tsx` line 55, `input.tsx`).
+
+Verdict: clean. This diff meets the task's acceptance criteria and repo conventions; no changes requested.
