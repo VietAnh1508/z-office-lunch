@@ -37,7 +37,7 @@ function parseCsv(input: string): string[][] {
       i++;
       continue;
     }
-    if (char === ",") {
+    if (char === "\t") {
       row.push(field);
       field = "";
       i++;
@@ -74,19 +74,18 @@ describe("toCsv", () => {
     expect(csv.charCodeAt(0)).toBe(0xfeff);
   });
 
-  it("does not prepend a sep=, directive, since it breaks Excel's BOM-based UTF-8 detection for non-ASCII text", () => {
-    // Excel (Windows and Mac) mis-detects the encoding of the rest of the
-    // file — falling back to a legacy codepage and mangling multi-byte
-    // characters like Vietnamese diacritics — whenever a `sep=,` line
-    // precedes the BOM-marked content, even though the BOM itself is
-    // correct. See https://answers.microsoft.com/en-us/msoffice/forum/all/open-utf-8-csv-file-with-sep-loose-encoding/b907d943-6b03-4eed-a7cd-11c2e32f8e1f
+  it("delimits fields with a tab, not a comma", () => {
+    // Tab (not comma, even with a sep=, directive) is what makes Excel
+    // auto-split into columns regardless of OS/Excel regional "list
+    // separator" locale, without also breaking BOM-based Unicode detection
+    // the way `sep=,` does for UTF-8. See the rationale comment on `toCsv`.
     const csv = toCsv(["Name"], [["Ann"]]);
 
     expect(csv).toBe("﻿Name\r\nAnn");
   });
 
-  it("round-trips a note containing a comma, a quote, and a newline", () => {
-    const note = 'Extra spicy, please "no cilantro"\nthanks';
+  it("round-trips a note containing a tab, a quote, and a newline", () => {
+    const note = 'Extra spicy\tplease "no cilantro"\nthanks';
 
     const csv = toCsv(["Employee", "Note"], [["An Nguyen", note]]);
     const parsed = parseCsv(csv);
@@ -95,16 +94,16 @@ describe("toCsv", () => {
     expect(parsed[1]).toEqual(["An Nguyen", note]);
   });
 
-  it("leaves plain fields unescaped", () => {
-    const csv = toCsv(["Employee", "Food"], [["An Nguyen", "Pho Bo"]]);
+  it("leaves plain fields unescaped, including ones containing a comma", () => {
+    const csv = toCsv(["Employee", "Food"], [["An Nguyen", "Pho, extra beef"]]);
 
-    expect(csv).toBe("﻿Employee,Food\r\nAn Nguyen,Pho Bo");
+    expect(csv).toBe("﻿Employee\tFood\r\nAn Nguyen\tPho, extra beef");
   });
 
   it("renders null as an empty field", () => {
     const csv = toCsv(["Employee", "Drink"], [["An Nguyen", null]]);
 
-    expect(csv).toBe("﻿Employee,Drink\r\nAn Nguyen,");
+    expect(csv).toBe("﻿Employee\tDrink\r\nAn Nguyen\t");
   });
 
   it("opens cleanly with Vietnamese names, which pass through untouched (no ASCII-only escaping)", () => {
