@@ -2,13 +2,14 @@ import { ArrowLeft, CircleCheck, CircleX, Pencil, Trash2, Upload } from "lucide-
 import { type ChangeEvent, type SubmitEvent, useRef, useState } from "react";
 import { Link, useParams } from "react-router";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { useRequiredField } from "@/hooks/useRequiredField";
 import { formatPrice } from "@/lib/format-price";
+import { BulkAddMenuItems } from "./BulkAddMenuItems";
 import { GenerateMenuFromImage } from "./GenerateMenuFromImage";
 import { RestaurantTypeBadge } from "./RestaurantTypeBadge";
 import type { Restaurant } from "./useRestaurants";
@@ -351,6 +352,9 @@ export function RestaurantDetail() {
         <Card>
           <CardHeader>
             <CardTitle>Add menu item</CardTitle>
+            <CardAction>
+              <BulkAddMenuItems restaurantId={restaurantId} />
+            </CardAction>
           </CardHeader>
           <CardContent>
             <form className="flex flex-col gap-3" onSubmit={handleSubmit} noValidate>
