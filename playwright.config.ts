@@ -12,6 +12,7 @@ export default defineConfig({
     url: "http://localhost:8788/api/health",
     reuseExistingServer: !process.env.CI,
     timeout: 60_000,
+    env: { VITE_ADMIN_PASSWORD: "e2e-test-password" },
   },
   use: {
     baseURL: "http://localhost:8788",

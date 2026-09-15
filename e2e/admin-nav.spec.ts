@@ -1,6 +1,8 @@
 import { expect, test } from "@playwright/test";
+import { unlockAdmin } from "./helpers";
 
 test("clicking through the admin nav reaches each section", async ({ page }) => {
+  await unlockAdmin(page);
   await page.goto("/admin");
   await expect(page.getByRole("heading", { name: "Admin" })).toBeVisible();
 
@@ -19,6 +21,7 @@ test("clicking through the admin nav reaches each section", async ({ page }) => 
 });
 
 test("deep-linking to a nested admin route is served by the SPA fallback", async ({ page }) => {
+  await unlockAdmin(page);
   await page.goto("/admin/employees");
 
   await expect(page.getByRole("heading", { name: "Employees" })).toBeVisible();
