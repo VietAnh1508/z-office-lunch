@@ -15,6 +15,7 @@ import { Maximize2 } from "lucide-react";
 import { type SubmitEvent, useState } from "react";
 import { useParams } from "react-router";
 import { EmployeeCombobox } from "./EmployeeCombobox";
+import { ItemCombobox } from "./ItemCombobox";
 import type { PublicRound, PublicRoundRestaurant } from "./usePublicRound";
 import { usePublicRound } from "./usePublicRound";
 import { useActiveEmployees, useCreateSubmission } from "./useSubmission";
@@ -121,7 +122,7 @@ function SubmissionForm({
 
   const [employeeId, setEmployeeId] = useState<number | null>(null);
   const [employeeError, setEmployeeError] = useState<string | null>(null);
-  const [foodItemId, setFoodItemId] = useState("");
+  const [foodItemId, setFoodItemId] = useState<number | null>(null);
   const [foodItemError, setFoodItemError] = useState<string | null>(null);
   const [foodNote, setFoodNote] = useState("");
   const [drinkItemId, setDrinkItemId] = useState("");
@@ -134,7 +135,7 @@ function SubmissionForm({
     const employeeValid = employeeId !== null;
     setEmployeeError(employeeValid ? null : "Please select your name.");
 
-    const foodValid = foodItemId !== "";
+    const foodValid = foodItemId !== null;
     setFoodItemError(foodValid ? null : "Please select a food item.");
 
     if (!employeeValid || !foodValid) return;
@@ -142,7 +143,7 @@ function SubmissionForm({
     createSubmission.mutate(
       {
         employeeId: employeeId,
-        foodRoundMenuItemId: Number(foodItemId),
+        foodRoundMenuItemId: foodItemId,
         foodNote: foodNote.trim() || undefined,
         drinkRoundMenuItemId: drinkItemId ? Number(drinkItemId) : undefined,
         drinkNote:
@@ -183,31 +184,19 @@ function SubmissionForm({
             error={employeeError}
           />
 
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="submission-food-item">
-              Food item <span className="text-destructive">*</span>
-            </Label>
-            <select
-              id="submission-food-item"
-              className={selectClassName}
-              value={foodItemId}
-              onChange={(e) => {
-                setFoodItemId(e.target.value);
-                setFoodItemError(null);
-              }}
-              aria-invalid={foodItemError !== null}
-            >
-              <option value="">Select a food item</option>
-              {round.foodItems.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.name}
-                </option>
-              ))}
-            </select>
-            {foodItemError && (
-              <p className="text-sm text-destructive">{foodItemError}</p>
-            )}
-          </div>
+          <ItemCombobox
+            id="submission-food-item"
+            label="Food item"
+            required
+            items={round.foodItems}
+            value={foodItemId}
+            onChange={(id) => {
+              setFoodItemId(id);
+              setFoodItemError(null);
+            }}
+            error={foodItemError}
+            placeholder="Search food items…"
+          />
           <MenuLink restaurant={round.foodRestaurant} />
           <MenuImage restaurant={round.foodRestaurant} className="lg:hidden" />
           <div className="flex flex-col gap-1.5">

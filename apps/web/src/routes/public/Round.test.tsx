@@ -46,6 +46,12 @@ async function pickEmployee(user: ReturnType<typeof userEvent.setup>, name: stri
   await user.click(await screen.findByRole("option", { name }));
 }
 
+async function pickFoodItem(user: ReturnType<typeof userEvent.setup>, name: string) {
+  const input = screen.getByRole("combobox", { name: /food item/i });
+  await user.type(input, name);
+  await user.click(await screen.findByRole("option", { name }));
+}
+
 describe("Round (public view)", () => {
   it("shows the same generic message for a draft round as for a nonexistent one", async () => {
     server.use(
@@ -130,7 +136,7 @@ describe("Round (public view)", () => {
     renderRound("1");
 
     expect(
-      await screen.findByRole("option", { name: "Pho Bo" }),
+      await screen.findByRole("combobox", { name: /food item/i }),
     ).toBeInTheDocument();
     expect(screen.queryByLabelText("Drink item", { exact: false })).not.toBeInTheDocument();
   });
@@ -160,7 +166,7 @@ describe("Round (public view)", () => {
     );
 
     renderRound("1");
-    await screen.findByRole("option", { name: "Pho Bo" });
+    await screen.findByRole("combobox", { name: /food item/i });
 
     const input = screen.getByRole("combobox", { name: /your name/i });
     await user.type(input, "An N");
@@ -182,7 +188,7 @@ describe("Round (public view)", () => {
     );
 
     renderRound("1");
-    await screen.findByRole("option", { name: "Pho Bo" });
+    await screen.findByRole("combobox", { name: /food item/i });
 
     const input = screen.getByRole("combobox", { name: /your name/i });
     await user.type(input, "An");
@@ -206,7 +212,7 @@ describe("Round (public view)", () => {
     );
 
     renderRound("1");
-    await screen.findByRole("option", { name: "Pho Bo" });
+    await screen.findByRole("combobox", { name: /food item/i });
 
     await user.click(screen.getByRole("button", { name: "Submit" }));
 
@@ -228,10 +234,10 @@ describe("Round (public view)", () => {
     );
 
     renderRound("1");
-    await screen.findByRole("option", { name: "Pho Bo" });
+    await screen.findByRole("combobox", { name: /food item/i });
 
     await pickEmployee(user, "An Nguyen");
-    await user.selectOptions(screen.getByLabelText("Food item", { exact: false }), "10");
+    await pickFoodItem(user, "Pho Bo");
     await user.click(screen.getByRole("button", { name: "Submit" }));
 
     expect(
@@ -256,10 +262,10 @@ describe("Round (public view)", () => {
     );
 
     renderRound("1");
-    await screen.findByRole("option", { name: "Pho Bo" });
+    await screen.findByRole("combobox", { name: /food item/i });
 
     await pickEmployee(user, "An Nguyen");
-    await user.selectOptions(screen.getByLabelText("Food item", { exact: false }), "10");
+    await pickFoodItem(user, "Pho Bo");
     await user.selectOptions(screen.getByLabelText("Drink item", { exact: false }), "20");
     await user.type(screen.getByLabelText("Drink note", { exact: false }), "Less ice");
     await user.click(screen.getByRole("button", { name: "Submit" }));
@@ -287,10 +293,10 @@ describe("Round (public view)", () => {
     );
 
     renderRound("1");
-    await screen.findByRole("option", { name: "Pho Bo" });
+    await screen.findByRole("combobox", { name: /food item/i });
 
     await pickEmployee(user, "An Nguyen");
-    await user.selectOptions(screen.getByLabelText("Food item", { exact: false }), "10");
+    await pickFoodItem(user, "Pho Bo");
     await user.click(screen.getByRole("button", { name: "Submit" }));
 
     expect(
@@ -327,7 +333,7 @@ describe("Round (public view)", () => {
       );
 
       renderRound("1");
-      await screen.findByRole("option", { name: "Pho Bo" });
+      await screen.findByRole("combobox", { name: /food item/i });
 
       expect(screen.queryByRole("link", { name: /open menu/i })).not.toBeInTheDocument();
       expect(screen.queryByRole("img")).not.toBeInTheDocument();
