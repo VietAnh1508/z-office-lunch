@@ -771,7 +771,7 @@ describe("RoundDetail", () => {
 
       const dialog = within(await screen.findByRole("dialog"));
       expect(dialog.getByText("An Nguyen")).toBeInTheDocument();
-      expect(dialog.getByLabelText("Food item")).toHaveValue("10");
+      expect(dialog.getByLabelText("Food item", { exact: false })).toHaveValue("10");
       expect(dialog.getByLabelText("Food note")).toHaveValue("No cilantro");
       expect(dialog.getByLabelText("Drink item")).toHaveValue("20");
       expect(dialog.getByLabelText("Drink note")).toHaveValue("");
@@ -801,7 +801,7 @@ describe("RoundDetail", () => {
       await user.click(await screen.findByRole("button", { name: "Edit submission" }));
 
       const dialog = within(await screen.findByRole("dialog"));
-      await user.selectOptions(dialog.getByLabelText("Food item"), "11");
+      await user.selectOptions(dialog.getByLabelText("Food item", { exact: false }), "11");
       await user.clear(dialog.getByLabelText("Food note"));
       await user.type(dialog.getByLabelText("Food note"), "Extra spicy");
       await user.click(dialog.getByRole("button", { name: "Save" }));
@@ -814,7 +814,7 @@ describe("RoundDetail", () => {
       });
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
       expect(await screen.findByText("Submission updated")).toBeInTheDocument();
-      expect(await screen.findByText("Pho Ga")).toBeInTheDocument();
+      expect(await within(screen.getByRole("table")).findByText("Pho Ga")).toBeInTheDocument();
     });
 
     it("reopening the dialog after a save shows the newly saved values, not the original ones", async () => {
@@ -845,16 +845,16 @@ describe("RoundDetail", () => {
       renderDetail("1");
       await user.click(await screen.findByRole("button", { name: "Edit submission" }));
       let dialog = within(await screen.findByRole("dialog"));
-      await user.selectOptions(dialog.getByLabelText("Food item"), "11");
+      await user.selectOptions(dialog.getByLabelText("Food item", { exact: false }), "11");
       await user.clear(dialog.getByLabelText("Food note"));
       await user.type(dialog.getByLabelText("Food note"), "Extra spicy");
       await user.click(dialog.getByRole("button", { name: "Save" }));
 
-      await screen.findByText("Pho Ga");
+      await within(screen.getByRole("table")).findByText("Pho Ga");
       await user.click(screen.getByRole("button", { name: "Edit submission" }));
 
       dialog = within(await screen.findByRole("dialog"));
-      expect(dialog.getByLabelText("Food item")).toHaveValue("11");
+      expect(dialog.getByLabelText("Food item", { exact: false })).toHaveValue("11");
       expect(dialog.getByLabelText("Food note")).toHaveValue("Extra spicy");
     });
 
@@ -894,7 +894,7 @@ describe("RoundDetail", () => {
       renderDetail("1");
       await user.click(await screen.findByRole("button", { name: "Edit submission" }));
       const dialog = within(await screen.findByRole("dialog"));
-      expect(dialog.getByLabelText("Food item")).toHaveValue("");
+      expect(dialog.getByLabelText("Food item", { exact: false })).toHaveValue("");
       await user.click(dialog.getByRole("button", { name: "Save" }));
 
       expect(dialog.getByText("Please select a food item.")).toBeInTheDocument();
@@ -914,8 +914,8 @@ describe("RoundDetail", () => {
 
       const calls = vi.mocked(downloadCsv).mock.calls;
       const [, csv] = calls[calls.length - 1]!;
-      const header = csv.split("\n")[0];
-      expect(header).toBe("Employee,Food,Food note,Drink,Drink note");
+      const header = csv.replace(/^﻿/, "").split("\r\n")[0];
+      expect(header?.split("\t")).toEqual(["Employee", "Food", "Food note", "Drink", "Drink note"]);
     });
   });
 });
