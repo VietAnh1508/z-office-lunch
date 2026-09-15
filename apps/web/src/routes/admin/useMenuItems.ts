@@ -69,7 +69,7 @@ export function useBulkCreateMenuItems(restaurantId: number) {
       api.post<MenuItem[]>(`/restaurants/${restaurantId}/menu-items/bulk`, input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: menuItemKeys.all(restaurantId) });
-      toast.success("Menu items generated");
+      toast.success("Menu items saved");
     },
     onError: (error) => toastApiError(error, "Could not save menu items."),
   });

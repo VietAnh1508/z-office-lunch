@@ -20,23 +20,23 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { MenuCandidateRow, type MenuCandidate } from "./MenuCandidateRow";
+import { MenuCandidateRow } from "./MenuCandidateRow";
+import { useMenuCandidates } from "./useMenuCandidates";
 import { useBulkCreateMenuItems, useGenerateMenuFromImage, useMenuItems } from "./useMenuItems";
-
-function validatePrice(price: string): string | null {
-  const trimmed = price.trim();
-  if (trimmed !== "" && !(Number.isFinite(Number(trimmed)) && Number(trimmed) >= 0)) {
-    return "Price must be a valid non-negative number.";
-  }
-  return null;
-}
 
 export function GenerateMenuFromImage({ restaurantId }: { restaurantId: number }) {
   const { data: menuItems } = useMenuItems(restaurantId);
   const bulkCreate = useBulkCreateMenuItems(restaurantId);
   const generateMenu = useGenerateMenuFromImage(restaurantId);
-  const [candidates, setCandidates] = useState<MenuCandidate[]>([]);
-  const [priceErrors, setPriceErrors] = useState<Record<string, string | null>>({});
+  const {
+    candidates,
+    priceErrors,
+    seed,
+    handleCandidateChange,
+    handleCandidateRemove,
+    validateAllPrices,
+    reset,
+  } = useMenuCandidates();
   const [reviewOpen, setReviewOpen] = useState(false);
   const [confirmReplaceOpen, setConfirmReplaceOpen] = useState(false);
 
@@ -49,44 +49,10 @@ export function GenerateMenuFromImage({ restaurantId }: { restaurantId: number }
           toast.error("No menu items found in the image.");
           return;
         }
-        setCandidates(
-          items.map((item) => ({ rowId: crypto.randomUUID(), name: item.name, price: "" })),
-        );
-        setPriceErrors({});
+        seed(items.map((item) => item.name));
         setReviewOpen(true);
       },
     });
-  }
-
-  function handleCandidateChange(
-    rowId: string,
-    patch: Partial<Pick<MenuCandidate, "name" | "price">>,
-  ) {
-    setCandidates((prev) => prev.map((c) => (c.rowId === rowId ? { ...c, ...patch } : c)));
-    if (patch.price !== undefined) {
-      setPriceErrors((prev) => ({ ...prev, [rowId]: null }));
-    }
-  }
-
-  function handleCandidateRemove(rowId: string) {
-    setCandidates((prev) => prev.filter((c) => c.rowId !== rowId));
-    setPriceErrors((prev) => {
-      const next = { ...prev };
-      delete next[rowId];
-      return next;
-    });
-  }
-
-  function validateAllPrices(): boolean {
-    const errors: Record<string, string | null> = {};
-    let valid = true;
-    for (const candidate of candidates) {
-      const error = validatePrice(candidate.price);
-      errors[candidate.rowId] = error;
-      if (error) valid = false;
-    }
-    setPriceErrors(errors);
-    return valid;
   }
 
   function save(mode: "override" | "append") {
@@ -96,8 +62,7 @@ export function GenerateMenuFromImage({ restaurantId }: { restaurantId: number }
         onSuccess: () => {
           setReviewOpen(false);
           setConfirmReplaceOpen(false);
-          setCandidates([]);
-          setPriceErrors({});
+          reset();
         },
       },
     );
