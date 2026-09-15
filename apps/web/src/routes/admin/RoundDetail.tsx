@@ -1,4 +1,4 @@
-import { ArrowLeft, Pencil, Share } from "lucide-react";
+import { ArrowLeft, ChevronDown, Pencil, Share } from "lucide-react";
 import { type SubmitEvent, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import {
@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   Dialog,
   DialogContent,
@@ -29,6 +30,7 @@ import { useRequiredField } from "@/hooks/useRequiredField";
 import { toCsv } from "@/lib/csv";
 import { downloadCsv } from "@/lib/download";
 import { copyRoundShareLink } from "@/lib/share-link";
+import { cn } from "@/lib/utils";
 import { RoundStatusBadge } from "./RoundStatusBadge";
 import type { MenuItem } from "./useMenuItems";
 import { useMenuItems } from "./useMenuItems";
@@ -340,10 +342,27 @@ function EditRoundForm({
   );
 }
 
+function CollapseToggle({ open, label }: { open: boolean; label: string }) {
+  return (
+    <CollapsibleTrigger asChild>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-sm"
+        aria-label={open ? `Collapse ${label}` : `Expand ${label}`}
+      >
+        <ChevronDown className={cn("transition-transform", !open && "-rotate-90")} aria-hidden="true" />
+      </Button>
+    </CollapsibleTrigger>
+  );
+}
+
 export function RoundDetail() {
   const { id } = useParams<{ id: string }>();
   const roundId = Number(id);
   const navigate = useNavigate();
+  const [foodItemsOpen, setFoodItemsOpen] = useState(true);
+  const [drinkItemsOpen, setDrinkItemsOpen] = useState(true);
 
   const { data: round, isPending: roundPending } = useRound(roundId);
   const { data: restaurants } = useRestaurants();
@@ -567,18 +586,32 @@ export function RoundDetail() {
 
       <div className="grid gap-6 sm:grid-cols-2">
         <Card className={round.drinkRestaurantId == null ? "sm:col-span-2" : undefined}>
-          <CardHeader>
-            <CardTitle>Food items — {restaurantName(round.foodRestaurantId)}</CardTitle>
-          </CardHeader>
-          <CardContent>{renderMenuItemList(foodItems, foodPending)}</CardContent>
+          <Collapsible open={foodItemsOpen} onOpenChange={setFoodItemsOpen}>
+            <CardHeader>
+              <CardTitle>Food items — {restaurantName(round.foodRestaurantId)}</CardTitle>
+              <CardAction>
+                <CollapseToggle open={foodItemsOpen} label="food items" />
+              </CardAction>
+            </CardHeader>
+            <CollapsibleContent>
+              <CardContent>{renderMenuItemList(foodItems, foodPending)}</CardContent>
+            </CollapsibleContent>
+          </Collapsible>
         </Card>
 
         {round.drinkRestaurantId != null && (
           <Card>
-            <CardHeader>
-              <CardTitle>Drink items — {restaurantName(round.drinkRestaurantId)}</CardTitle>
-            </CardHeader>
-            <CardContent>{renderMenuItemList(drinkItems, drinkPending)}</CardContent>
+            <Collapsible open={drinkItemsOpen} onOpenChange={setDrinkItemsOpen}>
+              <CardHeader>
+                <CardTitle>Drink items — {restaurantName(round.drinkRestaurantId)}</CardTitle>
+                <CardAction>
+                  <CollapseToggle open={drinkItemsOpen} label="drink items" />
+                </CardAction>
+              </CardHeader>
+              <CollapsibleContent>
+                <CardContent>{renderMenuItemList(drinkItems, drinkPending)}</CardContent>
+              </CollapsibleContent>
+            </Collapsible>
           </Card>
         )}
       </div>
