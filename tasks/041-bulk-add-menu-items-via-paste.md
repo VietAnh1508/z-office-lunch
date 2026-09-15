@@ -1,7 +1,7 @@
 ---
 id: 041
 title: Bulk-add menu items via pasted text
-status: approved
+status: in_review
 depends_on: [039, 040]
 parallelizable_with: []
 epic: bulk-paste-menu-items
@@ -56,12 +56,34 @@ Give the admin a way to bulk-add menu items by pasting a newline-separated list 
 
 ## Implementation Log
 
-(Filled in by /implement-task.)
+- Red: `bfe93cb` — `pnpm test -- apps/web/src/routes/admin/BulkAddMenuItems.test.tsx` → 1 failing suite (module `./BulkAddMenuItems` not found; the expected kind of failure since the component didn't exist yet).
+- Green: `76551dd` — `pnpm test -- apps/web/src/routes/admin/BulkAddMenuItems.test.tsx` → 7 passing. Full suite (`pnpm test`) → 368 passing. `pnpm lint` → clean except 3 pre-existing `only-export-components` warnings in unrelated files (`button.tsx`, `badge.tsx`, `SubmissionsTable.tsx`), not touched by this task.
 
 ## Plan Deviations
 
-(Filled in by /implement-task.)
+- Trigger placement: used the existing `CardAction` primitive (already established in `Restaurants.tsx`, `RoundList.tsx`, `RoundDetail.tsx` for header-action buttons) inside the "Add menu item" card's `CardHeader`, rather than hand-rolling a flex wrapper as the Plan's phrasing ("read the current header markup first to match its existing layout") suggested might be needed. `CardHeader`'s CSS already switches to a two-column grid when it contains a `CardAction`, so this was a closer fit to the codebase's own convention than improvising spacing classes.
+- Used the already-in-scope `restaurantId` (a plain `number`, from `RestaurantDetail`'s route param) as the prop passed to `BulkAddMenuItems`, rather than `restaurant.id` as `GenerateMenuFromImage`'s usage elsewhere in the same file might suggest — `restaurant` is a `Restaurant | undefined` at that point in `RestaurantDetail`'s scope, and `restaurantId` was already used the same way for the sibling `MenuItemRow` in that render. Not a deviation from any acceptance criterion, just an implementation choice the Plan didn't pin down.
 
 ## Review Notes
 
-(Output of the feature-dev:code-reviewer agent, appended by /implement-task.)
+Output of the `feature-dev:code-reviewer` agent, reviewing the red→green diff (`bfe93cb`..`76551dd`):
+
+> Reviewed the diff for task 041 (BulkAddMenuItems.tsx new file + RestaurantDetail.tsx trigger wiring), cross-checked against reused hooks/components, the GenerateMenuFromImage.tsx sibling pattern, the task's acceptance criteria, and the already-committed test file (bfe93cb) to rule out a red/green mismatch.
+>
+> Result: no issues at or above the 80-confidence bar. This is a clean, low-risk implementation.
+>
+> Convention compliance:
+> - mutation-feedback.md: satisfied. No toast import/call in BulkAddMenuItems.tsx; all success/error feedback comes from useBulkCreateMenuItems' own onSuccess/onError.
+> - form-validation.md: satisfied. textError is local state (not useRequiredField, which can't be spread onto a Textarea), matching the precedent in GenerateMenuFromImage.tsx's price-field validation, as called for in the task plan.
+>
+> Acceptance criteria: all nine bullets in tasks/041-bulk-add-menu-items-via-paste.md are met — unconditional trigger button in CardHeader/CardAction; Parse always enabled; blank/whitespace paste shows inline error and stays on paste step with no toast/transition; valid parse seeds useMenuCandidates and advances to review; review step reuses MenuCandidateRow identically to the image flow; single Save button with no override/append branching there (per the explicit "no confirmation before overwrite" product decision in the plan); Save payload shape matches spec; success path closes dialog and resets all local state including the hook's reset(); no component-level toast/invalidation logic.
+>
+> Verified the test file's queries (aria-label "Paste menu item names", button names "Bulk-add menu items"/"Parse"/"Save", checkbox name "Overwrite current menu items") match what the component actually renders — no red/green mismatch between the test and feature commits.
+>
+> Sub-80 items noted but not reported as findings, since they're either pre-existing patterns copied verbatim from the unchanged GenerateMenuFromImage.tsx or explicitly out of scope per the task plan:
+> - MenuCandidateRow has no non-empty-name validation before Save (same gap exists in the untouched image-generation flow).
+> - Empty price sent as "" rather than omitted (same price.trim() shape already used by the existing bulk-create call site).
+> - Brief step-flash back to "paste" during the dialog's close animation (cosmetic; sibling component does the same).
+> - No Back/Cancel button on review step and no overwrite confirmation dialog — both explicitly excluded by the acceptance criteria ("no confirmation step before an overwrite save, per explicit product decision").
+>
+> Recommendation: approve as-is.
