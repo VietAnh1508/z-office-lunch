@@ -163,7 +163,7 @@ describe("GenerateMenuFromImage", () => {
 
     await waitFor(() => expect(requestBody).not.toBeNull());
     expect(requestBody).toMatchObject({ mode: "append" });
-    expect(await screen.findByText("Menu items generated")).toBeInTheDocument();
+    expect(await screen.findByText("Menu items saved")).toBeInTheDocument();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
@@ -209,7 +209,7 @@ describe("GenerateMenuFromImage", () => {
 
     await waitFor(() => expect(requestBody).not.toBeNull());
     expect(requestBody).toMatchObject({ mode: "override" });
-    expect(await screen.findByText("Menu items generated")).toBeInTheDocument();
+    expect(await screen.findByText("Menu items saved")).toBeInTheDocument();
   });
 
   it("cancelling the replace confirmation sends no request and keeps the review dialog intact", async () => {
