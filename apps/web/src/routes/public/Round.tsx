@@ -247,7 +247,7 @@ function SubmissionForm({
                 <Label htmlFor="submission-drink-note">Drink note</Label>
                 <Input
                   id="submission-drink-note"
-                  placeholder="Optional, e.g. less ice"
+                  placeholder="Optional, e.g. size M, less ice"
                   value={drinkNote}
                   onChange={(e) => setDrinkNote(e.target.value)}
                   disabled={!drinkItemId}
