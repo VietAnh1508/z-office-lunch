@@ -1,7 +1,7 @@
 ---
 id: 042
 title: Admin can edit an employee's submission
-status: in_review
+status: done
 depends_on: []
 parallelizable_with: []
 epic:
