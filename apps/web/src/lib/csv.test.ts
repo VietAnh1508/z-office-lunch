@@ -3,25 +3,22 @@ import { toCsv } from "./csv";
 
 // Minimal RFC-4180-ish parser, used only to prove the escaping in `toCsv` is
 // actually reversible rather than just eyeballing the raw string. Mirrors
-// Excel's own handling of the leading BOM and `sep=,` directive line: both
-// are consumed before the real header/data rows are parsed.
+// Excel's own handling of the leading BOM before the real header/data rows
+// are parsed.
 function parseCsv(input: string): string[][] {
   const withoutBom = input.startsWith("﻿") ? input.slice(1) : input;
-  const withoutSepDirective = withoutBom.startsWith("sep=,\r\n")
-    ? withoutBom.slice("sep=,\r\n".length)
-    : withoutBom;
   const rows: string[][] = [];
   let row: string[] = [];
   let field = "";
   let inQuotes = false;
   let i = 0;
 
-  while (i < withoutSepDirective.length) {
-    const char = withoutSepDirective[i];
+  while (i < withoutBom.length) {
+    const char = withoutBom[i];
 
     if (inQuotes) {
       if (char === '"') {
-        if (withoutSepDirective[i + 1] === '"') {
+        if (withoutBom[i + 1] === '"') {
           field += '"';
           i += 2;
           continue;
@@ -46,7 +43,7 @@ function parseCsv(input: string): string[][] {
       i++;
       continue;
     }
-    if (char === "\r" && withoutSepDirective[i + 1] === "\n") {
+    if (char === "\r" && withoutBom[i + 1] === "\n") {
       row.push(field);
       rows.push(row);
       row = [];
@@ -77,13 +74,15 @@ describe("toCsv", () => {
     expect(csv.charCodeAt(0)).toBe(0xfeff);
   });
 
-  it("forces comma as Excel's delimiter via a sep=, directive, regardless of the OS locale", () => {
-    // Without this, Excel picks its CSV delimiter from the OS/Excel regional
-    // "list separator" setting — semicolon in many non-US locales (including
-    // Vietnamese) — and a comma-delimited file opens as one unsplit column.
+  it("does not prepend a sep=, directive, since it breaks Excel's BOM-based UTF-8 detection for non-ASCII text", () => {
+    // Excel (Windows and Mac) mis-detects the encoding of the rest of the
+    // file — falling back to a legacy codepage and mangling multi-byte
+    // characters like Vietnamese diacritics — whenever a `sep=,` line
+    // precedes the BOM-marked content, even though the BOM itself is
+    // correct. See https://answers.microsoft.com/en-us/msoffice/forum/all/open-utf-8-csv-file-with-sep-loose-encoding/b907d943-6b03-4eed-a7cd-11c2e32f8e1f
     const csv = toCsv(["Name"], [["Ann"]]);
 
-    expect(csv).toBe("﻿sep=,\r\nName\r\nAnn");
+    expect(csv).toBe("﻿Name\r\nAnn");
   });
 
   it("round-trips a note containing a comma, a quote, and a newline", () => {
@@ -99,18 +98,18 @@ describe("toCsv", () => {
   it("leaves plain fields unescaped", () => {
     const csv = toCsv(["Employee", "Food"], [["An Nguyen", "Pho Bo"]]);
 
-    expect(csv).toBe("﻿sep=,\r\nEmployee,Food\r\nAn Nguyen,Pho Bo");
+    expect(csv).toBe("﻿Employee,Food\r\nAn Nguyen,Pho Bo");
   });
 
   it("renders null as an empty field", () => {
     const csv = toCsv(["Employee", "Drink"], [["An Nguyen", null]]);
 
-    expect(csv).toBe("﻿sep=,\r\nEmployee,Drink\r\nAn Nguyen,");
+    expect(csv).toBe("﻿Employee,Drink\r\nAn Nguyen,");
   });
 
   it("opens cleanly with Vietnamese names, which pass through untouched (no ASCII-only escaping)", () => {
     const csv = toCsv(["Employee"], [["Nguyễn Văn An"]]);
 
-    expect(csv).toBe("﻿sep=,\r\nEmployee\r\nNguyễn Văn An");
+    expect(csv).toBe("﻿Employee\r\nNguyễn Văn An");
   });
 });
