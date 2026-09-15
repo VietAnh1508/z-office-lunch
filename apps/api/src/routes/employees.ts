@@ -37,8 +37,12 @@ employeesRoute.get("/", async (c) => {
   const db = getDb(c);
   try {
     const rows = activeOnly
-      ? await db.select().from(employees).where(eq(employees.active, true)).orderBy(employees.id)
-      : await db.select().from(employees).orderBy(employees.id);
+      ? await db
+          .select()
+          .from(employees)
+          .where(eq(employees.active, true))
+          .orderBy(employees.fullName)
+      : await db.select().from(employees).orderBy(employees.fullName);
     return c.json(rows);
   } catch (e) {
     console.error(JSON.stringify({ message: "failed to list employees", error: String(e) }));

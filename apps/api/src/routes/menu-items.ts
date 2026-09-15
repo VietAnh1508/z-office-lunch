@@ -79,7 +79,7 @@ menuItemsRoute.get("/:id/menu-items", async (c) => {
       ? and(eq(menuItems.restaurantId, restaurantId), eq(menuItems.active, true))
       : eq(menuItems.restaurantId, restaurantId);
 
-    const rows = await db.select().from(menuItems).where(conditions).orderBy(menuItems.id);
+    const rows = await db.select().from(menuItems).where(conditions).orderBy(menuItems.name);
     return c.json(rows);
   } catch (e) {
     console.error(JSON.stringify({ message: "failed to list menu items", error: String(e) }));

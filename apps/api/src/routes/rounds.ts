@@ -203,7 +203,7 @@ roundsRoute.get("/:id/public", async (c) => {
         .from(roundMenuItems)
         .innerJoin(menuItems, eq(roundMenuItems.menuItemId, menuItems.id))
         .where(and(eq(roundMenuItems.roundId, round.id), eq(menuItems.restaurantId, restaurantId)))
-        .orderBy(roundMenuItems.id);
+        .orderBy(menuItems.name);
 
     const selectRestaurantMenu = (restaurantId: number) =>
       db
