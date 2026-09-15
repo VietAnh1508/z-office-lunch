@@ -14,8 +14,6 @@ import { cn } from "@/lib/utils";
 import { Maximize2 } from "lucide-react";
 import { type SubmitEvent, useState } from "react";
 import { useParams } from "react-router";
-import { SubmissionsTable } from "../shared/SubmissionsTable";
-import { useRoundSubmissions } from "../shared/useRoundSubmissions";
 import { EmployeeCombobox } from "./EmployeeCombobox";
 import type { PublicRound, PublicRoundRestaurant } from "./usePublicRound";
 import { usePublicRound } from "./usePublicRound";
@@ -271,21 +269,6 @@ function SubmissionForm({
   );
 }
 
-function SubmissionsCard({ roundId }: { roundId: number }) {
-  const { data: submissions } = useRoundSubmissions(roundId);
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Submissions</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <SubmissionsTable submissions={submissions} />
-      </CardContent>
-    </Card>
-  );
-}
-
 export function Round() {
   const { roundId } = useParams<{ roundId: string }>();
   const id = Number(roundId);
@@ -360,7 +343,6 @@ export function Round() {
         </div>
 
         <SubmissionForm roundId={id} round={round} />
-        <SubmissionsCard roundId={id} />
       </div>
 
       {hasMenuPanel && <MenuPanel round={round} />}
