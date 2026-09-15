@@ -64,7 +64,7 @@ export function EmployeeCombobox({
         {open && filtered.length > 0 && (
           <ul
             role="listbox"
-            className="absolute z-10 mt-1 max-h-48 w-full overflow-auto rounded-lg border border-input bg-popover py-1 shadow-md"
+            className="absolute z-10 mt-1 max-h-72 w-full overflow-auto rounded-lg border border-input bg-popover py-1 shadow-md"
           >
             {filtered.map((employee) => (
               <li key={employee.id}>

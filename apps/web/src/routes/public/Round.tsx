@@ -163,7 +163,7 @@ function SubmissionForm({
   }
 
   return (
-    <Card>
+    <Card className="overflow-visible">
       <CardHeader>
         <CardTitle>Place your order</CardTitle>
       </CardHeader>
