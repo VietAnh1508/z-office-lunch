@@ -1,8 +1,8 @@
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { HttpResponse, http } from "msw";
+import { HttpResponse, delay, http } from "msw";
 import { MemoryRouter } from "react-router";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import App from "@/App";
 import { renderWithProviders } from "@/test/render";
 import { server } from "@/test/mocks/server";
@@ -24,12 +24,10 @@ function unlock() {
 describe("AdminLayout", () => {
   beforeEach(() => {
     sessionStorage.clear();
-    vi.stubEnv("VITE_ADMIN_PASSWORD", TEST_PASSWORD);
   });
 
   afterEach(() => {
     sessionStorage.clear();
-    vi.unstubAllEnvs();
   });
 
   it("shows a password prompt instead of admin content when locked", () => {
@@ -59,6 +57,11 @@ describe("AdminLayout", () => {
   });
 
   it("shows a toast and stays locked on a wrong password", async () => {
+    server.use(
+      http.post("/api/admin/verify-password", () =>
+        HttpResponse.json({ error: "incorrect password" }, { status: 401 }),
+      ),
+    );
     const user = userEvent.setup();
     renderApp("/admin");
 
@@ -70,6 +73,9 @@ describe("AdminLayout", () => {
   });
 
   it("unlocks and shows admin content on the correct password", async () => {
+    server.use(
+      http.post("/api/admin/verify-password", () => HttpResponse.json({ ok: true })),
+    );
     const user = userEvent.setup();
     renderApp("/admin");
 
@@ -78,6 +84,23 @@ describe("AdminLayout", () => {
 
     expect(await screen.findByRole("heading", { name: "Admin" })).toBeInTheDocument();
     expect(sessionStorage.getItem("admin-unlocked")).toBe("true");
+  });
+
+  it("disables the Unlock button while the password check is in flight", async () => {
+    server.use(
+      http.post("/api/admin/verify-password", async () => {
+        await delay(50);
+        return HttpResponse.json({ ok: true });
+      }),
+    );
+    const user = userEvent.setup();
+    renderApp("/admin");
+
+    await user.type(screen.getByLabelText("Password"), TEST_PASSWORD);
+    await user.click(screen.getByRole("button", { name: "Unlock" }));
+
+    expect(screen.getByRole("button", { name: "Unlock" })).toBeDisabled();
+    expect(await screen.findByRole("heading", { name: "Admin" })).toBeInTheDocument();
   });
 
   it("shows the Admin overview heading at /admin when already unlocked", () => {
