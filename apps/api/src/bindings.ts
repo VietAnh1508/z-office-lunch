@@ -3,4 +3,5 @@ export type Bindings = {
   HYPERDRIVE: Hyperdrive;
   MENU_IMAGES: R2Bucket;
   AI: Ai;
+  ADMIN_PASSWORD: string;
 };

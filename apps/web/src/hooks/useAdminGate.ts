@@ -1,4 +1,8 @@
+import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
+import { toast } from "sonner";
+import { ApiError, api } from "@/lib/api";
+import { toastApiError } from "@/lib/toast";
 
 const STORAGE_KEY = "admin-unlocked";
 
@@ -7,14 +11,25 @@ export function useAdminGate() {
     () => sessionStorage.getItem(STORAGE_KEY) === "true",
   );
 
-  function tryUnlock(password: string): boolean {
-    if (password === import.meta.env.VITE_ADMIN_PASSWORD) {
+  const verifyPassword = useMutation({
+    mutationFn: (input: { password: string }) =>
+      api.post<{ ok: true }>("/admin/verify-password", input),
+    onSuccess: () => {
       sessionStorage.setItem(STORAGE_KEY, "true");
       setUnlocked(true);
-      return true;
-    }
-    return false;
+    },
+    onError: (error) => {
+      if (error instanceof ApiError && error.status === 401) {
+        toast.error("Incorrect password.");
+        return;
+      }
+      toastApiError(error, "Could not verify password.");
+    },
+  });
+
+  function tryUnlock(password: string) {
+    verifyPassword.mutate({ password });
   }
 
-  return { unlocked, tryUnlock };
+  return { unlocked, tryUnlock, isUnlocking: verifyPassword.isPending };
 }

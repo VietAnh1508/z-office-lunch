@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
-// The playwright.config.ts webServer builds the SPA with VITE_ADMIN_PASSWORD
-// set to this value — see the `env` block there.
+// Must match apps/api/.env.test's ADMIN_PASSWORD, which dev:e2e's wrangler
+// dev --env-file=.env.test loads for this run.
 const CORRECT_PASSWORD = "e2e-test-password";
 
 test("a fresh deep link into admin is locked, not just /admin itself", async ({ page }) => {

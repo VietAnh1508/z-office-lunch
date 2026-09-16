@@ -1,5 +1,4 @@
 import { type SubmitEvent } from "react";
-import { toast } from "sonner";
 import { NavLink, Outlet } from "react-router";
 import { AppHeader } from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
@@ -15,16 +14,19 @@ const NAV_LINKS = [
   { to: "/admin/rounds", label: "Rounds" },
 ];
 
-function AdminPasswordGate({ onSubmit }: { onSubmit: (password: string) => boolean }) {
+function AdminPasswordGate({
+  onSubmit,
+  pending,
+}: {
+  onSubmit: (password: string) => void;
+  pending: boolean;
+}) {
   const password = useRequiredField("Password is required.");
 
   function handleSubmit(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!password.validate()) return;
-    if (!onSubmit(password.value)) {
-      toast.error("Incorrect password.");
-      return;
-    }
+    onSubmit(password.value);
   }
 
   return (
@@ -46,17 +48,19 @@ function AdminPasswordGate({ onSubmit }: { onSubmit: (password: string) => boole
             <p className="text-sm text-destructive">{password.error}</p>
           )}
         </div>
-        <Button type="submit">Unlock</Button>
+        <Button type="submit" disabled={pending}>
+          Unlock
+        </Button>
       </form>
     </div>
   );
 }
 
 export function AdminLayout() {
-  const { unlocked, tryUnlock } = useAdminGate();
+  const { unlocked, tryUnlock, isUnlocking } = useAdminGate();
 
   if (!unlocked) {
-    return <AdminPasswordGate onSubmit={tryUnlock} />;
+    return <AdminPasswordGate onSubmit={tryUnlock} pending={isUnlocking} />;
   }
 
   return (

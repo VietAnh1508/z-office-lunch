@@ -6,6 +6,7 @@ export const testEnv = {
   HYPERDRIVE: { connectionString: TEST_DATABASE_URL } as unknown,
   MENU_IMAGES: {} as unknown,
   AI: {} as unknown,
+  ADMIN_PASSWORD: "test-admin-password",
 } as unknown as Bindings;
 
 export const unreachableEnv = {
@@ -13,4 +14,5 @@ export const unreachableEnv = {
   HYPERDRIVE: { connectionString: "postgres://postgres:postgres@localhost:1/nonexistent" } as unknown,
   MENU_IMAGES: {} as unknown,
   AI: {} as unknown,
+  ADMIN_PASSWORD: "test-admin-password",
 } as unknown as Bindings;

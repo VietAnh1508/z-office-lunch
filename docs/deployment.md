@@ -21,11 +21,14 @@ rounds) are writable by anyone who calls them directly (curl/devtools), regardle
 gate below. Deliberate call for now — revisit with Cloudflare Access (Zero Trust, free tier) in
 front of the Worker before real usage/data goes through it.
 
-**The `/admin` UI itself is password-gated (task 043)**, client-side only — a speed bump against
-casual URL guessing, not real access control (the password is baked into the shipped JS bundle).
-Production builds need `VITE_ADMIN_PASSWORD` set as a Cloudflare Workers Builds environment
-variable (dashboard → Workers & Pages → the Worker → Settings → Build → Environment variables) —
-without it, the build embeds an empty string and the gate can never be unlocked.
+**The `/admin` UI is password-gated (task 043, moved server-side in task 051)** via
+`POST /api/admin/verify-password`, checked against an `ADMIN_PASSWORD` Worker secret that's never
+sent to the client. Set it with `wrangler secret put ADMIN_PASSWORD` (prompts for the value,
+stores it on Cloudflare's side) — without it, the endpoint 500s and the gate can never be
+unlocked. This is still not full access control: no rate limiting, the `sessionStorage` flag
+isn't re-verified against the server so an already-unlocked tab survives a password rotation
+until that tab session ends, and admin API endpoints remain otherwise unauthenticated regardless
+of this gate.
 
 ### Diagram
 

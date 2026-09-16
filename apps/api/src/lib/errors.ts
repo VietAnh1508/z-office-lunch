@@ -40,4 +40,6 @@ export const ERROR_MESSAGES = {
   bulkModeInvalid: "mode must be override or append",
   bulkItemsRequired: "items must be a non-empty array",
   submissionNotFound: "submission not found",
+  passwordRequired: "password is required",
+  adminPasswordIncorrect: "incorrect password",
 } as const;
