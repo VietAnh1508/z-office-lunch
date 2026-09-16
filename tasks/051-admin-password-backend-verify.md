@@ -1,7 +1,7 @@
 ---
 id: 051
 title: Move /admin password check to the backend
-status: in_review
+status: done
 depends_on: []
 parallelizable_with: []
 epic:
