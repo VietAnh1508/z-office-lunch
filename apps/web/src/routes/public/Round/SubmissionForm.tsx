@@ -207,6 +207,7 @@ export function SubmissionForm({
       <OverwriteSubmissionDialog
         open={existingSubmission !== null}
         existing={existingSubmission}
+        hasFood={hasFood}
         pending={createSubmission.isPending}
         onCancel={handleCancelOverwrite}
         onConfirm={handleConfirmOverwrite}
