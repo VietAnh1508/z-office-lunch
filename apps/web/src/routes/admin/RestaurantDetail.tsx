@@ -88,6 +88,7 @@ function RestaurantDetailsForm({ restaurant }: { restaurant: Restaurant }) {
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="restaurant-detail-note">Note</Label>
+            <p className="text-xs text-muted-foreground">Shown to employees on the order page.</p>
             <Textarea
               id="restaurant-detail-note"
               value={note}

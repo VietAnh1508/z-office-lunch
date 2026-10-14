@@ -222,6 +222,7 @@ roundsRoute.get("/:id/public", async (c) => {
           name: restaurants.name,
           menuUrl: restaurants.menuUrl,
           menuImage: restaurants.menuImage,
+          note: restaurants.note,
         })
         .from(restaurants)
         .where(eq(restaurants.id, restaurantId));

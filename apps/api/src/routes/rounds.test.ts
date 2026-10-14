@@ -1933,6 +1933,7 @@ describe("rounds routes", () => {
         name: "Tra Da Corner",
         menuUrl: "https://tradacorner.example.com",
         menuImage: null,
+        note: null,
       });
     });
 
