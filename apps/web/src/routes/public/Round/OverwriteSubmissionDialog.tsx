@@ -13,12 +13,14 @@ import type { RoundSubmission } from "../../shared/useRoundSubmissions";
 export function OverwriteSubmissionDialog({
   open,
   existing,
+  hasFood,
   pending,
   onCancel,
   onConfirm,
 }: {
   open: boolean;
   existing: RoundSubmission | null;
+  hasFood: boolean;
   pending: boolean;
   onCancel: () => void;
   onConfirm: () => void;
@@ -30,10 +32,12 @@ export function OverwriteSubmissionDialog({
           <AlertDialogTitle>You already have a submission for this round</AlertDialogTitle>
           <AlertDialogDescription asChild>
             <div className="flex flex-col gap-1">
-              <span>
-                Food: {existing?.foodName ?? "No food selected"}
-                {existing?.foodNote ? ` (${existing.foodNote})` : ""}
-              </span>
+              {hasFood && (
+                <span>
+                  Food: {existing?.foodName ?? "No food selected"}
+                  {existing?.foodNote ? ` (${existing.foodNote})` : ""}
+                </span>
+              )}
               {existing?.drinkName && (
                 <span>
                   Drink: {existing.drinkName}

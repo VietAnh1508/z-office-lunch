@@ -1,7 +1,7 @@
 ---
 id: 054
 title: Public UI for rounds without a food restaurant
-status: approved
+status: in_review
 depends_on: [052]
 parallelizable_with: []
 epic: optional-food-restaurant
@@ -43,17 +43,17 @@ Make the employee-facing pages (rounds list, round page, submission form) work f
 
 (Filled in by /implement-task.)
 
-- red commit: <sha> — `<test_command>` -> N failing
-- green commit: <sha> — `<test_command>` -> all passing
+- red commit: 3bfa155 — `pnpm test -- apps/web/src/routes/public` -> 3 failing
+- green commit: 4f08293 — `pnpm test -- apps/web/src/routes/public` -> all passing (27 files, 433 tests). New drink-only e2e in `e2e/round-lifecycle.spec.ts` passes.
 
 ## Plan Deviations
 
-(Filled in by /implement-task, honestly, before requesting review — write "None." if genuinely nothing applies, don't skip this section silently. Only list genuine deviations — if a step was carried out as the Plan described, it doesn't belong here, even if it's worth doing again.)
-
-- Where did the actual implementation differ from the Plan above, and why?
-- Any wrong assumption, dead end, or approach abandoned partway through?
-- Anything the user had to correct or redirect mid-task?
+- `OverwriteSubmissionDialog.tsx` already handled a null `foodName` (from task 053), so no change was needed there.
+- Three existing e2e specs in `round-lifecycle.spec.ts` and one in `admin-restaurant-detail.spec.ts` already fail on `main`: `getByRole("button", { name: "Add menu item" })` now also matches "Bulk-add menu items" (strict-mode violation, from task 041). Not fixed here; the new spec uses `exact: true`.
 
 ## Review Notes
 
-(Output of the feature-dev:code-reviewer agent, appended by /implement-task.)
+No high-confidence issues (nothing at 80 or above). Notes from the reviewer:
+- If neither food nor drink exists (not allowed by API or admin forms), the form would silently refuse to submit. Optional hardening: `drinkRequired = !hasFood && round.drinkItems !== undefined` (confidence ~20, not applied).
+- `hasFood` uses `!== undefined`, matching the API omitting the keys; `!` assertions inside the guard are safe; JSON drops `foodRoundMenuItemId: undefined`.
+- Nit: JSX inside `{hasFood && (<>...</>)}` in SubmissionForm.tsx isn't re-indented.

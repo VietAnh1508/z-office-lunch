@@ -56,7 +56,7 @@ export function Round() {
   }
 
   const hasMenuPanel =
-    round.foodRestaurant.menuImage !== null ||
+    (round.foodRestaurant?.menuImage ?? null) !== null ||
     (round.drinkRestaurant?.menuImage ?? null) !== null;
 
   return (
