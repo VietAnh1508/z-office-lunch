@@ -11,11 +11,14 @@ const LINK_OPTIONS = {
 export function RestaurantNote({ restaurant }: { restaurant: PublicRoundRestaurant }) {
   if (!restaurant.note?.trim()) return null;
   return (
-    <p
+    <div
       data-testid="restaurant-note"
-      className="whitespace-pre-wrap text-sm text-muted-foreground"
+      className="flex flex-col gap-1 rounded-lg border border-border bg-muted/50 px-3 py-2"
     >
-      <Linkify options={LINK_OPTIONS}>{restaurant.note}</Linkify>
-    </p>
+      <p className="text-xs font-medium text-foreground">Note from {restaurant.name}</p>
+      <p className="whitespace-pre-wrap text-sm text-muted-foreground">
+        <Linkify options={LINK_OPTIONS}>{restaurant.note}</Linkify>
+      </p>
+    </div>
   );
 }
