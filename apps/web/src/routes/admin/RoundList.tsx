@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { formatDateTime } from "@/lib/format-date";
 import { copyRoundShareLink } from "@/lib/share-link";
 import { RoundStatusBadge } from "./RoundStatusBadge";
 import { useRestaurants } from "./useRestaurants";
@@ -104,7 +105,7 @@ export function RoundList() {
                           .join(" + ")}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        Deadline {new Date(round.deadline).toLocaleString()}
+                        Deadline {formatDateTime(round.deadline)}
                       </p>
                     </div>
                     <div className="flex shrink-0 items-center gap-2">

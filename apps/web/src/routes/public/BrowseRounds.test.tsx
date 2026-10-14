@@ -2,6 +2,7 @@ import { screen, within } from "@testing-library/react";
 import { HttpResponse, http } from "msw";
 import { MemoryRouter } from "react-router";
 import { describe, expect, it } from "vitest";
+import { formatDateTime } from "@/lib/format-date";
 import { renderWithProviders } from "@/test/render";
 import { server } from "@/test/mocks/server";
 import { BrowseRounds } from "./BrowseRounds";
@@ -85,7 +86,7 @@ describe("BrowseRounds (public homepage)", () => {
 
     expect(await screen.findByText("Week 1")).toBeInTheDocument();
     expect(screen.getByText("Pho 24 + Tra Da Corner")).toBeInTheDocument();
-    const formattedDeadline = new Date("2026-08-01T00:00:00.000Z").toLocaleString();
+    const formattedDeadline = formatDateTime("2026-08-01T00:00:00.000Z");
     expect(
       screen.getByText((_, element) => element?.textContent === `Deadline ${formattedDeadline}`),
     ).toBeInTheDocument();

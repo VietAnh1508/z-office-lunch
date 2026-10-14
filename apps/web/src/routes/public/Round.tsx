@@ -1,4 +1,5 @@
 import { ApiError } from "@/lib/api";
+import { formatDate } from "@/lib/format-date";
 import { cn } from "@/lib/utils";
 import { useParams } from "react-router";
 import { MenuPanel } from "./Round/MenuPanel";
@@ -74,7 +75,7 @@ export function Round() {
             {round.label}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Deadline: {new Date(round.deadline).toLocaleDateString("en-GB")}
+            Deadline: {formatDate(round.deadline)}
           </p>
         </div>
 

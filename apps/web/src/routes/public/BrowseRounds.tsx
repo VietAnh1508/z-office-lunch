@@ -6,6 +6,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { formatDateTime } from "@/lib/format-date";
 import { RoundStatusBadge } from "@/routes/admin/RoundStatusBadge";
 import { usePublicRounds } from "./usePublicRound";
 import type { PublicRoundListItem } from "./usePublicRound";
@@ -25,7 +26,7 @@ function RoundRow({ round }: { round: PublicRoundListItem }) {
           .join(" + ")}
       </p>
       <p className="text-xs text-muted-foreground">
-        Deadline {new Date(round.deadline).toLocaleString()}
+        Deadline {formatDateTime(round.deadline)}
       </p>
     </li>
   );
