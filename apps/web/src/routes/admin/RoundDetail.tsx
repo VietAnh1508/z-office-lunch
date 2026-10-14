@@ -31,6 +31,8 @@ import { toCsv } from "@/lib/csv";
 import { downloadCsv } from "@/lib/download";
 import { copyRoundShareLink } from "@/lib/share-link";
 import { cn } from "@/lib/utils";
+import { RoundRestaurantFields } from "./RoundRestaurantFields";
+import { RESTAURANT_REQUIRED_ERROR, hasRestaurant } from "./roundRestaurantValidation";
 import { RoundStatusBadge } from "./RoundStatusBadge";
 import { submissionColumns } from "./submissionColumns";
 import { SubmissionsTable } from "./SubmissionsTable";
@@ -244,9 +246,6 @@ function EditRoundForm({
   const [restaurantError, setRestaurantError] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
-  const foodRestaurants = (restaurants ?? []).filter((restaurant) => restaurant.type === "food");
-  const drinkRestaurants = (restaurants ?? []).filter((restaurant) => restaurant.type === "drink");
-
   function buildInput() {
     return {
       deadline: new Date(deadline.value).toISOString(),
@@ -268,8 +267,8 @@ function EditRoundForm({
     e.preventDefault();
     const deadlineValid = deadline.validate();
 
-    const restaurantValid = foodRestaurantId !== "" || drinkRestaurantId !== "";
-    setRestaurantError(restaurantValid ? null : "Select at least one restaurant.");
+    const restaurantValid = hasRestaurant(foodRestaurantId, drinkRestaurantId);
+    setRestaurantError(restaurantValid ? null : RESTAURANT_REQUIRED_ERROR);
 
     if (!deadlineValid || !restaurantValid) return;
 
@@ -287,48 +286,21 @@ function EditRoundForm({
       </CardHeader>
       <CardContent>
         <form className="flex flex-col gap-3" onSubmit={handleSubmit} noValidate>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="edit-round-food-restaurant">Food restaurant</Label>
-            <select
-              id="edit-round-food-restaurant"
-              className="h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20"
-              value={foodRestaurantId}
-              onChange={(e) => {
-                setFoodRestaurantId(e.target.value);
-                setRestaurantError(null);
-              }}
-              aria-invalid={restaurantError !== null}
-            >
-              <option value="">None</option>
-              {foodRestaurants.map((restaurant) => (
-                <option key={restaurant.id} value={restaurant.id}>
-                  {restaurant.name}
-                </option>
-              ))}
-            </select>
-            {restaurantError && <p className="text-sm text-destructive">{restaurantError}</p>}
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="edit-round-drink-restaurant">Drink restaurant</Label>
-            <select
-              id="edit-round-drink-restaurant"
-              className="h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20"
-              value={drinkRestaurantId}
-              onChange={(e) => {
-                setDrinkRestaurantId(e.target.value);
-                setRestaurantError(null);
-              }}
-              aria-invalid={restaurantError !== null}
-            >
-              <option value="">None</option>
-              {drinkRestaurants.map((restaurant) => (
-                <option key={restaurant.id} value={restaurant.id}>
-                  {restaurant.name}
-                </option>
-              ))}
-            </select>
-            {restaurantError && <p className="text-sm text-destructive">{restaurantError}</p>}
-          </div>
+          <RoundRestaurantFields
+            idPrefix="edit-round"
+            restaurants={restaurants}
+            foodRestaurantId={foodRestaurantId}
+            drinkRestaurantId={drinkRestaurantId}
+            onFoodChange={(value) => {
+              setFoodRestaurantId(value);
+              setRestaurantError(null);
+            }}
+            onDrinkChange={(value) => {
+              setDrinkRestaurantId(value);
+              setRestaurantError(null);
+            }}
+            error={restaurantError}
+          />
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="edit-round-deadline">
               Deadline <span className="text-destructive">*</span>
