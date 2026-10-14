@@ -36,10 +36,21 @@ async function insertActiveMenuItems(tx: Tx, roundId: number, restaurantId: numb
     .onConflictDoNothing();
 }
 
+// Shared by POST and PATCH: a missing/null/"" value means "none", anything
+// else must be an integer id. Used for both restaurant sides.
+function parseOptionalRestaurantId(value: unknown): { ok: true; id: number | null } | { ok: false } {
+  if (value === undefined || value === null || value === "") {
+    return { ok: true, id: null };
+  }
+  const parsed = Number(value);
+  return Number.isInteger(parsed) ? { ok: true, id: parsed } : { ok: false };
+}
+
 roundsRoute.post("/", async (c) => {
   const body = await c.req.json().catch(() => ({}));
   const label = typeof body.label === "string" ? body.label.trim() : "";
-  const foodRestaurantId = Number(body.foodRestaurantId);
+  const food = parseOptionalRestaurantId(body.foodRestaurantId);
+  const drink = parseOptionalRestaurantId(body.drinkRestaurantId);
   const deadline =
     typeof body.deadline === "string" || typeof body.deadline === "number"
       ? new Date(body.deadline)
@@ -48,37 +59,34 @@ roundsRoute.post("/", async (c) => {
   if (!label) {
     return c.json({ error: ERROR_MESSAGES.labelRequired }, 400);
   }
-  if (!Number.isInteger(foodRestaurantId)) {
-    return c.json({ error: ERROR_MESSAGES.foodRestaurantIdRequired }, 400);
+  if (!food.ok) {
+    return c.json({ error: ERROR_MESSAGES.foodRestaurantIdInvalid }, 400);
   }
   if (!deadline || Number.isNaN(deadline.getTime())) {
     return c.json({ error: ERROR_MESSAGES.deadlineInvalid }, 400);
   }
-
-  let drinkRestaurantId: number | null = null;
-  if (
-    body.drinkRestaurantId !== undefined &&
-    body.drinkRestaurantId !== null &&
-    body.drinkRestaurantId !== ""
-  ) {
-    const parsed = Number(body.drinkRestaurantId);
-    if (!Number.isInteger(parsed)) {
-      return c.json({ error: ERROR_MESSAGES.drinkRestaurantIdInvalid }, 400);
-    }
-    drinkRestaurantId = parsed;
+  if (!drink.ok) {
+    return c.json({ error: ERROR_MESSAGES.drinkRestaurantIdInvalid }, 400);
+  }
+  const foodRestaurantId = food.id;
+  const drinkRestaurantId = drink.id;
+  if (foodRestaurantId === null && drinkRestaurantId === null) {
+    return c.json({ error: ERROR_MESSAGES.roundRestaurantRequired }, 400);
   }
 
   const db = getDb(c);
   try {
-    const [foodRestaurant] = await db
-      .select()
-      .from(restaurants)
-      .where(eq(restaurants.id, foodRestaurantId));
-    if (!foodRestaurant) {
-      return c.json({ error: ERROR_MESSAGES.restaurantNotFound }, 404);
-    }
-    if (foodRestaurant.type !== "food") {
-      return c.json({ error: ERROR_MESSAGES.foodRestaurantTypeInvalid }, 400);
+    if (foodRestaurantId !== null) {
+      const [foodRestaurant] = await db
+        .select()
+        .from(restaurants)
+        .where(eq(restaurants.id, foodRestaurantId));
+      if (!foodRestaurant) {
+        return c.json({ error: ERROR_MESSAGES.restaurantNotFound }, 404);
+      }
+      if (foodRestaurant.type !== "food") {
+        return c.json({ error: ERROR_MESSAGES.foodRestaurantTypeInvalid }, 400);
+      }
     }
 
     if (drinkRestaurantId !== null) {
@@ -106,7 +114,9 @@ roundsRoute.post("/", async (c) => {
         })
         .returning();
 
-      await insertActiveMenuItems(tx, inserted!.id, foodRestaurantId);
+      if (foodRestaurantId !== null) {
+        await insertActiveMenuItems(tx, inserted!.id, foodRestaurantId);
+      }
       if (drinkRestaurantId !== null) {
         await insertActiveMenuItems(tx, inserted!.id, drinkRestaurantId);
       }
@@ -148,7 +158,7 @@ roundsRoute.get("/public", async (c) => {
         drinkRestaurantName: drinkRestaurantAlias.name,
       })
       .from(rounds)
-      .innerJoin(foodRestaurantAlias, eq(rounds.foodRestaurantId, foodRestaurantAlias.id))
+      .leftJoin(foodRestaurantAlias, eq(rounds.foodRestaurantId, foodRestaurantAlias.id))
       .leftJoin(drinkRestaurantAlias, eq(rounds.drinkRestaurantId, drinkRestaurantAlias.id))
       .where(inArray(rounds.status, ["open", "closed"]))
       .orderBy(rounds.deadline);
@@ -216,11 +226,15 @@ roundsRoute.get("/:id/public", async (c) => {
         .from(restaurants)
         .where(eq(restaurants.id, restaurantId));
 
-    const foodItems = await selectCuratedItems(round.foodRestaurantId);
+    const foodItems =
+      round.foodRestaurantId !== null ? await selectCuratedItems(round.foodRestaurantId) : null;
     const drinkItems =
       round.drinkRestaurantId !== null ? await selectCuratedItems(round.drinkRestaurantId) : null;
 
-    const [foodRestaurant] = await selectRestaurantMenu(round.foodRestaurantId);
+    const foodRestaurant =
+      round.foodRestaurantId !== null
+        ? (await selectRestaurantMenu(round.foodRestaurantId))[0]
+        : null;
     const drinkRestaurant =
       round.drinkRestaurantId !== null
         ? (await selectRestaurantMenu(round.drinkRestaurantId))[0]
@@ -230,9 +244,9 @@ roundsRoute.get("/:id/public", async (c) => {
       label: round.label,
       deadline: round.deadline,
       status: round.status,
-      foodItems,
+      ...(foodItems !== null ? { foodItems } : {}),
       ...(drinkItems !== null ? { drinkItems } : {}),
-      foodRestaurant,
+      ...(foodRestaurant ? { foodRestaurant } : {}),
       ...(drinkRestaurant ? { drinkRestaurant } : {}),
     });
   } catch (e) {
@@ -371,30 +385,26 @@ roundsRoute.patch("/:id", async (c) => {
   }
 
   const body = await c.req.json().catch(() => ({}));
-  const foodRestaurantId = Number(body.foodRestaurantId);
+  const food = parseOptionalRestaurantId(body.foodRestaurantId);
+  const drink = parseOptionalRestaurantId(body.drinkRestaurantId);
   const deadline =
     typeof body.deadline === "string" || typeof body.deadline === "number"
       ? new Date(body.deadline)
       : null;
 
-  if (!Number.isInteger(foodRestaurantId)) {
-    return c.json({ error: ERROR_MESSAGES.foodRestaurantIdRequired }, 400);
+  if (!food.ok) {
+    return c.json({ error: ERROR_MESSAGES.foodRestaurantIdInvalid }, 400);
   }
   if (!deadline || Number.isNaN(deadline.getTime())) {
     return c.json({ error: ERROR_MESSAGES.deadlineInvalid }, 400);
   }
-
-  let drinkRestaurantId: number | null = null;
-  if (
-    body.drinkRestaurantId !== undefined &&
-    body.drinkRestaurantId !== null &&
-    body.drinkRestaurantId !== ""
-  ) {
-    const parsed = Number(body.drinkRestaurantId);
-    if (!Number.isInteger(parsed)) {
-      return c.json({ error: ERROR_MESSAGES.drinkRestaurantIdInvalid }, 400);
-    }
-    drinkRestaurantId = parsed;
+  if (!drink.ok) {
+    return c.json({ error: ERROR_MESSAGES.drinkRestaurantIdInvalid }, 400);
+  }
+  const foodRestaurantId = food.id;
+  const drinkRestaurantId = drink.id;
+  if (foodRestaurantId === null && drinkRestaurantId === null) {
+    return c.json({ error: ERROR_MESSAGES.roundRestaurantRequired }, 400);
   }
 
   const db = getDb(c);
@@ -407,15 +417,17 @@ roundsRoute.patch("/:id", async (c) => {
       return c.json({ error: ERROR_MESSAGES.roundEditNotDraft }, 400);
     }
 
-    const [foodRestaurant] = await db
-      .select()
-      .from(restaurants)
-      .where(eq(restaurants.id, foodRestaurantId));
-    if (!foodRestaurant) {
-      return c.json({ error: ERROR_MESSAGES.restaurantNotFound }, 404);
-    }
-    if (foodRestaurant.type !== "food") {
-      return c.json({ error: ERROR_MESSAGES.foodRestaurantTypeInvalid }, 400);
+    if (foodRestaurantId !== null) {
+      const [foodRestaurant] = await db
+        .select()
+        .from(restaurants)
+        .where(eq(restaurants.id, foodRestaurantId));
+      if (!foodRestaurant) {
+        return c.json({ error: ERROR_MESSAGES.restaurantNotFound }, 404);
+      }
+      if (foodRestaurant.type !== "food") {
+        return c.json({ error: ERROR_MESSAGES.foodRestaurantTypeInvalid }, 400);
+      }
     }
 
     if (drinkRestaurantId !== null) {
@@ -472,7 +484,7 @@ roundsRoute.patch("/:id", async (c) => {
             ),
           );
 
-      if (foodChanged) {
+      if (foodChanged && round.foodRestaurantId !== null) {
         await clearAffectedSubmissions("food", round.foodRestaurantId);
         await purgeStaleItems(round.foodRestaurantId);
       }
@@ -486,7 +498,7 @@ roundsRoute.patch("/:id", async (c) => {
       // curating. So A->B->A (two sequential changes back to the original
       // restaurant) resurrects an opt-out made against A before the first
       // change -- intended per this task's scope, not a regression.
-      if (foodChanged) {
+      if (foodChanged && foodRestaurantId !== null) {
         await insertActiveMenuItems(tx, id, foodRestaurantId);
       }
       // Purge and insert are gated independently on the drink side: purge
@@ -560,18 +572,32 @@ roundsRoute.patch("/:id/status", async (c) => {
     }
 
     if (status === "open") {
-      const [foodItemCount] = await db
-        .select({ count: sql<number>`count(*)::int` })
-        .from(roundMenuItems)
-        .innerJoin(menuItems, eq(roundMenuItems.menuItemId, menuItems.id))
-        .where(
-          and(
-            eq(roundMenuItems.roundId, roundId),
-            eq(menuItems.restaurantId, round.foodRestaurantId),
-          ),
+      // The required side is food when the round has one, otherwise drink
+      // (a drink-only round) -- a food+drink round still only needs food items.
+      const requiredRestaurantId = round.foodRestaurantId ?? round.drinkRestaurantId;
+      const [itemCount] =
+        requiredRestaurantId !== null
+          ? await db
+              .select({ count: sql<number>`count(*)::int` })
+              .from(roundMenuItems)
+              .innerJoin(menuItems, eq(roundMenuItems.menuItemId, menuItems.id))
+              .where(
+                and(
+                  eq(roundMenuItems.roundId, roundId),
+                  eq(menuItems.restaurantId, requiredRestaurantId),
+                ),
+              )
+          : [];
+      if (!itemCount || itemCount.count === 0) {
+        return c.json(
+          {
+            error:
+              round.foodRestaurantId !== null
+                ? ERROR_MESSAGES.roundOpenNoFoodItems
+                : ERROR_MESSAGES.roundOpenNoDrinkItems,
+          },
+          400,
         );
-      if (!foodItemCount || foodItemCount.count === 0) {
-        return c.json({ error: ERROR_MESSAGES.roundOpenNoFoodItems }, 400);
       }
 
       const [otherOpenRound] = await db
@@ -610,7 +636,7 @@ roundsRoute.patch("/:id/status", async (c) => {
 type SubmissionFieldsResult =
   | {
       ok: true;
-      foodRoundMenuItemId: number;
+      foodRoundMenuItemId: number | null;
       foodNote: string | null;
       drinkRoundMenuItemId: number | null;
       drinkNote: string | null;
@@ -626,12 +652,26 @@ async function parseSubmissionFields(
   round: typeof rounds.$inferSelect,
   body: Record<string, unknown>,
 ): Promise<SubmissionFieldsResult> {
-  const foodRoundMenuItemId = Number(body.foodRoundMenuItemId);
-  if (!Number.isInteger(foodRoundMenuItemId)) {
-    return { ok: false, error: ERROR_MESSAGES.foodRoundMenuItemIdRequired, status: 400 };
+  const hasFood = round.foodRestaurantId !== null;
+  const foodGiven =
+    body.foodRoundMenuItemId !== undefined &&
+    body.foodRoundMenuItemId !== null &&
+    body.foodRoundMenuItemId !== "";
+  if (!hasFood && foodGiven) {
+    return { ok: false, error: ERROR_MESSAGES.submissionNoFoodRestaurant, status: 400 };
+  }
+  let foodRoundMenuItemId: number | null = null;
+  if (hasFood) {
+    const parsed = Number(body.foodRoundMenuItemId);
+    if (!Number.isInteger(parsed)) {
+      return { ok: false, error: ERROR_MESSAGES.foodRoundMenuItemIdRequired, status: 400 };
+    }
+    foodRoundMenuItemId = parsed;
   }
   const foodNote =
-    typeof body.foodNote === "string" && body.foodNote.trim() ? body.foodNote.trim() : null;
+    foodRoundMenuItemId !== null && typeof body.foodNote === "string" && body.foodNote.trim()
+      ? body.foodNote.trim()
+      : null;
 
   let drinkRoundMenuItemId: number | null = null;
   if (
@@ -645,6 +685,10 @@ async function parseSubmissionFields(
     }
     drinkRoundMenuItemId = parsed;
   }
+  // A drink-only round has nothing else to order, so the drink pick is required.
+  if (!hasFood && drinkRoundMenuItemId === null) {
+    return { ok: false, error: ERROR_MESSAGES.drinkRoundMenuItemIdRequired, status: 400 };
+  }
   const drinkNote =
     drinkRoundMenuItemId !== null && typeof body.drinkNote === "string" && body.drinkNote.trim()
       ? body.drinkNote.trim()
@@ -657,12 +701,14 @@ async function parseSubmissionFields(
       .innerJoin(menuItems, eq(roundMenuItems.menuItemId, menuItems.id))
       .where(and(eq(roundMenuItems.id, id), eq(roundMenuItems.roundId, round.id)));
 
-  const [foodItem] = await selectRoundMenuItem(foodRoundMenuItemId);
-  if (!foodItem) {
-    return { ok: false, error: ERROR_MESSAGES.roundMenuItemNotFound, status: 404 };
-  }
-  if (foodItem.restaurantId !== round.foodRestaurantId) {
-    return { ok: false, error: ERROR_MESSAGES.foodRoundMenuItemInvalid, status: 400 };
+  if (foodRoundMenuItemId !== null) {
+    const [foodItem] = await selectRoundMenuItem(foodRoundMenuItemId);
+    if (!foodItem) {
+      return { ok: false, error: ERROR_MESSAGES.roundMenuItemNotFound, status: 404 };
+    }
+    if (foodItem.restaurantId !== round.foodRestaurantId) {
+      return { ok: false, error: ERROR_MESSAGES.foodRoundMenuItemInvalid, status: 400 };
+    }
   }
 
   if (drinkRoundMenuItemId !== null) {
