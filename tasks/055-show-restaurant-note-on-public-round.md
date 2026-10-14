@@ -1,7 +1,7 @@
 ---
 id: 055
 title: Show restaurant note on the public round page
-status: in_review
+status: done
 depends_on: []
 parallelizable_with: []
 epic:
