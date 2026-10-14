@@ -13,6 +13,7 @@ export type PublicRoundRestaurant = {
   name: string;
   menuUrl: string | null;
   menuImage: string | null;
+  note: string | null;
 };
 
 export type PublicRound = {

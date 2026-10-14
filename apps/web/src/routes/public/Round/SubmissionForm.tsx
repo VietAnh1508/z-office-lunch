@@ -16,6 +16,7 @@ import { EmployeeCombobox } from "./EmployeeCombobox";
 import { ItemCombobox } from "./ItemCombobox";
 import { MenuImage } from "./MenuImage";
 import { MenuLink } from "./MenuLink";
+import { RestaurantNote } from "./RestaurantNote";
 import { OverwriteSubmissionDialog } from "./OverwriteSubmissionDialog";
 
 type SubmissionInput = {
@@ -148,6 +149,7 @@ export function SubmissionForm({
             placeholder="Search food items…"
           />
           <MenuLink restaurant={round.foodRestaurant!} />
+          <RestaurantNote restaurant={round.foodRestaurant!} />
           <MenuImage restaurant={round.foodRestaurant!} className="lg:hidden" />
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="submission-food-note">Food note</Label>
@@ -177,6 +179,7 @@ export function SubmissionForm({
                 placeholder="Search drink items…"
               />
               <MenuLink restaurant={round.drinkRestaurant!} />
+              <RestaurantNote restaurant={round.drinkRestaurant!} />
               <MenuImage
                 restaurant={round.drinkRestaurant!}
                 className="lg:hidden"
