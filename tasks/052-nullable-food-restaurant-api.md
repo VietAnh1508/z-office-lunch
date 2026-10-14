@@ -1,7 +1,7 @@
 ---
 id: 052
 title: Make a round's food restaurant optional in the DB and API
-status: in_review
+status: done
 depends_on: []
 parallelizable_with: []
 epic: optional-food-restaurant
