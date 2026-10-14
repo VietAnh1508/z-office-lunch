@@ -1,7 +1,7 @@
 ---
 id: 052
 title: Make a round's food restaurant optional in the DB and API
-status: approved
+status: in_review
 depends_on: []
 parallelizable_with: []
 epic: optional-food-restaurant
@@ -56,17 +56,28 @@ Let a round have no food restaurant, as long as it has a drink restaurant (at le
 
 (Filled in by /implement-task.)
 
-- red commit: <sha> — `<test_command>` -> N failing
-- green commit: <sha> — `<test_command>` -> all passing
+- red commit: 27405e4 — `pnpm test -- apps/api/src/routes/rounds.test.ts` -> 13 failing (the new drink-only block; everything else passed)
+- green commit: f5b55f6 — `pnpm test` -> 27 files, 418 tests all passing; `pnpm typecheck` and `pnpm lint` clean for touched files (4 pre-existing web lint warnings, untouched)
 
 ## Plan Deviations
 
 (Filled in by /implement-task, honestly, before requesting review — write "None." if genuinely nothing applies, don't skip this section silently. Only list genuine deviations — if a step was carried out as the Plan described, it doesn't belong here, even if it's worth doing again.)
 
-- Where did the actual implementation differ from the Plan above, and why?
-- Any wrong assumption, dead end, or approach abandoned partway through?
-- Anything the user had to correct or redirect mid-task?
+- **Open check is narrower than the Plan's wording.** The Plan said "require a curated item on each side that exists". Implemented as: food items required when the round has food, otherwise drink items. A food+drink round still opens with zero drink items, as before ("food+drink rounds keep today's rules"). Error is `roundOpenNoFoodItems` or new `roundOpenNoDrinkItems`.
+- **Existing food-required tests weren't rewritten.** The Plan listed ~6 cases to rewrite, but each one omits both restaurants or has zero food items on a food round, so they still hold under the new rules. Only the new drink-only block was added. (`pnpm test -- <path>` ran the whole suite in this repo, so the red count is the only thing that confirms the new block fails.)
+- `foodRestaurantIdRequired` was replaced by two entries: `roundRestaurantRequired` (neither side) and `foodRestaurantIdInvalid` (non-integer food id), since a missing food id is no longer an error by itself.
+- `seedRound`'s `overrides` param became fully optional (not just the food field), and the migration got drizzle's generated name `0006_round_misty_knight`.
+- `vitest-global-setup` runs the real migrations, so the new migration is exercised by tests (the "verify first" item).
+- Behavior to know about: `PATCH /api/rounds/:id` is a full replace, so omitting `foodRestaurantId` while sending a drink id now clears food instead of returning 400.
 
 ## Review Notes
 
-(Output of the feature-dev:code-reviewer agent, appended by /implement-task.)
+Reviewer (feature-dev:code-reviewer) verbatim summary:
+
+> Reviewed the task 052 changes to apps/api/src/routes/rounds.ts. Read the full file and .claude/rules/api-error-handling.md, and grepped for other users of foodRestaurantId. Did not read the tests, errors.ts, schema.ts, the migration or the task file, so the new error strings and the 13 tests are unchecked. Did not run anything.
+>
+> No high-confidence (80+) bugs, regressions or convention violations.
+>
+> Checked: POST/PATCH `/` null guards (lookups, type checks, auto-curation, stale-item purge, submission clearing, each side gated independently); `GET /public` leftJoin; `GET /:id/public` omits food keys; `PATCH /:id/status` open picks `foodRestaurantId ?? drinkRestaurantId` with a matching error; `parseSubmissionFields` rules for drink-only and unchanged food rounds; error-handling convention and `ERROR_MESSAGES` usage; `POST /:id/menu-items` mismatch check still works with a null food restaurant.
+>
+> Not reported (out of scope): the web app still assumes `foodRestaurantId: number` (tasks 053/054). On a round with food, a null/empty `foodRoundMenuItemId` goes through `Number(null)` = 0 and gives 404 `roundMenuItemNotFound` instead of `foodRoundMenuItemIdRequired`; this looks pre-existing, not introduced by this diff.

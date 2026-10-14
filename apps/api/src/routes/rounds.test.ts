@@ -2898,4 +2898,257 @@ describe("rounds routes", () => {
       });
     });
   });
+
+  describe("drink-only rounds (no food restaurant)", () => {
+    type Submission = typeof submissions.$inferSelect;
+
+    function request(method: string, path: string, body?: unknown) {
+      return app.request(
+        path,
+        {
+          method,
+          headers: { "Content-Type": "application/json" },
+          ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+        },
+        testEnv,
+      );
+    }
+
+    async function seedOpenDrinkOnlyRound() {
+      const drink = await seedRestaurant(db, { name: "Tra Da Corner", type: "drink" });
+      const drinkMenuItem = await seedMenuItem(db, { restaurantId: drink!.id, name: "Tra Dao" });
+      const round = await seedRound(db, {
+        drinkRestaurantId: drink!.id,
+        status: "open",
+        deadline: new Date("2999-01-01T00:00:00.000Z"),
+      });
+      const drinkRoundMenuItem = await seedRoundMenuItem(db, {
+        roundId: round!.id,
+        menuItemId: drinkMenuItem!.id,
+      });
+      return { drink, round: round!, drinkRoundMenuItem: drinkRoundMenuItem! };
+    }
+
+    it("POST with only a drinkRestaurantId creates the round and curates the drink items", async () => {
+      const drink = await seedRestaurant(db, { type: "drink" });
+      await seedMenuItem(db, { restaurantId: drink!.id, name: "Tra Dao" });
+
+      const res = await request("POST", "/api/rounds", {
+        label: "Drinks only",
+        drinkRestaurantId: drink!.id,
+        deadline: "2026-08-10T12:00:00.000Z",
+      });
+
+      expect(res.status).toBe(201);
+      const created = (await res.json()) as Round;
+      expect(created.foodRestaurantId).toBeNull();
+      expect(created.drinkRestaurantId).toBe(drink!.id);
+      const curated = await db
+        .select()
+        .from(roundMenuItems)
+        .where(eq(roundMenuItems.roundId, created.id));
+      expect(curated).toHaveLength(1);
+    });
+
+    it("POST with neither a food nor a drink restaurant returns 400", async () => {
+      const res = await request("POST", "/api/rounds", {
+        label: "Nothing",
+        foodRestaurantId: null,
+        deadline: "2026-08-10T12:00:00.000Z",
+      });
+
+      expect(res.status).toBe(400);
+      const body = (await res.json()) as { error?: string };
+      expect(body.error).toBe(ERROR_MESSAGES.roundRestaurantRequired);
+    });
+
+    it("PATCH clearing food while keeping a drink restaurant nulls it, purges its items and clears affected submissions", async () => {
+      const food = await seedRestaurant(db, { type: "food" });
+      const foodItem = await seedMenuItem(db, { restaurantId: food!.id });
+      const drink = await seedRestaurant(db, { type: "drink" });
+      const round = await seedRound(db, {
+        foodRestaurantId: food!.id,
+        drinkRestaurantId: drink!.id,
+      });
+      const foodRoundMenuItem = await seedRoundMenuItem(db, {
+        roundId: round!.id,
+        menuItemId: foodItem!.id,
+      });
+      const employee = await seedEmployee(db);
+      const submission = await seedSubmission(db, {
+        roundId: round!.id,
+        employeeId: employee!.id,
+        foodRoundMenuItemId: foodRoundMenuItem!.id,
+        foodNote: "No onion",
+      });
+
+      const res = await request("PATCH", `/api/rounds/${round!.id}`, {
+        drinkRestaurantId: drink!.id,
+        deadline: "2026-09-01T12:00:00.000Z",
+      });
+
+      expect(res.status).toBe(200);
+      const updated = (await res.json()) as Round;
+      expect(updated.foodRestaurantId).toBeNull();
+      const remaining = await db
+        .select()
+        .from(roundMenuItems)
+        .where(eq(roundMenuItems.roundId, round!.id));
+      expect(remaining).toHaveLength(0);
+      const [after] = await db.select().from(submissions).where(eq(submissions.id, submission!.id));
+      expect(after!.foodRoundMenuItemId).toBeNull();
+      expect(after!.foodNote).toBeNull();
+    });
+
+    it("PATCH setting a food restaurant on a drink-only round (null->value) auto-curates its active items", async () => {
+      const drink = await seedRestaurant(db, { type: "drink" });
+      const round = await seedRound(db, { drinkRestaurantId: drink!.id });
+      const food = await seedRestaurant(db, { type: "food" });
+      const foodItem = await seedMenuItem(db, { restaurantId: food!.id });
+
+      const res = await request("PATCH", `/api/rounds/${round!.id}`, {
+        foodRestaurantId: food!.id,
+        drinkRestaurantId: drink!.id,
+        deadline: "2026-09-01T12:00:00.000Z",
+      });
+
+      expect(res.status).toBe(200);
+      const curated = await db
+        .select()
+        .from(roundMenuItems)
+        .where(eq(roundMenuItems.roundId, round!.id));
+      expect(curated.map((r) => r.menuItemId)).toEqual([foodItem!.id]);
+    });
+
+    it("PATCH with neither a food nor a drink restaurant returns 400 and leaves the round unchanged", async () => {
+      const drink = await seedRestaurant(db, { type: "drink" });
+      const round = await seedRound(db, { drinkRestaurantId: drink!.id });
+
+      const res = await request("PATCH", `/api/rounds/${round!.id}`, {
+        deadline: "2026-09-01T12:00:00.000Z",
+      });
+
+      expect(res.status).toBe(400);
+      const body = (await res.json()) as { error?: string };
+      expect(body.error).toBe(ERROR_MESSAGES.roundRestaurantRequired);
+      const [after] = await db.select().from(rounds).where(eq(rounds.id, round!.id));
+      expect(after!.drinkRestaurantId).toBe(drink!.id);
+    });
+
+    it("PATCH opens a drink-only round that has a curated drink item", async () => {
+      const drink = await seedRestaurant(db, { type: "drink" });
+      const drinkItem = await seedMenuItem(db, { restaurantId: drink!.id });
+      const round = await seedRound(db, { drinkRestaurantId: drink!.id });
+      await seedRoundMenuItem(db, { roundId: round!.id, menuItemId: drinkItem!.id });
+
+      const res = await request("PATCH", `/api/rounds/${round!.id}/status`, { status: "open" });
+
+      expect(res.status).toBe(200);
+      expect(((await res.json()) as Round).status).toBe("open");
+    });
+
+    it("PATCH opening a drink-only round with zero curated drink items returns 400", async () => {
+      const drink = await seedRestaurant(db, { type: "drink" });
+      const round = await seedRound(db, { drinkRestaurantId: drink!.id });
+
+      const res = await request("PATCH", `/api/rounds/${round!.id}/status`, { status: "open" });
+
+      expect(res.status).toBe(400);
+      const body = (await res.json()) as { error?: string };
+      expect(body.error).toBe(ERROR_MESSAGES.roundOpenNoDrinkItems);
+    });
+
+    it("GET /api/rounds/public lists a drink-only round with foodRestaurantName: null", async () => {
+      const { drink, round } = await seedOpenDrinkOnlyRound();
+
+      const res = await request("GET", "/api/rounds/public");
+
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as Array<{
+        id: number;
+        foodRestaurantName: string | null;
+        drinkRestaurantName: string | null;
+      }>;
+      const row = body.find((r) => r.id === round.id);
+      expect(row?.foodRestaurantName).toBeNull();
+      expect(row?.drinkRestaurantName).toBe(drink!.name);
+    });
+
+    it("GET /:id/public omits foodItems and foodRestaurant entirely", async () => {
+      const { round } = await seedOpenDrinkOnlyRound();
+
+      const res = await request("GET", `/api/rounds/${round.id}/public`);
+
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as Record<string, unknown>;
+      expect("foodItems" in body).toBe(false);
+      expect("foodRestaurant" in body).toBe(false);
+      expect(body.drinkItems).toHaveLength(1);
+      expect(body.drinkRestaurant).toBeTruthy();
+    });
+
+    it("POST submission with only a drink pick succeeds and stores a null food item", async () => {
+      const { round, drinkRoundMenuItem } = await seedOpenDrinkOnlyRound();
+      const employee = await seedEmployee(db);
+
+      const res = await request("POST", `/api/rounds/${round.id}/submissions`, {
+        employeeId: employee!.id,
+        drinkRoundMenuItemId: drinkRoundMenuItem.id,
+      });
+
+      expect(res.status).toBe(201);
+      const created = (await res.json()) as Submission;
+      expect(created.foodRoundMenuItemId).toBeNull();
+      expect(created.drinkRoundMenuItemId).toBe(drinkRoundMenuItem.id);
+    });
+
+    it("POST submission without a drink pick on a drink-only round returns 400", async () => {
+      const { round } = await seedOpenDrinkOnlyRound();
+      const employee = await seedEmployee(db);
+
+      const res = await request("POST", `/api/rounds/${round.id}/submissions`, {
+        employeeId: employee!.id,
+      });
+
+      expect(res.status).toBe(400);
+      const body = (await res.json()) as { error?: string };
+      expect(body.error).toBe(ERROR_MESSAGES.drinkRoundMenuItemIdRequired);
+    });
+
+    it("POST submission with a food pick on a drink-only round returns 400", async () => {
+      const { round, drinkRoundMenuItem } = await seedOpenDrinkOnlyRound();
+      const employee = await seedEmployee(db);
+
+      const res = await request("POST", `/api/rounds/${round.id}/submissions`, {
+        employeeId: employee!.id,
+        foodRoundMenuItemId: drinkRoundMenuItem.id,
+        drinkRoundMenuItemId: drinkRoundMenuItem.id,
+      });
+
+      expect(res.status).toBe(400);
+      const body = (await res.json()) as { error?: string };
+      expect(body.error).toBe(ERROR_MESSAGES.submissionNoFoodRestaurant);
+    });
+
+    it("admin PATCH of a submission on a drink-only round accepts a drink-only body", async () => {
+      const { round, drinkRoundMenuItem } = await seedOpenDrinkOnlyRound();
+      const employee = await seedEmployee(db);
+      const submission = await seedSubmission(db, {
+        roundId: round.id,
+        employeeId: employee!.id,
+        foodRoundMenuItemId: null,
+        drinkRoundMenuItemId: drinkRoundMenuItem.id,
+      });
+
+      const res = await request("PATCH", `/api/rounds/${round.id}/submissions/${submission!.id}`, {
+        drinkRoundMenuItemId: drinkRoundMenuItem.id,
+        drinkNote: "Less ice",
+      });
+
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as Submission;
+      expect(body.foodRoundMenuItemId).toBeNull();
+      expect(body.drinkNote).toBe("Less ice");
+    });
+  });
 });

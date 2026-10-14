@@ -74,7 +74,7 @@ export async function seedEmployee(
 
 export async function seedRound(
   db: Db,
-  overrides: Partial<typeof schema.rounds.$inferInsert> & { foodRestaurantId: number },
+  overrides: Partial<typeof schema.rounds.$inferInsert> = {},
 ) {
   const [row] = await db
     .insert(schema.rounds)

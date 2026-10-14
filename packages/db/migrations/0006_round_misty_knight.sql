@@ -1,0 +1,1 @@
+ALTER TABLE "rounds" ALTER COLUMN "food_restaurant_id" DROP NOT NULL;

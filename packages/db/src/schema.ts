@@ -43,9 +43,7 @@ export const employees = pgTable("employees", {
 export const rounds = pgTable("rounds", {
   id: serial("id").primaryKey(),
   label: text("label").notNull(),
-  foodRestaurantId: integer("food_restaurant_id")
-    .notNull()
-    .references(() => restaurants.id),
+  foodRestaurantId: integer("food_restaurant_id").references(() => restaurants.id),
   drinkRestaurantId: integer("drink_restaurant_id").references(() => restaurants.id),
   deadline: timestamp("deadline", { withTimezone: true }).notNull(),
   status: roundStatus("status").notNull().default("draft"),
