@@ -28,6 +28,14 @@ const OPEN_ROUND_FOOD_ONLY = {
   foodRestaurant: FOOD_RESTAURANT,
 };
 
+const OPEN_ROUND_DRINK_ONLY = {
+  label: "Week 1",
+  deadline: "2999-01-01T00:00:00.000Z",
+  status: "open",
+  drinkItems: [{ id: 20, name: "Tra Da" }],
+  drinkRestaurant: DRINK_RESTAURANT,
+};
+
 const EMPLOYEES = [{ id: 1, fullName: "An Nguyen" }];
 
 function renderRound(id: string) {
@@ -162,6 +170,50 @@ describe("Round (public view)", () => {
     expect(drinkInput).toBeInTheDocument();
     await user.click(drinkInput);
     expect(await screen.findByRole("option", { name: "Tra Da" })).toBeInTheDocument();
+  });
+
+  it("renders a drink-only round with no food fields", async () => {
+    server.use(
+      http.get("/api/rounds/1/public", () => HttpResponse.json(OPEN_ROUND_DRINK_ONLY)),
+      http.get("/api/employees", () => HttpResponse.json(EMPLOYEES)),
+      http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
+    );
+
+    renderRound("1");
+
+    expect(await screen.findByRole("combobox", { name: /drink item/i })).toBeInTheDocument();
+    expect(screen.queryByLabelText("Food item", { exact: false })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Food note")).not.toBeInTheDocument();
+  });
+
+  it("requires a drink on a drink-only round and sends no food fields", async () => {
+    const user = userEvent.setup();
+    let submittedBody: Record<string, unknown> | null = null;
+    server.use(
+      http.get("/api/rounds/1/public", () => HttpResponse.json(OPEN_ROUND_DRINK_ONLY)),
+      http.get("/api/employees", () => HttpResponse.json(EMPLOYEES)),
+      http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
+      http.post("/api/rounds/1/submissions", async ({ request }) => {
+        submittedBody = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({ id: 1, roundId: 1, ...submittedBody }, { status: 201 });
+      }),
+    );
+
+    renderRound("1");
+    await screen.findByRole("combobox", { name: /drink item/i });
+
+    await pickEmployee(user, "An Nguyen");
+    await user.click(screen.getByRole("button", { name: "Submit" }));
+    expect(await screen.findByText("Please select a drink item.")).toBeInTheDocument();
+    expect(submittedBody).toBeNull();
+
+    await pickDrinkItem(user, "Tra Da");
+    await user.click(screen.getByRole("button", { name: "Submit" }));
+
+    expect(
+      await screen.findByText("Thanks! Your order has been recorded."),
+    ).toBeInTheDocument();
+    expect(submittedBody).toEqual({ employeeId: 1, drinkRoundMenuItemId: 20 });
   });
 
   it("filters the employee combobox as the user types and selects on click", async () => {

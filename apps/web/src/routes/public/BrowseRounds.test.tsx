@@ -115,6 +115,28 @@ describe("BrowseRounds (public homepage)", () => {
     expect(screen.queryByText(/\+ undefined/)).not.toBeInTheDocument();
   });
 
+  it("shows only the drink restaurant name for a drink-only round", async () => {
+    server.use(
+      http.get("/api/rounds/public", () =>
+        HttpResponse.json([
+          {
+            id: 1,
+            label: "Week 2",
+            status: "open",
+            deadline: "2026-08-01T00:00:00.000Z",
+            foodRestaurantName: null,
+            drinkRestaurantName: "Tra Da Corner",
+          },
+        ]),
+      ),
+    );
+
+    renderBrowseRounds();
+
+    expect(await screen.findByText("Tra Da Corner")).toBeInTheDocument();
+    expect(screen.queryByText(/\+/)).not.toBeInTheDocument();
+  });
+
   it("links the round label to its public round page", async () => {
     server.use(
       http.get("/api/rounds/public", () =>
