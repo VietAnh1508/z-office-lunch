@@ -6,7 +6,7 @@ import { toastApiError } from "@/lib/toast";
 export type Round = {
   id: number;
   label: string;
-  foodRestaurantId: number;
+  foodRestaurantId: number | null;
   drinkRestaurantId: number | null;
   deadline: string;
   status: "draft" | "open" | "closed";
@@ -15,14 +15,14 @@ export type Round = {
 
 type CreateRoundInput = {
   label: string;
-  foodRestaurantId: number;
+  foodRestaurantId?: number;
   drinkRestaurantId?: number;
   deadline: string;
 };
 
 type UpdateRoundInput = {
   deadline: string;
-  foodRestaurantId: number;
+  foodRestaurantId?: number;
   drinkRestaurantId?: number;
 };
 

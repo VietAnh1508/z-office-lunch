@@ -2,7 +2,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { HttpResponse, http } from "msw";
 import { MemoryRouter, Route, Routes } from "react-router";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { downloadCsv } from "@/lib/download";
 import { renderWithProviders } from "@/test/render";
 import { server } from "@/test/mocks/server";
@@ -47,6 +47,10 @@ async function expandSection(label: "food items" | "drink items") {
 }
 
 describe("RoundDetail", () => {
+  beforeEach(() => {
+    vi.mocked(downloadCsv).mockClear();
+  });
+
   it("shows a not-found message for an unknown round id", async () => {
     server.use(
       http.get("/api/rounds/999", () => HttpResponse.json({ error: "round not found" }, { status: 404 })),
@@ -866,7 +870,7 @@ describe("RoundDetail", () => {
 
     it("lists submitted employee names, food, and drink picks in a table", async () => {
       server.use(
-        http.get("/api/rounds/1", () => HttpResponse.json(draftRound())),
+        http.get("/api/rounds/1", () => HttpResponse.json(draftRound({ drinkRestaurantId: 2 }))),
         http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
         http.get("/api/employees", () => HttpResponse.json([])),
         http.get("/api/rounds/1/submissions", () =>
@@ -883,6 +887,7 @@ describe("RoundDetail", () => {
         ),
         http.get("/api/rounds/1/menu-items", () => HttpResponse.json([])),
         http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
+        http.get("/api/restaurants/2/menu-items", () => HttpResponse.json([])),
       );
 
       renderDetail("1");
@@ -927,7 +932,7 @@ describe("RoundDetail", () => {
 
     it("renders a blank food cell when foodName is null", async () => {
       server.use(
-        http.get("/api/rounds/1", () => HttpResponse.json(draftRound())),
+        http.get("/api/rounds/1", () => HttpResponse.json(draftRound({ drinkRestaurantId: 2 }))),
         http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
         http.get("/api/employees", () => HttpResponse.json([])),
         http.get("/api/rounds/1/submissions", () =>
@@ -944,6 +949,7 @@ describe("RoundDetail", () => {
         ),
         http.get("/api/rounds/1/menu-items", () => HttpResponse.json([])),
         http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
+        http.get("/api/restaurants/2/menu-items", () => HttpResponse.json([])),
       );
 
       renderDetail("1");
@@ -956,7 +962,7 @@ describe("RoundDetail", () => {
       const user = userEvent.setup();
 
       server.use(
-        http.get("/api/rounds/1", () => HttpResponse.json(draftRound())),
+        http.get("/api/rounds/1", () => HttpResponse.json(draftRound({ drinkRestaurantId: 2 }))),
         http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
         http.get("/api/employees", () => HttpResponse.json([])),
         http.get("/api/rounds/1/submissions", () =>
@@ -973,6 +979,7 @@ describe("RoundDetail", () => {
         ),
         http.get("/api/rounds/1/menu-items", () => HttpResponse.json([])),
         http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
+        http.get("/api/restaurants/2/menu-items", () => HttpResponse.json([])),
       );
 
       renderDetail("1");

@@ -1,16 +1,20 @@
 import type { ReactNode } from "react";
 import type { RoundSubmission } from "../shared/useRoundSubmissions";
+import { submissionColumns } from "./submissionColumns";
 import { useEmployees } from "./useEmployees";
-
-export const SUBMISSION_COLUMNS = ["Employee", "Food", "Food note", "Drink", "Drink note"];
 
 export function SubmissionsTable({
   submissions,
+  hasFood,
+  hasDrink,
   renderActions,
 }: {
   submissions: RoundSubmission[] | undefined;
+  hasFood: boolean;
+  hasDrink: boolean;
   renderActions?: (submission: RoundSubmission) => ReactNode;
 }) {
+  const columns = submissionColumns({ hasFood, hasDrink });
   const { data: employees } = useEmployees();
   const totalActiveEmployees = employees?.filter((employee) => employee.active).length;
   const submittedCount = submissions?.length ?? 0;
@@ -34,11 +38,11 @@ export function SubmissionsTable({
           <thead className="sticky top-0 bg-card">
             <tr className="border-b text-left text-muted-foreground">
               <th className="py-1.5 pr-4 font-medium">No.</th>
-              {SUBMISSION_COLUMNS.map((column, index) => (
+              {columns.map((column, index) => (
                 <th
                   key={column}
                   className={
-                    index === SUBMISSION_COLUMNS.length - 1 && !renderActions
+                    index === columns.length - 1 && !renderActions
                       ? "py-1.5 font-medium"
                       : "py-1.5 pr-4 font-medium"
                   }
@@ -54,10 +58,12 @@ export function SubmissionsTable({
               <tr key={submission.id}>
                 <td className="py-1.5 pr-4 text-muted-foreground">{index + 1}</td>
                 <td className="py-1.5 pr-4">{submission.employeeName}</td>
-                <td className="py-1.5 pr-4">{submission.foodName}</td>
-                <td className="py-1.5 pr-4">{submission.foodNote}</td>
-                <td className="py-1.5 pr-4">{submission.drinkName}</td>
-                <td className={renderActions ? "py-1.5 pr-4" : "py-1.5"}>{submission.drinkNote}</td>
+                {hasFood && <td className="py-1.5 pr-4">{submission.foodName}</td>}
+                {hasFood && <td className="py-1.5 pr-4">{submission.foodNote}</td>}
+                {hasDrink && <td className="py-1.5 pr-4">{submission.drinkName}</td>}
+                {hasDrink && (
+                  <td className={renderActions ? "py-1.5 pr-4" : "py-1.5"}>{submission.drinkNote}</td>
+                )}
                 {renderActions && <td className="py-1.5">{renderActions(submission)}</td>}
               </tr>
             ))}

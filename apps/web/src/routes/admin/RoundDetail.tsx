@@ -32,7 +32,8 @@ import { downloadCsv } from "@/lib/download";
 import { copyRoundShareLink } from "@/lib/share-link";
 import { cn } from "@/lib/utils";
 import { RoundStatusBadge } from "./RoundStatusBadge";
-import { SUBMISSION_COLUMNS, SubmissionsTable } from "./SubmissionsTable";
+import { submissionColumns } from "./submissionColumns";
+import { SubmissionsTable } from "./SubmissionsTable";
 import type { MenuItem } from "./useMenuItems";
 import { useMenuItems } from "./useMenuItems";
 import type { Restaurant } from "./useRestaurants";
@@ -69,6 +70,7 @@ function SubmissionEditDialog({
   const [foodItemId, setFoodItemId] = useState("");
   const [foodItemError, setFoodItemError] = useState<string | null>(null);
   const [foodNote, setFoodNote] = useState("");
+  const [drinkItemError, setDrinkItemError] = useState<string | null>(null);
   const [drinkItemId, setDrinkItemId] = useState("");
   const [drinkNote, setDrinkNote] = useState("");
 
@@ -81,6 +83,7 @@ function SubmissionEditDialog({
         submission.foodRoundMenuItemId != null ? String(submission.foodRoundMenuItemId) : "",
       );
       setFoodItemError(null);
+      setDrinkItemError(null);
       setFoodNote(submission.foodNote ?? "");
       setDrinkItemId(
         submission.drinkRoundMenuItemId != null ? String(submission.drinkRoundMenuItemId) : "",
@@ -93,14 +96,20 @@ function SubmissionEditDialog({
   function handleSubmit(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
 
-    const foodValid = foodItemId !== "";
+    const hasFood = round.foodRestaurantId != null;
+    const hasDrink = round.drinkRestaurantId != null;
+    // A submission must pick something: food when the round has food,
+    // otherwise (drink-only) a drink.
+    const foodValid = !hasFood || foodItemId !== "";
+    const drinkValid = hasFood || !hasDrink || drinkItemId !== "";
     setFoodItemError(foodValid ? null : "Please select a food item.");
-    if (!foodValid) return;
+    setDrinkItemError(drinkValid ? null : "Please select a drink item.");
+    if (!foodValid || !drinkValid) return;
 
     updateSubmission.mutate(
       {
         submissionId: submission.id,
-        foodRoundMenuItemId: Number(foodItemId),
+        foodRoundMenuItemId: hasFood ? Number(foodItemId) : undefined,
         foodNote: foodNote.trim() || undefined,
         drinkRoundMenuItemId: drinkItemId ? Number(drinkItemId) : undefined,
         drinkNote: drinkItemId && drinkNote.trim() ? drinkNote.trim() : undefined,
@@ -125,46 +134,57 @@ function SubmissionEditDialog({
             <Label>Employee</Label>
             <p className="text-sm">{submission.employeeName}</p>
           </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="edit-submission-food-item">
-              Food item <span className="text-destructive">*</span>
-            </Label>
-            <select
-              id="edit-submission-food-item"
-              className={selectClassName}
-              value={foodItemId}
-              onChange={(e) => {
-                setFoodItemId(e.target.value);
-                setFoodItemError(null);
-              }}
-              aria-invalid={foodItemError !== null}
-            >
-              <option value="">Select a food item</option>
-              {foodOptions.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.name}
-                </option>
-              ))}
-            </select>
-            {foodItemError && <p className="text-sm text-destructive">{foodItemError}</p>}
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="edit-submission-food-note">Food note</Label>
-            <Input
-              id="edit-submission-food-note"
-              value={foodNote}
-              onChange={(e) => setFoodNote(e.target.value)}
-            />
-          </div>
+          {round.foodRestaurantId != null && (
+            <>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="edit-submission-food-item">
+                  Food item <span className="text-destructive">*</span>
+                </Label>
+                <select
+                  id="edit-submission-food-item"
+                  className={selectClassName}
+                  value={foodItemId}
+                  onChange={(e) => {
+                    setFoodItemId(e.target.value);
+                    setFoodItemError(null);
+                  }}
+                  aria-invalid={foodItemError !== null}
+                >
+                  <option value="">Select a food item</option>
+                  {foodOptions.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.name}
+                    </option>
+                  ))}
+                </select>
+                {foodItemError && <p className="text-sm text-destructive">{foodItemError}</p>}
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="edit-submission-food-note">Food note</Label>
+                <Input
+                  id="edit-submission-food-note"
+                  value={foodNote}
+                  onChange={(e) => setFoodNote(e.target.value)}
+                />
+              </div>
+            </>
+          )}
           {round.drinkRestaurantId != null && (
             <>
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="edit-submission-drink-item">Drink item</Label>
+                <Label htmlFor="edit-submission-drink-item">
+                  Drink item{" "}
+                  {round.foodRestaurantId == null && <span className="text-destructive">*</span>}
+                </Label>
                 <select
                   id="edit-submission-drink-item"
                   className={selectClassName}
                   value={drinkItemId}
-                  onChange={(e) => setDrinkItemId(e.target.value)}
+                  onChange={(e) => {
+                    setDrinkItemId(e.target.value);
+                    setDrinkItemError(null);
+                  }}
+                  aria-invalid={drinkItemError !== null}
                 >
                   <option value="">None</option>
                   {drinkOptions.map((item) => (
@@ -173,6 +193,7 @@ function SubmissionEditDialog({
                     </option>
                   ))}
                 </select>
+                {drinkItemError && <p className="text-sm text-destructive">{drinkItemError}</p>}
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="edit-submission-drink-note">Drink note</Label>
@@ -214,11 +235,13 @@ function EditRoundForm({
 }) {
   const updateRound = useUpdateRound(round.id);
   const deadline = useRequiredField("Deadline is required.", toDatetimeLocalValue(round.deadline));
-  const [foodRestaurantId, setFoodRestaurantId] = useState(String(round.foodRestaurantId));
-  const [foodRestaurantError, setFoodRestaurantError] = useState<string | null>(null);
+  const [foodRestaurantId, setFoodRestaurantId] = useState(
+    round.foodRestaurantId != null ? String(round.foodRestaurantId) : "",
+  );
   const [drinkRestaurantId, setDrinkRestaurantId] = useState(
     round.drinkRestaurantId != null ? String(round.drinkRestaurantId) : "",
   );
+  const [restaurantError, setRestaurantError] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   const foodRestaurants = (restaurants ?? []).filter((restaurant) => restaurant.type === "food");
@@ -227,15 +250,16 @@ function EditRoundForm({
   function buildInput() {
     return {
       deadline: new Date(deadline.value).toISOString(),
-      foodRestaurantId: Number(foodRestaurantId),
+      foodRestaurantId: foodRestaurantId ? Number(foodRestaurantId) : undefined,
       drinkRestaurantId: drinkRestaurantId ? Number(drinkRestaurantId) : undefined,
     };
   }
 
   function restaurantsChanged() {
+    const newFoodRestaurantId = foodRestaurantId ? Number(foodRestaurantId) : null;
     const newDrinkRestaurantId = drinkRestaurantId ? Number(drinkRestaurantId) : null;
     return (
-      Number(foodRestaurantId) !== round.foodRestaurantId ||
+      newFoodRestaurantId !== round.foodRestaurantId ||
       newDrinkRestaurantId !== round.drinkRestaurantId
     );
   }
@@ -244,10 +268,10 @@ function EditRoundForm({
     e.preventDefault();
     const deadlineValid = deadline.validate();
 
-    const foodValid = foodRestaurantId !== "";
-    setFoodRestaurantError(foodValid ? null : "Food restaurant is required.");
+    const restaurantValid = foodRestaurantId !== "" || drinkRestaurantId !== "";
+    setRestaurantError(restaurantValid ? null : "Select at least one restaurant.");
 
-    if (!deadlineValid || !foodValid) return;
+    if (!deadlineValid || !restaurantValid) return;
 
     if (restaurantsChanged()) {
       setConfirmOpen(true);
@@ -264,37 +288,37 @@ function EditRoundForm({
       <CardContent>
         <form className="flex flex-col gap-3" onSubmit={handleSubmit} noValidate>
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="edit-round-food-restaurant">
-              Food restaurant <span className="text-destructive">*</span>
-            </Label>
+            <Label htmlFor="edit-round-food-restaurant">Food restaurant</Label>
             <select
               id="edit-round-food-restaurant"
               className="h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20"
               value={foodRestaurantId}
               onChange={(e) => {
                 setFoodRestaurantId(e.target.value);
-                setFoodRestaurantError(null);
+                setRestaurantError(null);
               }}
-              aria-invalid={foodRestaurantError !== null}
+              aria-invalid={restaurantError !== null}
             >
-              <option value="">Select a food restaurant</option>
+              <option value="">None</option>
               {foodRestaurants.map((restaurant) => (
                 <option key={restaurant.id} value={restaurant.id}>
                   {restaurant.name}
                 </option>
               ))}
             </select>
-            {foodRestaurantError && (
-              <p className="text-sm text-destructive">{foodRestaurantError}</p>
-            )}
+            {restaurantError && <p className="text-sm text-destructive">{restaurantError}</p>}
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="edit-round-drink-restaurant">Drink restaurant</Label>
             <select
               id="edit-round-drink-restaurant"
-              className="h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              className="h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20"
               value={drinkRestaurantId}
-              onChange={(e) => setDrinkRestaurantId(e.target.value)}
+              onChange={(e) => {
+                setDrinkRestaurantId(e.target.value);
+                setRestaurantError(null);
+              }}
+              aria-invalid={restaurantError !== null}
             >
               <option value="">None</option>
               {drinkRestaurants.map((restaurant) => (
@@ -303,6 +327,7 @@ function EditRoundForm({
                 </option>
               ))}
             </select>
+            {restaurantError && <p className="text-sm text-destructive">{restaurantError}</p>}
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="edit-round-deadline">
@@ -351,7 +376,10 @@ function CollapseToggle({ open, label }: { open: boolean; label: string }) {
         size="icon-sm"
         aria-label={open ? `Collapse ${label}` : `Expand ${label}`}
       >
-        <ChevronDown className={cn("transition-transform", !open && "-rotate-90")} aria-hidden="true" />
+        <ChevronDown
+          className={cn("transition-transform", !open && "-rotate-90")}
+          aria-hidden="true"
+        />
       </Button>
     </CollapsibleTrigger>
   );
@@ -424,6 +452,8 @@ export function RoundDetail() {
   }
 
   const isDraft = round.status === "draft";
+  const hasFood = round.foodRestaurantId != null;
+  const hasDrink = round.drinkRestaurantId != null;
 
   function renderMenuItemList(items: MenuItem[] | undefined, isPending: boolean) {
     if (isPending) {
@@ -455,12 +485,13 @@ export function RoundDetail() {
     if (!submissions || submissions.length === 0) return;
     const rows = submissions.map((s) => [
       s.employeeName,
-      s.foodName,
-      s.foodNote,
-      s.drinkName,
-      s.drinkNote,
+      ...(hasFood ? [s.foodName, s.foodNote] : []),
+      ...(hasDrink ? [s.drinkName, s.drinkNote] : []),
     ]);
-    downloadCsv(`round-${roundId}-submissions.csv`, toCsv(SUBMISSION_COLUMNS, rows));
+    downloadCsv(
+      `round-${roundId}-submissions.csv`,
+      toCsv(submissionColumns({ hasFood, hasDrink }), rows),
+    );
   }
 
   return (
@@ -529,8 +560,8 @@ export function RoundDetail() {
                   <AlertDialogHeader>
                     <AlertDialogTitle>Revert to draft?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      This round will disappear from the public page and stop accepting
-                      submissions until it's reopened.
+                      This round will disappear from the public page and stop accepting submissions
+                      until it's reopened.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
@@ -585,22 +616,24 @@ export function RoundDetail() {
       )}
 
       <div className="grid gap-6 sm:grid-cols-2">
-        <Card className={round.drinkRestaurantId == null ? "sm:col-span-2" : undefined}>
-          <Collapsible open={foodItemsOpen} onOpenChange={setFoodItemsOpen}>
-            <CardHeader>
-              <CardTitle>Food items — {restaurantName(round.foodRestaurantId)}</CardTitle>
-              <CardAction>
-                <CollapseToggle open={foodItemsOpen} label="food items" />
-              </CardAction>
-            </CardHeader>
-            <CollapsibleContent>
-              <CardContent>{renderMenuItemList(foodItems, foodPending)}</CardContent>
-            </CollapsibleContent>
-          </Collapsible>
-        </Card>
+        {round.foodRestaurantId != null && (
+          <Card className={round.drinkRestaurantId == null ? "sm:col-span-2" : undefined}>
+            <Collapsible open={foodItemsOpen} onOpenChange={setFoodItemsOpen}>
+              <CardHeader>
+                <CardTitle>Food items — {restaurantName(round.foodRestaurantId)}</CardTitle>
+                <CardAction>
+                  <CollapseToggle open={foodItemsOpen} label="food items" />
+                </CardAction>
+              </CardHeader>
+              <CollapsibleContent>
+                <CardContent>{renderMenuItemList(foodItems, foodPending)}</CardContent>
+              </CollapsibleContent>
+            </Collapsible>
+          </Card>
+        )}
 
         {round.drinkRestaurantId != null && (
-          <Card>
+          <Card className={round.foodRestaurantId == null ? "sm:col-span-2" : undefined}>
             <Collapsible open={drinkItemsOpen} onOpenChange={setDrinkItemsOpen}>
               <CardHeader>
                 <CardTitle>Drink items — {restaurantName(round.drinkRestaurantId)}</CardTitle>
@@ -630,6 +663,8 @@ export function RoundDetail() {
         <CardContent>
           <SubmissionsTable
             submissions={submissions}
+            hasFood={hasFood}
+            hasDrink={hasDrink}
             renderActions={(submission) => (
               <SubmissionEditDialog
                 round={round}

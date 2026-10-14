@@ -15,8 +15,8 @@ export function Rounds() {
   const label = useRequiredField("Label is required.");
   const deadline = useRequiredField("Deadline is required.");
   const [foodRestaurantId, setFoodRestaurantId] = useState("");
-  const [foodRestaurantError, setFoodRestaurantError] = useState<string | null>(null);
   const [drinkRestaurantId, setDrinkRestaurantId] = useState("");
+  const [restaurantError, setRestaurantError] = useState<string | null>(null);
 
   const foodRestaurants = (restaurants ?? []).filter((restaurant) => restaurant.type === "food");
   const drinkRestaurants = (restaurants ?? []).filter((restaurant) => restaurant.type === "drink");
@@ -26,15 +26,15 @@ export function Rounds() {
     const labelValid = label.validate();
     const deadlineValid = deadline.validate();
 
-    const foodValid = foodRestaurantId !== "";
-    setFoodRestaurantError(foodValid ? null : "Food restaurant is required.");
+    const restaurantValid = foodRestaurantId !== "" || drinkRestaurantId !== "";
+    setRestaurantError(restaurantValid ? null : "Select at least one restaurant.");
 
-    if (!labelValid || !foodValid || !deadlineValid) return;
+    if (!labelValid || !restaurantValid || !deadlineValid) return;
 
     createRound.mutate(
       {
         label: label.value,
-        foodRestaurantId: Number(foodRestaurantId),
+        foodRestaurantId: foodRestaurantId ? Number(foodRestaurantId) : undefined,
         drinkRestaurantId: drinkRestaurantId ? Number(drinkRestaurantId) : undefined,
         deadline: new Date(deadline.value).toISOString(),
       },
@@ -67,37 +67,37 @@ export function Rounds() {
                 {label.error && <p className="text-sm text-destructive">{label.error}</p>}
               </div>
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="round-food-restaurant">
-                  Food restaurant <span className="text-destructive">*</span>
-                </Label>
+                <Label htmlFor="round-food-restaurant">Food restaurant</Label>
                 <select
                   id="round-food-restaurant"
                   className="h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20"
                   value={foodRestaurantId}
                   onChange={(e) => {
                     setFoodRestaurantId(e.target.value);
-                    setFoodRestaurantError(null);
+                    setRestaurantError(null);
                   }}
-                  aria-invalid={foodRestaurantError !== null}
+                  aria-invalid={restaurantError !== null}
                 >
-                  <option value="">Select a food restaurant</option>
+                  <option value="">None</option>
                   {foodRestaurants.map((restaurant) => (
                     <option key={restaurant.id} value={restaurant.id}>
                       {restaurant.name}
                     </option>
                   ))}
                 </select>
-                {foodRestaurantError && (
-                  <p className="text-sm text-destructive">{foodRestaurantError}</p>
-                )}
+                {restaurantError && <p className="text-sm text-destructive">{restaurantError}</p>}
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="round-drink-restaurant">Drink restaurant</Label>
                 <select
                   id="round-drink-restaurant"
-                  className="h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                  className="h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20"
                   value={drinkRestaurantId}
-                  onChange={(e) => setDrinkRestaurantId(e.target.value)}
+                  onChange={(e) => {
+                    setDrinkRestaurantId(e.target.value);
+                    setRestaurantError(null);
+                  }}
+                  aria-invalid={restaurantError !== null}
                 >
                   <option value="">None</option>
                   {drinkRestaurants.map((restaurant) => (
@@ -106,6 +106,7 @@ export function Rounds() {
                     </option>
                   ))}
                 </select>
+                {restaurantError && <p className="text-sm text-destructive">{restaurantError}</p>}
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="round-deadline">
