@@ -7,8 +7,8 @@ import { renderWithProviders } from "@/test/render";
 import { server } from "@/test/mocks/server";
 import { Round } from "./Round";
 
-const FOOD_RESTAURANT = { id: 1, name: "Pho 24", menuUrl: null, menuImage: null };
-const DRINK_RESTAURANT = { id: 2, name: "Tra Da Corner", menuUrl: null, menuImage: null };
+const FOOD_RESTAURANT = { id: 1, name: "Pho 24", menuUrl: null, menuImage: null, note: null };
+const DRINK_RESTAURANT = { id: 2, name: "Tra Da Corner", menuUrl: null, menuImage: null, note: null };
 
 const OPEN_ROUND_WITH_DRINK = {
   label: "Week 1",
@@ -363,6 +363,116 @@ describe("Round (public view)", () => {
     expect(
       await screen.findByText("Thanks! Your order has been recorded."),
     ).toBeInTheDocument();
+  });
+
+  describe("restaurant note", () => {
+    function serveRound(round: object) {
+      server.use(
+        http.get("/api/rounds/1/public", () => HttpResponse.json(round)),
+        http.get("/api/employees", () => HttpResponse.json(EMPLOYEES)),
+        http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
+      );
+    }
+
+    it("shows the food restaurant's note on the open form", async () => {
+      serveRound({
+        ...OPEN_ROUND_FOOD_ONLY,
+        foodRestaurant: { ...FOOD_RESTAURANT, note: "Cash only" },
+      });
+
+      renderRound("1");
+
+      expect(await screen.findByText("Cash only")).toBeInTheDocument();
+    });
+
+    it("shows both food and drink notes when both restaurants have one", async () => {
+      serveRound({
+        ...OPEN_ROUND_WITH_DRINK,
+        foodRestaurant: { ...FOOD_RESTAURANT, note: "Cash only" },
+        drinkRestaurant: { ...DRINK_RESTAURANT, note: "No ice after 3pm" },
+      });
+
+      renderRound("1");
+
+      expect(await screen.findByText("Cash only")).toBeInTheDocument();
+      expect(screen.getByText("No ice after 3pm")).toBeInTheDocument();
+    });
+
+    it("shows only the drink note on a round without a food restaurant", async () => {
+      serveRound({
+        ...OPEN_ROUND_DRINK_ONLY,
+        drinkRestaurant: { ...DRINK_RESTAURANT, note: "No ice after 3pm" },
+      });
+
+      renderRound("1");
+
+      expect(await screen.findByText("No ice after 3pm")).toBeInTheDocument();
+    });
+
+    it("renders nothing for a null or blank note", async () => {
+      serveRound({
+        ...OPEN_ROUND_WITH_DRINK,
+        foodRestaurant: { ...FOOD_RESTAURANT, note: null },
+        drinkRestaurant: { ...DRINK_RESTAURANT, note: "   " },
+      });
+
+      renderRound("1");
+      await screen.findByRole("combobox", { name: /food item/i });
+
+      expect(screen.queryByTestId("restaurant-note")).not.toBeInTheDocument();
+    });
+
+    it("turns an https URL in the note into a link that opens in a new tab", async () => {
+      serveRound({
+        ...OPEN_ROUND_FOOD_ONLY,
+        foodRestaurant: { ...FOOD_RESTAURANT, note: "Order at https://example.com/menu today" },
+      });
+
+      renderRound("1");
+
+      const link = await screen.findByRole("link", { name: "https://example.com/menu" });
+      expect(link).toHaveAttribute("href", "https://example.com/menu");
+      expect(link).toHaveAttribute("target", "_blank");
+      expect(link).toHaveAttribute("rel", "noopener noreferrer");
+    });
+
+    it("turns a www. URL in the note into an https link", async () => {
+      serveRound({
+        ...OPEN_ROUND_FOOD_ONLY,
+        foodRestaurant: { ...FOOD_RESTAURANT, note: "See www.example.com for specials" },
+      });
+
+      renderRound("1");
+
+      const link = await screen.findByRole("link", { name: "www.example.com" });
+      expect(link).toHaveAttribute("href", "https://www.example.com");
+    });
+
+    it("does not link plain text or javascript: URLs", async () => {
+      serveRound({
+        ...OPEN_ROUND_FOOD_ONLY,
+        foodRestaurant: { ...FOOD_RESTAURANT, note: "Cash only, javascript:alert(1)" },
+      });
+
+      renderRound("1");
+
+      expect(await screen.findByText(/Cash only/)).toBeInTheDocument();
+      expect(screen.queryByRole("link")).not.toBeInTheDocument();
+    });
+
+    it("shows no note on a closed round", async () => {
+      serveRound({
+        label: "Week 1",
+        deadline: "2000-01-01T00:00:00.000Z",
+        status: "closed",
+        foodRestaurant: { ...FOOD_RESTAURANT, note: "Cash only" },
+      });
+
+      renderRound("1");
+
+      await screen.findByText("This round is closed.");
+      expect(screen.queryByText("Cash only")).not.toBeInTheDocument();
+    });
   });
 
   describe("menu reference", () => {

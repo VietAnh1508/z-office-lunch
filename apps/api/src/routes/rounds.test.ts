@@ -1834,7 +1834,13 @@ describe("rounds routes", () => {
         label: string;
         foodItems: Array<{ id: number; name: string }>;
         drinkItems?: unknown[];
-        foodRestaurant: { id: number; name: string; menuUrl: string | null; menuImage: string | null };
+        foodRestaurant: {
+          id: number;
+          name: string;
+          menuUrl: string | null;
+          menuImage: string | null;
+          note: string | null;
+        };
         drinkRestaurant?: unknown;
       };
       expect(body.label).toBe(round!.label);
@@ -1846,16 +1852,34 @@ describe("rounds routes", () => {
         name: food!.name,
         menuUrl: null,
         menuImage: null,
+        note: "Cash only",
       });
       expect("drinkRestaurant" in body).toBe(false);
       const json = JSON.stringify(body);
       expect(json).not.toContain("price");
       expect(json).not.toContain("contactInfo");
-      expect(json).not.toContain("Cash only");
       expect(json).not.toContain("012-345-6789");
-      expect(json).not.toContain("note");
       expect(json).not.toContain("createdAt");
       expect(json).not.toContain('"type"');
+    });
+
+    it("GET /public returns note: null for restaurants with no note, on both food and drink", async () => {
+      const food = await seedRestaurant(db, { type: "food" });
+      const drink = await seedRestaurant(db, { type: "drink", note: "No ice after 3pm" });
+      const round = await seedRound(db, {
+        foodRestaurantId: food!.id,
+        drinkRestaurantId: drink!.id,
+        status: "open",
+      });
+
+      const res = await app.request(`/api/rounds/${round!.id}/public`, {}, testEnv);
+
+      const body = (await res.json()) as {
+        foodRestaurant: { note: string | null };
+        drinkRestaurant: { note: string | null };
+      };
+      expect(body.foodRestaurant.note).toBeNull();
+      expect(body.drinkRestaurant.note).toBe("No ice after 3pm");
     });
 
     it("GET /public includes foodRestaurant's menuUrl and menuImage when set on the restaurant", async () => {
