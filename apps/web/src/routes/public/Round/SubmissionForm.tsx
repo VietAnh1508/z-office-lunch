@@ -20,7 +20,7 @@ import { OverwriteSubmissionDialog } from "./OverwriteSubmissionDialog";
 
 type SubmissionInput = {
   employeeId: number;
-  foodRoundMenuItemId: number;
+  foodRoundMenuItemId?: number;
   foodNote?: string;
   drinkRoundMenuItemId?: number;
   drinkNote?: string;
@@ -42,6 +42,7 @@ export function SubmissionForm({
   const [foodItemError, setFoodItemError] = useState<string | null>(null);
   const [foodNote, setFoodNote] = useState("");
   const [drinkItemId, setDrinkItemId] = useState<number | null>(null);
+  const [drinkItemError, setDrinkItemError] = useState<string | null>(null);
   const [drinkNote, setDrinkNote] = useState("");
   const [submitted, setSubmitted] = useState(false);
 
@@ -50,11 +51,14 @@ export function SubmissionForm({
   const [pendingInput, setPendingInput] = useState<SubmissionInput | null>(null);
   const [existingSubmission, setExistingSubmission] = useState<RoundSubmission | null>(null);
 
+  const hasFood = round.foodItems !== undefined && round.foodRestaurant !== undefined;
+  const drinkRequired = !hasFood;
+
   function buildInput(): SubmissionInput {
     return {
       employeeId: employeeId as number,
-      foodRoundMenuItemId: foodItemId as number,
-      foodNote: foodNote.trim() || undefined,
+      foodRoundMenuItemId: hasFood ? (foodItemId as number) : undefined,
+      foodNote: hasFood ? foodNote.trim() || undefined : undefined,
       drinkRoundMenuItemId: drinkItemId ?? undefined,
       drinkNote:
         drinkItemId !== null && drinkNote.trim() ? drinkNote.trim() : undefined,
@@ -67,10 +71,13 @@ export function SubmissionForm({
     const employeeValid = employeeId !== null;
     setEmployeeError(employeeValid ? null : "Please select your name.");
 
-    const foodValid = foodItemId !== null;
+    const foodValid = !hasFood || foodItemId !== null;
     setFoodItemError(foodValid ? null : "Please select a food item.");
 
-    if (!employeeValid || !foodValid) return;
+    const drinkValid = !drinkRequired || drinkItemId !== null;
+    setDrinkItemError(drinkValid ? null : "Please select a drink item.");
+
+    if (!employeeValid || !foodValid || !drinkValid) return;
 
     const existing = existingSubmissions?.[0] ?? null;
     if (existing) {
@@ -125,11 +132,13 @@ export function SubmissionForm({
             error={employeeError}
           />
 
+          {hasFood && (
+            <>
           <ItemCombobox
             id="submission-food-item"
             label="Food item"
             required
-            items={round.foodItems}
+            items={round.foodItems!}
             value={foodItemId}
             onChange={(id) => {
               setFoodItemId(id);
@@ -138,8 +147,8 @@ export function SubmissionForm({
             error={foodItemError}
             placeholder="Search food items…"
           />
-          <MenuLink restaurant={round.foodRestaurant} />
-          <MenuImage restaurant={round.foodRestaurant} className="lg:hidden" />
+          <MenuLink restaurant={round.foodRestaurant!} />
+          <MenuImage restaurant={round.foodRestaurant!} className="lg:hidden" />
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="submission-food-note">Food note</Label>
             <Input
@@ -149,16 +158,22 @@ export function SubmissionForm({
               onChange={(e) => setFoodNote(e.target.value)}
             />
           </div>
+            </>
+          )}
 
           {round.drinkItems && (
             <>
               <ItemCombobox
                 id="submission-drink-item"
                 label="Drink item"
+                required={drinkRequired}
                 items={round.drinkItems}
                 value={drinkItemId}
-                onChange={setDrinkItemId}
-                error={null}
+                onChange={(id) => {
+                  setDrinkItemId(id);
+                  setDrinkItemError(null);
+                }}
+                error={drinkItemError}
                 placeholder="Search drink items…"
               />
               <MenuLink restaurant={round.drinkRestaurant!} />

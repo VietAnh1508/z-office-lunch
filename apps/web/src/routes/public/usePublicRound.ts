@@ -19,9 +19,9 @@ export type PublicRound = {
   label: string;
   deadline: string;
   status: "open" | "closed";
-  foodItems: PublicRoundItem[];
+  foodItems?: PublicRoundItem[];
   drinkItems?: PublicRoundItem[];
-  foodRestaurant: PublicRoundRestaurant;
+  foodRestaurant?: PublicRoundRestaurant;
   drinkRestaurant?: PublicRoundRestaurant;
 };
 
@@ -30,7 +30,7 @@ export type PublicRoundListItem = {
   label: string;
   status: "open" | "closed";
   deadline: string;
-  foodRestaurantName: string;
+  foodRestaurantName: string | null;
   drinkRestaurantName: string | null;
 };
 

@@ -11,7 +11,7 @@ export type ActiveEmployee = {
 
 type CreateSubmissionInput = {
   employeeId: number;
-  foodRoundMenuItemId: number;
+  foodRoundMenuItemId?: number;
   foodNote?: string;
   drinkRoundMenuItemId?: number;
   drinkNote?: string;
@@ -21,7 +21,7 @@ type Submission = {
   id: number;
   roundId: number;
   employeeId: number;
-  foodRoundMenuItemId: number;
+  foodRoundMenuItemId: number | null;
   foodNote: string | null;
   drinkRoundMenuItemId: number | null;
   drinkNote: string | null;

@@ -20,8 +20,9 @@ function RoundRow({ round }: { round: PublicRoundListItem }) {
         <RoundStatusBadge status={round.status} />
       </div>
       <p className="text-sm text-muted-foreground">
-        {round.foodRestaurantName}
-        {round.drinkRestaurantName != null && ` + ${round.drinkRestaurantName}`}
+        {[round.foodRestaurantName, round.drinkRestaurantName]
+          .filter((name) => name != null)
+          .join(" + ")}
       </p>
       <p className="text-xs text-muted-foreground">
         Deadline {new Date(round.deadline).toLocaleString()}

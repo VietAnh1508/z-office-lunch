@@ -220,3 +220,57 @@ test("employee submits food and drink picks, then a second submission overwrites
   await page.getByRole("button", { name: "Close" }).click();
   await expect(page.getByText("Round closed")).toBeVisible();
 });
+
+test("employee submits a drink-only round and admin sees it in the submissions view", async ({
+  page,
+}) => {
+  const drinkRestaurantName = `Drink Only Restaurant ${Date.now()}`;
+  const roundLabel = `Drink Only Round ${Date.now()}`;
+  const employeeName = `Drink Only Employee ${Date.now()}`;
+
+  await unlockAdmin(page);
+  await page.goto("/admin/restaurants");
+  await page.locator("#restaurant-name").fill(drinkRestaurantName);
+  await page.locator("#restaurant-type").selectOption("drink");
+  await page.getByRole("button", { name: "Add restaurant" }).click();
+  await page.getByRole("link", { name: drinkRestaurantName }).click();
+  await page.locator("#menu-item-name").fill("Tra Da");
+  await page.getByRole("button", { name: "Add menu item", exact: true }).click();
+  await expect(page.getByText("Menu item added")).toBeVisible();
+
+  await page.goto("/admin/employees");
+  await page.getByLabel("Full name", { exact: false }).fill(employeeName);
+  await page.getByRole("button", { name: "Add employee" }).click();
+  await expect(page.getByText("Employee added")).toBeVisible();
+
+  // Round with a drink restaurant only (no food restaurant).
+  await page.goto("/admin/rounds");
+  await page.getByLabel("Label", { exact: false }).fill(roundLabel);
+  await page.locator("#round-drink-restaurant").selectOption({ label: drinkRestaurantName });
+  await page.getByLabel("Deadline", { exact: false }).fill("2030-01-01T12:00");
+  await page.getByRole("button", { name: "Add round" }).click();
+
+  await page.getByRole("link", { name: roundLabel }).click();
+  const roundUrl = page.url();
+  const roundId = roundUrl.substring(roundUrl.lastIndexOf("/") + 1);
+  await page.getByRole("button", { name: "Open" }).click();
+  await expect(page.getByText("Round opened")).toBeVisible();
+
+  await page.goto(`/r/${roundId}`);
+  await expect(page.getByRole("heading", { name: roundLabel })).toBeVisible();
+  await expect(page.getByLabel("Food item", { exact: false })).toHaveCount(0);
+
+  await page.getByRole("combobox", { name: "Your name", exact: false }).fill(employeeName);
+  await page.getByRole("option", { name: employeeName }).click();
+  await page.getByRole("combobox", { name: "Drink item", exact: false }).fill("Tra Da");
+  await page.getByRole("option", { name: "Tra Da" }).click();
+  await page.getByRole("button", { name: "Submit" }).click();
+  await expect(page.getByText("Thanks! Your order has been recorded.")).toBeVisible();
+
+  await page.goto(`/admin/rounds/${roundId}`);
+  await expect(page.getByRole("cell", { name: employeeName })).toBeVisible();
+  await expect(page.getByRole("cell", { name: "Tra Da" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Close" }).click();
+  await expect(page.getByText("Round closed")).toBeVisible();
+});
