@@ -1,7 +1,7 @@
 ---
 id: 053
 title: Admin UI for rounds without a food restaurant
-status: in_review
+status: done
 depends_on: [052]
 parallelizable_with: []
 epic: optional-food-restaurant
