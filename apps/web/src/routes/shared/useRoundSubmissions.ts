@@ -16,7 +16,7 @@ export type RoundSubmission = {
 
 type UpdateRoundSubmissionInput = {
   submissionId: number;
-  foodRoundMenuItemId: number;
+  foodRoundMenuItemId?: number;
   foodNote?: string;
   drinkRoundMenuItemId?: number;
   drinkNote?: string;

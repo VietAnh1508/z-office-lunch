@@ -98,9 +98,10 @@ export function RoundList() {
                         <RoundStatusBadge status={round.status} />
                       </div>
                       <p className="text-sm text-muted-foreground">
-                        {restaurantName(round.foodRestaurantId)}
-                        {round.drinkRestaurantId != null &&
-                          ` + ${restaurantName(round.drinkRestaurantId)}`}
+                        {[round.foodRestaurantId, round.drinkRestaurantId]
+                          .filter((id) => id != null)
+                          .map(restaurantName)
+                          .join(" + ")}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         Deadline {new Date(round.deadline).toLocaleString()}

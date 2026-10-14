@@ -2,7 +2,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { HttpResponse, http } from "msw";
 import { MemoryRouter, Route, Routes } from "react-router";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { downloadCsv } from "@/lib/download";
 import { renderWithProviders } from "@/test/render";
 import { server } from "@/test/mocks/server";
@@ -47,6 +47,10 @@ async function expandSection(label: "food items" | "drink items") {
 }
 
 describe("RoundDetail", () => {
+  beforeEach(() => {
+    vi.mocked(downloadCsv).mockClear();
+  });
+
   it("shows a not-found message for an unknown round id", async () => {
     server.use(
       http.get("/api/rounds/999", () => HttpResponse.json({ error: "round not found" }, { status: 404 })),
@@ -619,32 +623,231 @@ describe("RoundDetail", () => {
 
       expect(await screen.findByText("round is not draft")).toBeInTheDocument();
     });
+    describe("optional food restaurant", () => {
+      function editHandlers(round: Record<string, unknown>, onPatch?: (body: unknown) => void) {
+        return [
+          http.get("/api/rounds/1", () => HttpResponse.json(round)),
+          http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+          http.get("/api/employees", () => HttpResponse.json([])),
+          http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
+          http.get("/api/rounds/1/menu-items", () => HttpResponse.json([])),
+          http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
+          http.get("/api/restaurants/2/menu-items", () => HttpResponse.json([])),
+          http.patch("/api/rounds/1", async ({ request }) => {
+            onPatch?.(await request.json());
+            return HttpResponse.json(round);
+          }),
+        ];
+      }
 
-    it("shows an inline error and sends no request when the food restaurant is cleared", async () => {
+      it("shows an at-least-one error under both selects and sends no request when both are cleared, then clears it on change", async () => {
+        const user = userEvent.setup();
+        const patches: unknown[] = [];
+        server.use(...editHandlers(draftRound(), (b) => patches.push(b)));
+
+        renderDetail("1");
+
+        await screen.findByText("Edit round");
+        await user.selectOptions(screen.getByLabelText("Food restaurant", { exact: false }), "");
+        await user.click(screen.getByRole("button", { name: "Save changes" }));
+
+        expect(await screen.findAllByText("Select at least one restaurant.")).toHaveLength(2);
+        expect(patches).toHaveLength(0);
+
+        await user.selectOptions(screen.getByLabelText("Drink restaurant", { exact: false }), "2");
+        expect(screen.queryByText("Select at least one restaurant.")).not.toBeInTheDocument();
+      });
+
+      it("pre-fills an empty food select for a drink-only round and saves a deadline change without a confirmation or foodRestaurantId", async () => {
+        const user = userEvent.setup();
+        const patches: Array<Record<string, unknown>> = [];
+        server.use(
+          ...editHandlers(draftRound({ foodRestaurantId: null, drinkRestaurantId: 2 }), (b) =>
+            patches.push(b as Record<string, unknown>),
+          ),
+        );
+
+        renderDetail("1");
+
+        await screen.findByText("Edit round");
+        expect(screen.getByLabelText("Food restaurant", { exact: false })).toHaveValue("");
+        await user.click(screen.getByRole("button", { name: "Save changes" }));
+
+        await waitFor(() => expect(patches).toHaveLength(1));
+        expect(screen.queryByText("Change restaurant?")).not.toBeInTheDocument();
+        expect(patches[0]).toMatchObject({ drinkRestaurantId: 2 });
+        expect(patches[0]).not.toHaveProperty("foodRestaurantId");
+      });
+
+      it("asks for confirmation when going from no food restaurant to one", async () => {
+        const user = userEvent.setup();
+        server.use(...editHandlers(draftRound({ foodRestaurantId: null, drinkRestaurantId: 2 })));
+
+        renderDetail("1");
+
+        await screen.findByText("Edit round");
+        await user.selectOptions(screen.getByLabelText("Food restaurant", { exact: false }), "1");
+        await user.click(screen.getByRole("button", { name: "Save changes" }));
+
+        expect(await screen.findByText("Change restaurant?")).toBeInTheDocument();
+      });
+
+      it("asks for confirmation when clearing the food restaurant of a food+drink round", async () => {
+        const user = userEvent.setup();
+        const patches: Array<Record<string, unknown>> = [];
+        server.use(
+          ...editHandlers(draftRound({ drinkRestaurantId: 2 }), (b) =>
+            patches.push(b as Record<string, unknown>),
+          ),
+        );
+
+        renderDetail("1");
+
+        await screen.findByText("Edit round");
+        await user.selectOptions(screen.getByLabelText("Food restaurant", { exact: false }), "");
+        await user.click(screen.getByRole("button", { name: "Save changes" }));
+        await user.click(await screen.findByRole("button", { name: "Confirm" }));
+
+        await waitFor(() => expect(patches).toHaveLength(1));
+        expect(patches[0]).not.toHaveProperty("foodRestaurantId");
+      });
+    });
+  });
+
+  describe("food-only round", () => {
+    it("omits the Drink columns in the table and the CSV", async () => {
       const user = userEvent.setup();
-      let patchCalled = false;
-
       server.use(
-        http.get("/api/rounds/1", () => HttpResponse.json(draftRound())),
+        http.get("/api/rounds/1", () => HttpResponse.json(draftRound({ status: "open" }))),
         http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
         http.get("/api/employees", () => HttpResponse.json([])),
-        http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
         http.get("/api/rounds/1/menu-items", () => HttpResponse.json([])),
         http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
-        http.patch("/api/rounds/1", () => {
-          patchCalled = true;
-          return HttpResponse.json(draftRound());
+        http.get("/api/rounds/1/submissions", () =>
+          HttpResponse.json([
+            {
+              id: 1,
+              employeeName: "An Nguyen",
+              foodName: "Pho Bo",
+              foodNote: null,
+              drinkName: null,
+              drinkNote: null,
+              foodRoundMenuItemId: 10,
+              drinkRoundMenuItemId: null,
+            },
+          ]),
+        ),
+      );
+
+      renderDetail("1");
+
+      await screen.findByText("An Nguyen");
+      expect(screen.getByRole("columnheader", { name: "Food" })).toBeInTheDocument();
+      expect(screen.queryByRole("columnheader", { name: "Drink" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("columnheader", { name: "Drink note" })).not.toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: "Export CSV" }));
+      const [, csv] = vi.mocked(downloadCsv).mock.calls.at(-1)!;
+      const header = csv.replace("\ufeff", "").split("\r\n")[0];
+      expect(header).toBe(["Employee", "Food", "Food note"].join("\t"));
+    });
+  });
+
+  describe("drink-only round", () => {
+    const DRINK_ONLY = () =>
+      draftRound({ status: "open", foodRestaurantId: null, drinkRestaurantId: 2 });
+
+    function drinkOnlyHandlers() {
+      return [
+        http.get("/api/rounds/1", () => HttpResponse.json(DRINK_ONLY())),
+        http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+        http.get("/api/employees", () => HttpResponse.json([])),
+        http.get("/api/rounds/1/menu-items", () => HttpResponse.json([{ id: 20, roundId: 1, menuItemId: 200 }])),
+        http.get("/api/restaurants/2/menu-items", () =>
+          HttpResponse.json([{ id: 200, restaurantId: 2, name: "Tra Da", price: null, active: true }]),
+        ),
+      ];
+    }
+
+    const SUBMISSION = {
+      id: 1,
+      employeeName: "An Nguyen",
+      foodName: null,
+      foodNote: null,
+      drinkName: "Tra Da",
+      drinkNote: null,
+      foodRoundMenuItemId: null,
+      drinkRoundMenuItemId: 20,
+    };
+
+    it("hides the Food items card and does not query restaurant 0", async () => {
+      let queriedZero = false;
+      server.use(
+        ...drinkOnlyHandlers(),
+        http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
+        http.get("/api/restaurants/0/menu-items", () => {
+          queriedZero = true;
+          return HttpResponse.json([]);
         }),
       );
 
       renderDetail("1");
 
-      await screen.findByText("Edit round");
-      await user.selectOptions(screen.getByLabelText("Food restaurant", { exact: false }), "");
-      await user.click(screen.getByRole("button", { name: "Save changes" }));
+      expect(await screen.findByRole("button", { name: "Expand drink items" })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Expand food items" })).not.toBeInTheDocument();
+      expect(screen.queryByText(/Food items/)).not.toBeInTheDocument();
+      expect(queriedZero).toBe(false);
+    });
 
-      expect(await screen.findByText("Food restaurant is required.")).toBeInTheDocument();
-      expect(patchCalled).toBe(false);
+    it("omits the Food columns in the table and the CSV", async () => {
+      const user = userEvent.setup();
+      server.use(
+        ...drinkOnlyHandlers(),
+        http.get("/api/rounds/1/submissions", () => HttpResponse.json([SUBMISSION])),
+      );
+
+      renderDetail("1");
+
+      await screen.findByText("An Nguyen");
+      expect(screen.queryByRole("columnheader", { name: "Food" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("columnheader", { name: "Food note" })).not.toBeInTheDocument();
+      expect(screen.getByRole("columnheader", { name: "Drink" })).toBeInTheDocument();
+
+      await user.click(screen.getByRole("button", { name: "Export CSV" }));
+      const [, csv] = vi.mocked(downloadCsv).mock.calls.at(-1)!;
+      const header = csv.replace("\ufeff", "").split("\r\n")[0];
+      expect(header).toBe(["Employee", "Drink", "Drink note"].join("\t"));
+    });
+
+    it("hides the food fields in the edit dialog, requires a drink, and omits foodRoundMenuItemId", async () => {
+      const user = userEvent.setup({ pointerEventsCheck: 0 });
+      const patches: Array<Record<string, unknown>> = [];
+      server.use(
+        ...drinkOnlyHandlers(),
+        http.get("/api/rounds/1/submissions", () => HttpResponse.json([SUBMISSION])),
+        http.patch("/api/rounds/1/submissions/1", async ({ request }) => {
+          patches.push((await request.json()) as Record<string, unknown>);
+          return HttpResponse.json({});
+        }),
+      );
+
+      renderDetail("1");
+      await user.click(await screen.findByRole("button", { name: "Edit submission" }));
+
+      const dialog = within(await screen.findByRole("dialog"));
+      expect(dialog.queryByLabelText("Food item", { exact: false })).not.toBeInTheDocument();
+      expect(dialog.queryByLabelText("Food note")).not.toBeInTheDocument();
+
+      await user.selectOptions(dialog.getByLabelText("Drink item", { exact: false }), "");
+      await user.click(dialog.getByRole("button", { name: "Save" }));
+      expect(await dialog.findByText("Please select a drink item.")).toBeInTheDocument();
+      expect(patches).toHaveLength(0);
+
+      await user.selectOptions(dialog.getByLabelText("Drink item", { exact: false }), "20");
+      await user.click(dialog.getByRole("button", { name: "Save" }));
+      await waitFor(() => expect(patches).toHaveLength(1));
+      expect(patches[0]).toMatchObject({ drinkRoundMenuItemId: 20 });
+      expect(patches[0]).not.toHaveProperty("foodRoundMenuItemId");
     });
   });
 
@@ -667,7 +870,7 @@ describe("RoundDetail", () => {
 
     it("lists submitted employee names, food, and drink picks in a table", async () => {
       server.use(
-        http.get("/api/rounds/1", () => HttpResponse.json(draftRound())),
+        http.get("/api/rounds/1", () => HttpResponse.json(draftRound({ drinkRestaurantId: 2 }))),
         http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
         http.get("/api/employees", () => HttpResponse.json([])),
         http.get("/api/rounds/1/submissions", () =>
@@ -684,6 +887,7 @@ describe("RoundDetail", () => {
         ),
         http.get("/api/rounds/1/menu-items", () => HttpResponse.json([])),
         http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
+        http.get("/api/restaurants/2/menu-items", () => HttpResponse.json([])),
       );
 
       renderDetail("1");
@@ -728,7 +932,7 @@ describe("RoundDetail", () => {
 
     it("renders a blank food cell when foodName is null", async () => {
       server.use(
-        http.get("/api/rounds/1", () => HttpResponse.json(draftRound())),
+        http.get("/api/rounds/1", () => HttpResponse.json(draftRound({ drinkRestaurantId: 2 }))),
         http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
         http.get("/api/employees", () => HttpResponse.json([])),
         http.get("/api/rounds/1/submissions", () =>
@@ -745,6 +949,7 @@ describe("RoundDetail", () => {
         ),
         http.get("/api/rounds/1/menu-items", () => HttpResponse.json([])),
         http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
+        http.get("/api/restaurants/2/menu-items", () => HttpResponse.json([])),
       );
 
       renderDetail("1");
@@ -757,7 +962,7 @@ describe("RoundDetail", () => {
       const user = userEvent.setup();
 
       server.use(
-        http.get("/api/rounds/1", () => HttpResponse.json(draftRound())),
+        http.get("/api/rounds/1", () => HttpResponse.json(draftRound({ drinkRestaurantId: 2 }))),
         http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
         http.get("/api/employees", () => HttpResponse.json([])),
         http.get("/api/rounds/1/submissions", () =>
@@ -774,6 +979,7 @@ describe("RoundDetail", () => {
         ),
         http.get("/api/rounds/1/menu-items", () => HttpResponse.json([])),
         http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
+        http.get("/api/restaurants/2/menu-items", () => HttpResponse.json([])),
       );
 
       renderDetail("1");

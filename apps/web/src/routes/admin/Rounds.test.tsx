@@ -46,6 +46,31 @@ describe("Rounds", () => {
     expect(within(roundRow!).getByText("draft")).toBeInTheDocument();
   });
 
+  it("shows only the drink restaurant name for a drink-only round, without a leading +", async () => {
+    server.use(
+      http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+      http.get("/api/rounds", () =>
+        HttpResponse.json([
+          {
+            id: 1,
+            label: "Week 1",
+            foodRestaurantId: null,
+            drinkRestaurantId: 2,
+            deadline: "2026-08-10T12:00:00.000Z",
+            status: "draft",
+            createdAt: "2026-08-01T00:00:00.000Z",
+          },
+        ]),
+      ),
+    );
+
+    renderRounds();
+
+    const roundRow = (await screen.findByText("Week 1")).closest("li");
+    expect(await within(roundRow!).findByText("Tra Da Corner")).toBeInTheDocument();
+    expect(roundRow!.textContent).not.toContain("+");
+  });
+
   it("adds a round via the create form without a page reload", async () => {
     const user = userEvent.setup();
     let rounds: Array<Record<string, unknown>> = [];
@@ -112,9 +137,67 @@ describe("Rounds", () => {
     await user.click(screen.getByRole("button", { name: "Add round" }));
 
     expect(await screen.findByText("Label is required.")).toBeInTheDocument();
-    expect(screen.getByText("Food restaurant is required.")).toBeInTheDocument();
     expect(screen.getByText("Deadline is required.")).toBeInTheDocument();
     expect(postCount).toBe(0);
+  });
+
+  describe("restaurant selection", () => {
+    async function setup() {
+      const user = userEvent.setup();
+      const posts: Array<Record<string, unknown>> = [];
+      server.use(
+        http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+        http.get("/api/rounds", () => HttpResponse.json([])),
+        http.post("/api/rounds", async ({ request }) => {
+          posts.push((await request.json()) as Record<string, unknown>);
+          return HttpResponse.json({}, { status: 201 });
+        }),
+      );
+      renderRounds();
+      await screen.findByText("No rounds yet.");
+      await screen.findByText("Pho 24");
+      await user.type(screen.getByLabelText("Label", { exact: false }), "Week 1");
+      await user.type(screen.getByLabelText("Deadline", { exact: false }), "2026-08-10T12:00");
+      return { user, posts };
+    }
+
+    it("does not mark the food restaurant as required and offers None", async () => {
+      await setup();
+      const food = screen.getByLabelText("Food restaurant", { exact: false });
+      expect(within(food).getByRole("option", { name: "None" })).toBeInTheDocument();
+      expect(screen.getByText("Food restaurant").textContent).not.toContain("*");
+    });
+
+    it("creates a food-only round without sending drinkRestaurantId", async () => {
+      const { user, posts } = await setup();
+      await user.selectOptions(screen.getByLabelText("Food restaurant", { exact: false }), "1");
+      await user.click(screen.getByRole("button", { name: "Add round" }));
+
+      await waitFor(() => expect(posts).toHaveLength(1));
+      expect(posts[0]).toMatchObject({ foodRestaurantId: 1 });
+      expect(posts[0]).not.toHaveProperty("drinkRestaurantId");
+    });
+
+    it("creates a drink-only round without sending foodRestaurantId", async () => {
+      const { user, posts } = await setup();
+      await user.selectOptions(screen.getByLabelText("Drink restaurant", { exact: false }), "2");
+      await user.click(screen.getByRole("button", { name: "Add round" }));
+
+      await waitFor(() => expect(posts).toHaveLength(1));
+      expect(posts[0]).toMatchObject({ drinkRestaurantId: 2 });
+      expect(posts[0]).not.toHaveProperty("foodRestaurantId");
+    });
+
+    it("shows an at-least-one error under both selects when both are empty, and clears it when either changes", async () => {
+      const { user, posts } = await setup();
+      await user.click(screen.getByRole("button", { name: "Add round" }));
+
+      expect(await screen.findAllByText("Select at least one restaurant.")).toHaveLength(2);
+      expect(posts).toHaveLength(0);
+
+      await user.selectOptions(screen.getByLabelText("Drink restaurant", { exact: false }), "2");
+      expect(screen.queryByText("Select at least one restaurant.")).not.toBeInTheDocument();
+    });
   });
 
   it("shows the API's error message as a toast when creating a round fails with a known error", async () => {

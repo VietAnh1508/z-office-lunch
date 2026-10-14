@@ -1,7 +1,7 @@
 ---
 id: 053
 title: Admin UI for rounds without a food restaurant
-status: approved
+status: in_review
 depends_on: [052]
 parallelizable_with: []
 epic: optional-food-restaurant
@@ -52,17 +52,21 @@ Let admins create and edit rounds with only a food or only a drink restaurant (a
 
 (Filled in by /implement-task.)
 
-- red commit: <sha> — `<test_command>` -> N failing
-- green commit: <sha> — `<test_command>` -> all passing
+- red commit: c8d556c — `pnpm test -- apps/web/src/routes/admin` -> 11 failing
+- green commit: a7c52ba — `pnpm test -- apps/web/src/routes/admin` -> all passing (430/430; full `pnpm test` also 430/430, `pnpm lint` no new warnings)
 
 ## Plan Deviations
 
 (Filled in by /implement-task, honestly, before requesting review — write "None." if genuinely nothing applies, don't skip this section silently. Only list genuine deviations — if a step was carried out as the Plan described, it doesn't belong here, even if it's worth doing again.)
 
-- Where did the actual implementation differ from the Plan above, and why?
-- Any wrong assumption, dead end, or approach abandoned partway through?
-- Anything the user had to correct or redirect mid-task?
+- `SUBMISSION_COLUMNS` moved out of `SubmissionsTable.tsx` into a new `submissionColumns.ts` (a function export next to a component tripped the `only-export-components` lint warning). Not in the Plan's file list.
+- Existing submissions-table / CSV tests used a drink-less round fixture with drink data in the submissions; they now use `drinkRestaurantId: 2`, since Drink columns are hidden when there's no drink restaurant. Also added a `beforeEach` to clear the `downloadCsv` mock.
+- Ran `prettier` on `RoundDetail.tsx` by mistake (repo has no prettier config), which reflowed unrelated code; re-ran at width 100, but two unrelated hunks (ChevronDown, AlertDialogDescription) stayed reflowed.
 
 ## Review Notes
 
 (Output of the feature-dev:code-reviewer agent, appended by /implement-task.)
+
+No issues found at confidence >= 80. Verified: shared `restaurantError` pattern follows `.claude/rules/form-validation.md`; empty food omits `foodRestaurantId`; null-safe `restaurantsChanged`; `SubmissionEditDialog` validation correct; `useMenuItems(... ?? 0)` is safe because of `enabled: restaurantId > 0`.
+
+Below threshold (~40, cosmetic): in `SubmissionsTable.tsx` the header drops `pr-4` on the last column when there's no `renderActions`, but the body only does so on the drink-note cell, so food-only tables keep `pr-4` on the last body cell. Left as is.
