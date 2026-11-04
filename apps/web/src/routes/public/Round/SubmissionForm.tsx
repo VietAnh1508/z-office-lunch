@@ -226,6 +226,13 @@ export function SubmissionForm({
             )}
           </div>
 
+          {stepIndex === 1 && existingSubmissions?.[0] && (
+            <p className="rounded-lg bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-400">
+              Welcome back — you already ordered for this round. Submitting
+              will replace it.
+            </p>
+          )}
+
           {step === "who" && (
             <PickerList
               label="Your name"
@@ -304,12 +311,6 @@ export function SubmissionForm({
             </>
           )}
 
-          {step === "review" && existingSubmissions?.[0] && (
-            <p className="rounded-lg bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-400">
-              Welcome back — you already ordered for this round. Submitting
-              will replace it.
-            </p>
-          )}
         </div>
 
         <OrderSummary rows={summaryRows} />

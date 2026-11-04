@@ -735,7 +735,7 @@ describe("Round (public view)", () => {
       expect(posted).toBe(false);
     });
 
-    it("tells a returning employee on the review step that their order will be replaced", async () => {
+    it("tells a returning employee right after picking their name that their order will be replaced", async () => {
       const user = userEvent.setup();
       let lookupRequested = false;
       server.use(
@@ -766,7 +766,6 @@ describe("Round (public view)", () => {
       await waitForForm();
 
       await pickEmployee(user, "An Nguyen");
-      await pickFoodItem(user, "Pho Bo");
       await waitFor(() => expect(lookupRequested).toBe(true));
 
       expect(await screen.findByText(/welcome back/i)).toBeInTheDocument();
