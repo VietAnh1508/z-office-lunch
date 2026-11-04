@@ -11,7 +11,7 @@ The Worker serves both `/api/*` and the built SPA (Workers `assets` binding) fro
 origin — see `docs/architecture.md` for why that beat splitting the frontend out to a separate
 static host (no CORS, e2e tests stay accurate to prod's topology).
 
-Live at: `https://z-office-lunch-api.vietanhtong1508.workers.dev` (Cloudflare's `workers.dev`
+Live at: `https://zlunch.vietanhtong1508.workers.dev` (Cloudflare's `workers.dev`
 subdomain — no custom domain set up; add one later via the Cloudflare dashboard without
 touching anything else here).
 
@@ -45,7 +45,7 @@ in the path not owned by Cloudflare.
                                  └────────────┬─────────────┘
                                               │ HTTPS
                                               ▼
-                         https://z-office-lunch-api.<acct>.workers.dev
+                         https://zlunch.<acct>.workers.dev
                     ┌────────────────────────────────────────────────┐
                     │             Cloudflare Worker                  │
                     │             (Hono, one deploy)                 │
