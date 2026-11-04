@@ -1,26 +1,31 @@
 # Epic: Drink restaurant size presets
 
-Member tasks: 045, 046, 047, 048, 049, 050. Status lives solely in each task's own frontmatter (`pnpm tasks:status`) — this file never repeats it, and isn't updated as tasks complete.
+Member tasks: 056, 057, 058, 059, 060, 061, 062, 063. Status lives solely in each task's own frontmatter (`pnpm tasks:status`) — this file never repeats it, and isn't updated as tasks complete.
+
+(Replaces an earlier version of this epic, tasks 045-050, which was never started: label-list presets with no name, a text `drink_size` on submissions, and no per-item sizes.)
 
 ## Context
 
-Drink restaurants offer size options (S/M/L, XS/S/M/L, Tall/Grande/Venti, …), but the labels differ per restaurant and today there's no way to capture a size at all — `docs/architecture.md` already documents that a drink item offered in multiple sizes is listed once in `MenuItem`, not split per size, and the only trace of "size" in the app is a hint in the drink-note placeholder ("e.g. size M, less ice"). This epic gives size a real, structured field.
+Drink restaurants offer size options (S/M/L/XL, Tall/Grande/Venti, …), and today there's no structured way to capture one — the only trace is a hint in the drink-note placeholder ("e.g. size M, less ice"). Admin defines named size presets on a new admin page, assigns one to a drink restaurant, and unticks sizes per item (most items have every size, some only S/M). Employees pick a size on the order form.
 
 Decisions made during planning:
 
-- **Shared presets pool.** A preset is a reusable, admin-managed catalog entry — an ordered list of size labels (e.g. `["S","M","L"]`) — not duplicated per restaurant. Multiple restaurants can point at the same preset.
-- **No separate preset name.** A preset's identity *is* its ordered label list (rendered as "S / M / L" in pickers); there's no additional name field to manage. `["S","M","L"]` and `["L","M","S"]` are different presets by design.
-- **Assigned inline, no admin nav page.** The restaurant create/edit form gets a combobox that picks an existing preset or creates a new one on the spot — no dedicated "Size Presets" admin page, no delete endpoint (nothing in the API can ever delete a preset).
-- **Restaurant → preset assignment is editable anytime**, unlike `type` (which is create-only because it's load-bearing for round validation). A size preset isn't load-bearing the same way, and locking it at create time would strand an admin who forgot to set it with no other way to fix it.
-- **Size is required only when a drink item is actually picked from a restaurant that has a preset assigned.** The drink section itself stays fully optional, unchanged from today. Selected size is stored denormalized as `submissions.drink_size` (plain text, not an FK) — same resilience reasoning as the existing `foodRoundMenuItemId`/`drinkRoundMenuItemId` `onDelete: "set null"` FKs: a historical submission keeps showing "L" even if the preset is later edited or unassigned.
-
-The build is sequenced so every intermediate PR stays shippable to `main` — the backend never starts *requiring* `drinkSize` until both the public and admin submission UIs are already capable of sending it (tasks 045-049 lay groundwork; 050 flips the switch).
+- **Named presets, managed on a separate admin page** ("Sizes" nav entry): create, rename, reorder/add/remove options, delete. Delete is blocked (409) while a restaurant uses the preset.
+- **`restaurants.size_preset_id`** is nullable and drink-only (400 on a food restaurant). Editable anytime.
+- **Per-item availability** via `menu_item_sizes (menu_item_id, size_option_id)`, unique pair. Auto-filled with every option when a preset is assigned, when an item is created (single or bulk), and when an option is added to a preset; admin unticks the exceptions. An item with zero rows is never asked for a size.
+- **`submissions.drink_size_option_id`** is an FK to `size_options`, `on delete set null`. No label snapshot — history is unimportant here.
+- **Size is required** when the chosen drink item has any sizes. The API rejects a size that isn't one of that item's `menu_item_sizes`.
+- **Changing or removing a restaurant's preset is never blocked.** The admin sees a confirm dialog with the number of live submissions (rounds that aren't closed — an open round can be reverted to draft keeping its orders) that will lose their size. Item size rows are deleted and re-filled for the new preset, and `drink_size_option_id` is cleared on those submissions (closed rounds untouched). Unticking a size on an item clears it the same way. The admin re-collects those orders by hand.
+- **Out of scope:** per-size price (price stays one admin-only optional reference), task 038 menu generation, food restaurants.
+- **Sequencing:** the backend only starts requiring a size once both submission UIs can already send one (062 before 063), so every PR is shippable to `main`.
 
 ## Tasks
 
-- **045** — `size_presets` table + `GET`/`POST /api/size-presets` (find-or-create). Foundational, no dependents yet, fully self-contained.
-- **046** — `restaurants.size_preset_id` (backend only): schema, POST/PATCH validation (drink-only, valid FK), exposed on `GET /restaurants`.
-- **047** — Admin UI: assign a preset on the restaurant create/edit forms (`SizePresetCombobox`, pick-or-create).
-- **048** — `submissions.drink_size` (backend): schema, `parseSubmissionFields` stores/validates it when sent but doesn't yet require it, exposed on `GET /:id/submissions` and `GET /:id/public` (`sizeLabels`), nulled alongside `drinkRoundMenuItemId`/`drinkNote` on round-menu-item removal.
-- **049** — Public + admin submission UI: a required-if-drink-picked size `<select>` on both `SubmissionForm.tsx` and the admin `SubmissionEditDialog`.
-- **050** — Flip backend validation to actually require `drinkSize` when a preset exists; add a Size column to the submissions table and CSV export.
+- **056** — Size presets backend: `size_presets` + `size_options` tables and `/api/size-presets` CRUD.
+- **057** — Restaurant preset assignment + `menu_item_sizes` table, with auto-fill of existing items.
+- **058** — Item-level sizes: auto-fill for new/bulk items, per-item edit endpoint, preset option sync.
+- **059** — Submission backend: `drink_size_option_id`, validation, clearing, reset impact count, sizes in public/submissions responses.
+- **060** — Admin "Sizes" page.
+- **061** — Admin restaurant preset select with confirm dialog, per-item size checkboxes.
+- **062** — Size picker on the public order form and the admin submission edit dialog.
+- **063** — Require size, Size column in table and CSV, "size missing" indicator, architecture doc.
