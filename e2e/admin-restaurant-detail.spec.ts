@@ -14,7 +14,7 @@ test("admin can add a menu item to a restaurant and toggle it inactive", async (
 
   await page.locator("#menu-item-name").fill("Banh Mi");
   await page.locator("#menu-item-price").fill("25000");
-  await page.getByRole("button", { name: "Add menu item" }).click();
+  await page.getByRole("button", { name: "Add menu item", exact: true }).click();
 
   await expect(page.getByText("Banh Mi")).toBeVisible();
   await expect(page.getByText("25.000", { exact: false })).toBeVisible();

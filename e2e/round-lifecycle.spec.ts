@@ -34,7 +34,7 @@ test("admin curates a round's menu items and opens then closes it", async ({ pag
   await expect(page.getByRole("heading", { name: restaurantName })).toBeVisible();
 
   await page.locator("#menu-item-name").fill("Pho Bo");
-  await page.getByRole("button", { name: "Add menu item" }).click();
+  await page.getByRole("button", { name: "Add menu item", exact: true }).click();
   await expect(page.getByText("Menu item added")).toBeVisible();
 
   await page.goto("/admin/rounds");
@@ -48,6 +48,7 @@ test("admin curates a round's menu items and opens then closes it", async ({ pag
 
   // The food restaurant's active menu item is auto-curated on round create
   // (task 025) — no manual click needed to check it.
+  await page.getByRole("button", { name: "Expand food items" }).click();
   await expect(page.getByLabel("Pho Bo")).toBeChecked();
 
   // The per-item checkbox still supports manual opt-out/opt-in against an
@@ -80,7 +81,7 @@ test("employee-facing public round link reflects open then closed state", async 
   await expect(page.getByRole("heading", { name: restaurantName })).toBeVisible();
 
   await page.locator("#menu-item-name").fill("Pho Bo");
-  await page.getByRole("button", { name: "Add menu item" }).click();
+  await page.getByRole("button", { name: "Add menu item", exact: true }).click();
   await expect(page.getByText("Menu item added")).toBeVisible();
 
   await page.goto("/admin/rounds");
@@ -97,6 +98,7 @@ test("employee-facing public round link reflects open then closed state", async 
   const roundId = roundUrl.substring(roundUrl.lastIndexOf("/") + 1);
 
   // Auto-curated on round create (task 025) — already checked, no manual click.
+  await page.getByRole("button", { name: "Expand food items" }).click();
   await expect(page.getByLabel("Pho Bo")).toBeChecked();
 
   await page.getByRole("button", { name: "Open" }).click();
@@ -142,7 +144,7 @@ test("employee submits food and drink picks, then a second submission overwrites
   await page.getByRole("link", { name: foodRestaurantName }).click();
   await expect(page.getByRole("heading", { name: foodRestaurantName })).toBeVisible();
   await page.locator("#menu-item-name").fill("Pho Bo");
-  await page.getByRole("button", { name: "Add menu item" }).click();
+  await page.getByRole("button", { name: "Add menu item", exact: true }).click();
   await expect(page.getByText("Menu item added")).toBeVisible();
 
   // Drink restaurant + menu item.
@@ -153,7 +155,7 @@ test("employee submits food and drink picks, then a second submission overwrites
   await page.getByRole("link", { name: drinkRestaurantName }).click();
   await expect(page.getByRole("heading", { name: drinkRestaurantName })).toBeVisible();
   await page.locator("#menu-item-name").fill("Tra Da");
-  await page.getByRole("button", { name: "Add menu item" }).click();
+  await page.getByRole("button", { name: "Add menu item", exact: true }).click();
   await expect(page.getByText("Menu item added")).toBeVisible();
 
   // Employee.
@@ -177,6 +179,8 @@ test("employee submits food and drink picks, then a second submission overwrites
 
   // Both restaurants' active menu items are auto-curated on round create
   // (task 025) — already checked, no manual clicks needed.
+  await page.getByRole("button", { name: "Expand food items" }).click();
+  await page.getByRole("button", { name: "Expand drink items" }).click();
   await expect(page.getByLabel("Pho Bo")).toBeChecked();
   await expect(page.getByLabel("Tra Da")).toBeChecked();
 
@@ -235,7 +239,7 @@ test("employee submits a drink-only round and admin sees it in the submissions v
   await page.getByRole("button", { name: "Add restaurant" }).click();
   await page.getByRole("link", { name: drinkRestaurantName }).click();
   await page.locator("#menu-item-name").fill("Tra Da");
-  await page.getByRole("button", { name: "Add menu item" }).click();
+  await page.getByRole("button", { name: "Add menu item", exact: true }).click();
   await expect(page.getByText("Menu item added")).toBeVisible();
 
   await page.goto("/admin/employees");
