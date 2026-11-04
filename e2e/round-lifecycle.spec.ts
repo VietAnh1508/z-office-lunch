@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { type Page, expect, test } from "@playwright/test";
 import { unlockAdmin } from "./helpers";
 
 // These three tests each open one round, and the app only allows one round
@@ -9,6 +9,18 @@ import { unlockAdmin } from "./helpers";
 // open round and time out waiting for a "Round opened" toast that never
 // comes. See public-round-submission's own two-tests-merged-into-one for the
 // same reasoning at the single-file level.
+
+// Walks the public stepper: name → food → drink (+ note) → review → submit.
+async function orderFoodAndDrink(page: Page, employeeName: string) {
+  await page.getByRole("textbox", { name: "Your name" }).fill(employeeName);
+  await page.getByRole("option", { name: employeeName }).click();
+  await page.getByRole("option", { name: "Pho Bo" }).click();
+  await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByRole("option", { name: "Tra Da" }).click();
+  await page.getByLabel("Drink note", { exact: false }).fill("Less ice");
+  await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByRole("button", { name: "Submit order" }).click();
+}
 
 test("admin curates a round's menu items and opens then closes it", async ({ page }) => {
   const restaurantName = `Round Detail Test Restaurant ${Date.now()}`;
@@ -94,8 +106,9 @@ test("employee-facing public round link reflects open then closed state", async 
   await expect(page.getByRole("heading", { name: roundLabel })).toBeVisible();
   // The submission form's own flow (task 009) is covered end-to-end in the
   // submission test below — this test only cares that the food item made it
-  // into the picker, not that a select's <option> is "visible".
-  await expect(page.getByLabel("Food item", { exact: false })).toContainText("Pho Bo");
+  // into the picker, which only shows after picking a name — so here we only
+  // check the form opens on its first step.
+  await expect(page.getByText("Who's ordering?")).toBeVisible();
   await expect(page.getByText("This round is closed.")).not.toBeVisible();
 
   await page.goto(`/admin/rounds/${roundId}`);
@@ -174,15 +187,7 @@ test("employee submits food and drink picks, then a second submission overwrites
   await page.goto(`/r/${roundId}`);
   await expect(page.getByRole("heading", { name: roundLabel })).toBeVisible();
 
-  const employeeInput = page.getByRole("combobox", { name: "Your name", exact: false });
-  await employeeInput.fill(employeeName);
-  await page.getByRole("option", { name: employeeName }).click();
-
-  await page.getByLabel("Food item", { exact: false }).selectOption({ label: "Pho Bo" });
-  await page.getByLabel("Drink item", { exact: false }).selectOption({ label: "Tra Da" });
-  await page.getByLabel("Drink note", { exact: false }).fill("Less ice");
-
-  await page.getByRole("button", { name: "Submit" }).click();
+  await orderFoodAndDrink(page, employeeName);
   await expect(page.getByText("Thanks! Your order has been recorded.")).toBeVisible();
 
   // Second submission for the same round + employee: overwrites the first in
@@ -191,12 +196,7 @@ test("employee submits food and drink picks, then a second submission overwrites
   // below. A confirm-overwrite dialog now sits in front of this second submit
   // (task 044) since a submission for this name already exists.
   await page.goto(`/r/${roundId}`);
-  await page.getByRole("combobox", { name: "Your name", exact: false }).fill(employeeName);
-  await page.getByRole("option", { name: employeeName }).click();
-  await page.getByLabel("Food item", { exact: false }).selectOption({ label: "Pho Bo" });
-  await page.getByLabel("Drink item", { exact: false }).selectOption({ label: "Tra Da" });
-  await page.getByLabel("Drink note", { exact: false }).fill("Less ice");
-  await page.getByRole("button", { name: "Submit" }).click();
+  await orderFoodAndDrink(page, employeeName);
 
   await expect(
     page.getByText("You already have a submission for this round"),
@@ -235,7 +235,7 @@ test("employee submits a drink-only round and admin sees it in the submissions v
   await page.getByRole("button", { name: "Add restaurant" }).click();
   await page.getByRole("link", { name: drinkRestaurantName }).click();
   await page.locator("#menu-item-name").fill("Tra Da");
-  await page.getByRole("button", { name: "Add menu item", exact: true }).click();
+  await page.getByRole("button", { name: "Add menu item" }).click();
   await expect(page.getByText("Menu item added")).toBeVisible();
 
   await page.goto("/admin/employees");
@@ -258,13 +258,14 @@ test("employee submits a drink-only round and admin sees it in the submissions v
 
   await page.goto(`/r/${roundId}`);
   await expect(page.getByRole("heading", { name: roundLabel })).toBeVisible();
-  await expect(page.getByLabel("Food item", { exact: false })).toHaveCount(0);
+  await expect(page.getByText("Step 1 of 3")).toBeVisible();
 
-  await page.getByRole("combobox", { name: "Your name", exact: false }).fill(employeeName);
+  await page.getByRole("textbox", { name: "Your name" }).fill(employeeName);
   await page.getByRole("option", { name: employeeName }).click();
-  await page.getByRole("combobox", { name: "Drink item", exact: false }).fill("Tra Da");
+  await expect(page.getByLabel("Food item", { exact: false })).toHaveCount(0);
   await page.getByRole("option", { name: "Tra Da" }).click();
-  await page.getByRole("button", { name: "Submit" }).click();
+  await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByRole("button", { name: "Submit order" }).click();
   await expect(page.getByText("Thanks! Your order has been recorded.")).toBeVisible();
 
   await page.goto(`/admin/rounds/${roundId}`);

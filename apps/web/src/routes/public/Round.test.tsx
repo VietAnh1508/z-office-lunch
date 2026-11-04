@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { HttpResponse, http } from "msw";
 import { MemoryRouter, Route, Routes } from "react-router";
@@ -48,22 +48,39 @@ function renderRound(id: string) {
   );
 }
 
+async function waitForForm() {
+  await screen.findByRole("textbox", { name: /your name/i });
+}
+
+// Picking a name advances straight to the next step.
 async function pickEmployee(user: ReturnType<typeof userEvent.setup>, name: string) {
-  const input = screen.getByRole("combobox", { name: /your name/i });
-  await user.type(input, name);
   await user.click(await screen.findByRole("option", { name }));
 }
 
 async function pickFoodItem(user: ReturnType<typeof userEvent.setup>, name: string) {
-  const input = screen.getByRole("combobox", { name: /food item/i });
-  await user.type(input, name);
+  await user.click(await screen.findByRole("option", { name }));
+  await user.click(screen.getByRole("button", { name: /continue/i }));
+}
+
+// Selects only; the caller types a note and/or continues afterwards.
+async function pickDrinkItem(user: ReturnType<typeof userEvent.setup>, name: string) {
   await user.click(await screen.findByRole("option", { name }));
 }
 
-async function pickDrinkItem(user: ReturnType<typeof userEvent.setup>, name: string) {
-  const input = screen.getByRole("combobox", { name: /drink item/i });
-  await user.type(input, name);
-  await user.click(await screen.findByRole("option", { name }));
+// From whatever step is showing, move to the review step and submit.
+async function submitOrder(user: ReturnType<typeof userEvent.setup>) {
+  const next = screen.queryByRole("button", { name: /continue/i });
+  if (next) await user.click(next);
+  await user.click(await screen.findByRole("button", { name: "Submit order" }));
+}
+
+function serve(round: object, extra: Parameters<typeof server.use> = []) {
+  server.use(
+    http.get("/api/rounds/1/public", () => HttpResponse.json(round)),
+    http.get("/api/employees", () => HttpResponse.json(EMPLOYEES)),
+    http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
+    ...extra,
+  );
 }
 
 describe("Round (public view)", () => {
@@ -140,75 +157,70 @@ describe("Round (public view)", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders a food item picker for an open round before the deadline, with no drink field", async () => {
-    server.use(
-      http.get("/api/rounds/1/public", () => HttpResponse.json(OPEN_ROUND_FOOD_ONLY)),
-      http.get("/api/employees", () => HttpResponse.json(EMPLOYEES)),
-      http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
-    );
+  it("starts on the name step and shows a food picker after picking a name, with no drink step", async () => {
+    const user = userEvent.setup();
+    serve(OPEN_ROUND_FOOD_ONLY);
 
     renderRound("1");
+    await waitForForm();
+    expect(screen.getByText("Step 1 of 3")).toBeInTheDocument();
 
-    expect(
-      await screen.findByRole("combobox", { name: /food item/i }),
-    ).toBeInTheDocument();
-    expect(screen.queryByLabelText("Drink item", { exact: false })).not.toBeInTheDocument();
+    await pickEmployee(user, "An Nguyen");
+
+    expect(await screen.findByRole("listbox", { name: /food item/i })).toBeInTheDocument();
+    expect(screen.getByText("Step 2 of 3")).toBeInTheDocument();
+    expect(screen.queryByText("Drink")).not.toBeInTheDocument();
   });
 
-  it("renders a drink item picker when the round has a drinkRestaurantId", async () => {
+  it("walks through food then drink steps when the round has a drink restaurant", async () => {
     const user = userEvent.setup();
-    server.use(
-      http.get("/api/rounds/1/public", () => HttpResponse.json(OPEN_ROUND_WITH_DRINK)),
-      http.get("/api/employees", () => HttpResponse.json(EMPLOYEES)),
-      http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
-    );
+    serve(OPEN_ROUND_WITH_DRINK);
 
     renderRound("1");
+    await waitForForm();
+    expect(screen.getByText("Step 1 of 4")).toBeInTheDocument();
 
-    expect(await screen.findByLabelText("Food item", { exact: false })).toBeInTheDocument();
-    const drinkInput = screen.getByLabelText("Drink item", { exact: false });
-    expect(drinkInput).toBeInTheDocument();
-    await user.click(drinkInput);
+    await pickEmployee(user, "An Nguyen");
+    expect(await screen.findByRole("listbox", { name: /food item/i })).toBeInTheDocument();
+
+    await pickFoodItem(user, "Pho Bo");
     expect(await screen.findByRole("option", { name: "Tra Da" })).toBeInTheDocument();
   });
 
-  it("renders a drink-only round with no food fields", async () => {
-    server.use(
-      http.get("/api/rounds/1/public", () => HttpResponse.json(OPEN_ROUND_DRINK_ONLY)),
-      http.get("/api/employees", () => HttpResponse.json(EMPLOYEES)),
-      http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
-    );
+  it("renders a drink-only round with no food steps", async () => {
+    const user = userEvent.setup();
+    serve(OPEN_ROUND_DRINK_ONLY);
 
     renderRound("1");
+    await waitForForm();
+    expect(screen.getByText("Step 1 of 3")).toBeInTheDocument();
+    await pickEmployee(user, "An Nguyen");
 
-    expect(await screen.findByRole("combobox", { name: /drink item/i })).toBeInTheDocument();
-    expect(screen.queryByLabelText("Food item", { exact: false })).not.toBeInTheDocument();
+    expect(await screen.findByRole("listbox", { name: /drink item/i })).toBeInTheDocument();
+    expect(screen.queryByText("Food")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Food note")).not.toBeInTheDocument();
   });
 
   it("requires a drink on a drink-only round and sends no food fields", async () => {
     const user = userEvent.setup();
     let submittedBody: Record<string, unknown> | null = null;
-    server.use(
-      http.get("/api/rounds/1/public", () => HttpResponse.json(OPEN_ROUND_DRINK_ONLY)),
-      http.get("/api/employees", () => HttpResponse.json(EMPLOYEES)),
-      http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
+    serve(OPEN_ROUND_DRINK_ONLY, [
       http.post("/api/rounds/1/submissions", async ({ request }) => {
         submittedBody = (await request.json()) as Record<string, unknown>;
         return HttpResponse.json({ id: 1, roundId: 1, ...submittedBody }, { status: 201 });
       }),
-    );
+    ]);
 
     renderRound("1");
-    await screen.findByRole("combobox", { name: /drink item/i });
-
+    await waitForForm();
     await pickEmployee(user, "An Nguyen");
-    await user.click(screen.getByRole("button", { name: "Submit" }));
-    expect(await screen.findByText("Please select a drink item.")).toBeInTheDocument();
+
+    expect(await screen.findByRole("button", { name: /continue/i })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: /skip drink/i })).not.toBeInTheDocument();
     expect(submittedBody).toBeNull();
 
     await pickDrinkItem(user, "Tra Da");
-    await user.click(screen.getByRole("button", { name: "Submit" }));
+    await submitOrder(user);
 
     expect(
       await screen.findByText("Thanks! Your order has been recorded."),
@@ -216,94 +228,82 @@ describe("Round (public view)", () => {
     expect(submittedBody).toEqual({ employeeId: 1, drinkRoundMenuItemId: 20 });
   });
 
-  it("filters the employee combobox as the user types and selects on click", async () => {
+  it("filters names as the user types and advances to the next step on click", async () => {
     const user = userEvent.setup();
+    serve(OPEN_ROUND_FOOD_ONLY);
     server.use(
-      http.get("/api/rounds/1/public", () => HttpResponse.json(OPEN_ROUND_FOOD_ONLY)),
       http.get("/api/employees", () =>
         HttpResponse.json([...EMPLOYEES, { id: 2, fullName: "Binh Tran" }]),
       ),
-      http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
     );
 
     renderRound("1");
-    await screen.findByRole("combobox", { name: /food item/i });
+    await waitForForm();
 
-    const input = screen.getByRole("combobox", { name: /your name/i });
-    await user.type(input, "An N");
+    await user.type(screen.getByRole("textbox", { name: /your name/i }), "An N");
 
     expect(screen.getByRole("option", { name: "An Nguyen" })).toBeInTheDocument();
     expect(screen.queryByRole("option", { name: "Binh Tran" })).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("option", { name: "An Nguyen" }));
 
-    expect(input).toHaveValue("An Nguyen");
+    expect(await screen.findByRole("listbox", { name: /food item/i })).toBeInTheDocument();
+    expect(screen.getByText("Hi An 👋")).toBeInTheDocument();
+    expect(screen.getByText("An Nguyen")).toBeInTheDocument();
   });
 
-  it("closes the employee dropdown when focus moves away without a selection", async () => {
+  it("keeps Continue disabled until a food item is picked", async () => {
     const user = userEvent.setup();
-    server.use(
-      http.get("/api/rounds/1/public", () => HttpResponse.json(OPEN_ROUND_FOOD_ONLY)),
-      http.get("/api/employees", () => HttpResponse.json(EMPLOYEES)),
-      http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
-    );
+    serve(OPEN_ROUND_FOOD_ONLY);
 
     renderRound("1");
-    await screen.findByRole("combobox", { name: /food item/i });
+    await waitForForm();
+    await pickEmployee(user, "An Nguyen");
 
-    const input = screen.getByRole("combobox", { name: /your name/i });
-    await user.type(input, "An");
-    expect(screen.getByRole("option", { name: "An Nguyen" })).toBeInTheDocument();
+    const next = await screen.findByRole("button", { name: /continue/i });
+    expect(next).toBeDisabled();
 
-    // Moving focus to the food select without picking an option must close
-    // the listbox — otherwise its absolutely-positioned options sit on top
-    // of the field the user actually meant to click.
-    await user.click(screen.getByLabelText("Food item", { exact: false }));
-
-    expect(screen.queryByRole("option", { name: "An Nguyen" })).not.toBeInTheDocument();
-    expect(input).toHaveAttribute("aria-expanded", "false");
+    await user.click(screen.getByRole("option", { name: "Pho Bo" }));
+    expect(next).toBeEnabled();
   });
 
-  it("shows inline validation errors and sends no request when required fields are missing", async () => {
+  it("goes back a step and keeps earlier selections", async () => {
     const user = userEvent.setup();
-    server.use(
-      http.get("/api/rounds/1/public", () => HttpResponse.json(OPEN_ROUND_FOOD_ONLY)),
-      http.get("/api/employees", () => HttpResponse.json(EMPLOYEES)),
-      http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
-    );
+    serve(OPEN_ROUND_FOOD_ONLY);
 
     renderRound("1");
-    await screen.findByRole("combobox", { name: /food item/i });
+    await waitForForm();
+    await pickEmployee(user, "An Nguyen");
+    await user.click(await screen.findByRole("option", { name: "Pho Bo" }));
 
-    await user.click(screen.getByRole("button", { name: "Submit" }));
+    await user.click(screen.getByRole("button", { name: /back/i }));
 
-    expect(await screen.findByText("Please select your name.")).toBeInTheDocument();
-    expect(screen.getByText("Please select a food item.")).toBeInTheDocument();
+    expect(await screen.findByRole("textbox", { name: /your name/i })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "An Nguyen", selected: true })).toBeInTheDocument();
+    expect(screen.getByText("Pho Bo")).toBeInTheDocument();
   });
 
   it("submits the food-only pick and shows a success state", async () => {
     const user = userEvent.setup();
     let submittedBody: Record<string, unknown> | null = null;
-    server.use(
-      http.get("/api/rounds/1/public", () => HttpResponse.json(OPEN_ROUND_FOOD_ONLY)),
-      http.get("/api/employees", () => HttpResponse.json(EMPLOYEES)),
-      http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
+    serve(OPEN_ROUND_FOOD_ONLY, [
       http.post("/api/rounds/1/submissions", async ({ request }) => {
         submittedBody = (await request.json()) as Record<string, unknown>;
         return HttpResponse.json({ id: 1, roundId: 1, ...submittedBody }, { status: 201 });
       }),
-    );
+    ]);
 
     renderRound("1");
-    await screen.findByRole("combobox", { name: /food item/i });
+    await waitForForm();
 
     await pickEmployee(user, "An Nguyen");
     await pickFoodItem(user, "Pho Bo");
-    await user.click(screen.getByRole("button", { name: "Submit" }));
+    await submitOrder(user);
 
     expect(
       await screen.findByText("Thanks! Your order has been recorded."),
     ).toBeInTheDocument();
+    expect(screen.getByText("You're all set, An!")).toBeInTheDocument();
     await waitFor(() => {
       expect(submittedBody).toEqual({ employeeId: 1, foodRoundMenuItemId: 10 });
     });
@@ -312,24 +312,21 @@ describe("Round (public view)", () => {
   it("submits drink pick and note only when a drink item is selected", async () => {
     const user = userEvent.setup();
     let submittedBody: Record<string, unknown> | null = null;
-    server.use(
-      http.get("/api/rounds/1/public", () => HttpResponse.json(OPEN_ROUND_WITH_DRINK)),
-      http.get("/api/employees", () => HttpResponse.json(EMPLOYEES)),
-      http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
+    serve(OPEN_ROUND_WITH_DRINK, [
       http.post("/api/rounds/1/submissions", async ({ request }) => {
         submittedBody = (await request.json()) as Record<string, unknown>;
         return HttpResponse.json({ id: 1, roundId: 1, ...submittedBody }, { status: 201 });
       }),
-    );
+    ]);
 
     renderRound("1");
-    await screen.findByRole("combobox", { name: /food item/i });
+    await waitForForm();
 
     await pickEmployee(user, "An Nguyen");
     await pickFoodItem(user, "Pho Bo");
     await pickDrinkItem(user, "Tra Da");
     await user.type(screen.getByLabelText("Drink note", { exact: false }), "Less ice");
-    await user.click(screen.getByRole("button", { name: "Submit" }));
+    await submitOrder(user);
 
     await waitFor(() => {
       expect(submittedBody).toEqual({
@@ -341,24 +338,44 @@ describe("Round (public view)", () => {
     });
   });
 
+  it("lets the user skip an optional drink and submits food only", async () => {
+    const user = userEvent.setup();
+    let submittedBody: Record<string, unknown> | null = null;
+    serve(OPEN_ROUND_WITH_DRINK, [
+      http.post("/api/rounds/1/submissions", async ({ request }) => {
+        submittedBody = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({ id: 1, roundId: 1, ...submittedBody }, { status: 201 });
+      }),
+    ]);
+
+    renderRound("1");
+    await waitForForm();
+
+    await pickEmployee(user, "An Nguyen");
+    await pickFoodItem(user, "Pho Bo");
+    await user.click(await screen.findByRole("button", { name: /skip drink/i }));
+    await user.click(await screen.findByRole("button", { name: "Submit order" }));
+
+    await waitFor(() => {
+      expect(submittedBody).toEqual({ employeeId: 1, foodRoundMenuItemId: 10 });
+    });
+  });
+
   it("succeeds when submitting again for the same employee (resubmission)", async () => {
     const user = userEvent.setup();
-    server.use(
-      http.get("/api/rounds/1/public", () => HttpResponse.json(OPEN_ROUND_FOOD_ONLY)),
-      http.get("/api/employees", () => HttpResponse.json(EMPLOYEES)),
-      http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
+    serve(OPEN_ROUND_FOOD_ONLY, [
       http.post("/api/rounds/1/submissions", async ({ request }) => {
         const body = (await request.json()) as Record<string, unknown>;
         return HttpResponse.json({ id: 1, roundId: 1, ...body }, { status: 200 });
       }),
-    );
+    ]);
 
     renderRound("1");
-    await screen.findByRole("combobox", { name: /food item/i });
+    await waitForForm();
 
     await pickEmployee(user, "An Nguyen");
     await pickFoodItem(user, "Pho Bo");
-    await user.click(screen.getByRole("button", { name: "Submit" }));
+    await submitOrder(user);
 
     expect(
       await screen.findByText("Thanks! Your order has been recorded."),
@@ -366,69 +383,83 @@ describe("Round (public view)", () => {
   });
 
   describe("restaurant note", () => {
-    function serveRound(round: object) {
-      server.use(
-        http.get("/api/rounds/1/public", () => HttpResponse.json(round)),
-        http.get("/api/employees", () => HttpResponse.json(EMPLOYEES)),
-        http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
-      );
-    }
-
-    it("shows the food restaurant's note on the open form", async () => {
-      serveRound({
+    it("shows the food restaurant's note on the food step", async () => {
+      const user = userEvent.setup();
+      serve({
         ...OPEN_ROUND_FOOD_ONLY,
         foodRestaurant: { ...FOOD_RESTAURANT, note: "Cash only" },
       });
 
       renderRound("1");
+      await waitForForm();
+      await pickEmployee(user, "An Nguyen");
 
       expect(await screen.findByText("Cash only")).toBeInTheDocument();
     });
 
-    it("shows both food and drink notes when both restaurants have one", async () => {
-      serveRound({
+    it("shows the food note on the food step and the drink note on the drink step", async () => {
+      const user = userEvent.setup();
+      serve({
         ...OPEN_ROUND_WITH_DRINK,
         foodRestaurant: { ...FOOD_RESTAURANT, note: "Cash only" },
         drinkRestaurant: { ...DRINK_RESTAURANT, note: "No ice after 3pm" },
       });
 
       renderRound("1");
+      await waitForForm();
+      await pickEmployee(user, "An Nguyen");
 
       expect(await screen.findByText("Cash only")).toBeInTheDocument();
-      expect(screen.getByText("No ice after 3pm")).toBeInTheDocument();
+      expect(screen.queryByText("No ice after 3pm")).not.toBeInTheDocument();
+
+      await pickFoodItem(user, "Pho Bo");
+
+      expect(await screen.findByText("No ice after 3pm")).toBeInTheDocument();
     });
 
     it("shows only the drink note on a round without a food restaurant", async () => {
-      serveRound({
+      const user = userEvent.setup();
+      serve({
         ...OPEN_ROUND_DRINK_ONLY,
         drinkRestaurant: { ...DRINK_RESTAURANT, note: "No ice after 3pm" },
       });
 
       renderRound("1");
+      await waitForForm();
+      await pickEmployee(user, "An Nguyen");
 
       expect(await screen.findByText("No ice after 3pm")).toBeInTheDocument();
     });
 
     it("renders nothing for a null or blank note", async () => {
-      serveRound({
+      const user = userEvent.setup();
+      serve({
         ...OPEN_ROUND_WITH_DRINK,
         foodRestaurant: { ...FOOD_RESTAURANT, note: null },
         drinkRestaurant: { ...DRINK_RESTAURANT, note: "   " },
       });
 
       renderRound("1");
-      await screen.findByRole("combobox", { name: /food item/i });
+      await waitForForm();
+      await pickEmployee(user, "An Nguyen");
+      await screen.findByRole("listbox", { name: /food item/i });
+      expect(screen.queryByTestId("restaurant-note")).not.toBeInTheDocument();
 
+      await pickFoodItem(user, "Pho Bo");
+      await screen.findByRole("listbox", { name: /drink item/i });
       expect(screen.queryByTestId("restaurant-note")).not.toBeInTheDocument();
     });
 
     it("turns an https URL in the note into a link that opens in a new tab", async () => {
-      serveRound({
+      const user = userEvent.setup();
+      serve({
         ...OPEN_ROUND_FOOD_ONLY,
         foodRestaurant: { ...FOOD_RESTAURANT, note: "Order at https://example.com/menu today" },
       });
 
       renderRound("1");
+      await waitForForm();
+      await pickEmployee(user, "An Nguyen");
 
       const link = await screen.findByRole("link", { name: "https://example.com/menu" });
       expect(link).toHaveAttribute("href", "https://example.com/menu");
@@ -437,31 +468,37 @@ describe("Round (public view)", () => {
     });
 
     it("turns a www. URL in the note into an https link", async () => {
-      serveRound({
+      const user = userEvent.setup();
+      serve({
         ...OPEN_ROUND_FOOD_ONLY,
         foodRestaurant: { ...FOOD_RESTAURANT, note: "See www.example.com for specials" },
       });
 
       renderRound("1");
+      await waitForForm();
+      await pickEmployee(user, "An Nguyen");
 
       const link = await screen.findByRole("link", { name: "www.example.com" });
       expect(link).toHaveAttribute("href", "https://www.example.com");
     });
 
     it("does not link plain text or javascript: URLs", async () => {
-      serveRound({
+      const user = userEvent.setup();
+      serve({
         ...OPEN_ROUND_FOOD_ONLY,
         foodRestaurant: { ...FOOD_RESTAURANT, note: "Cash only, javascript:alert(1)" },
       });
 
       renderRound("1");
+      await waitForForm();
+      await pickEmployee(user, "An Nguyen");
 
       expect(await screen.findByText(/Cash only/)).toBeInTheDocument();
       expect(screen.queryByRole("link")).not.toBeInTheDocument();
     });
 
     it("shows no note on a closed round", async () => {
-      serveRound({
+      serve({
         label: "Week 1",
         deadline: "2000-01-01T00:00:00.000Z",
         status: "closed",
@@ -476,19 +513,16 @@ describe("Round (public view)", () => {
   });
 
   describe("menu reference", () => {
-    it("shows an 'Open menu' link under the food item picker when the food restaurant has a menuUrl", async () => {
-      server.use(
-        http.get("/api/rounds/1/public", () =>
-          HttpResponse.json({
-            ...OPEN_ROUND_FOOD_ONLY,
-            foodRestaurant: { ...FOOD_RESTAURANT, menuUrl: "example.com/menu" },
-          }),
-        ),
-        http.get("/api/employees", () => HttpResponse.json(EMPLOYEES)),
-        http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
-      );
+    it("shows an 'Open menu' link on the food step when the food restaurant has a menuUrl", async () => {
+      const user = userEvent.setup();
+      serve({
+        ...OPEN_ROUND_FOOD_ONLY,
+        foodRestaurant: { ...FOOD_RESTAURANT, menuUrl: "example.com/menu" },
+      });
 
       renderRound("1");
+      await waitForForm();
+      await pickEmployee(user, "An Nguyen");
 
       const link = await screen.findByRole("link", { name: "Open menu ↗" });
       expect(link).toHaveAttribute("href", "https://example.com/menu");
@@ -497,57 +531,60 @@ describe("Round (public view)", () => {
     });
 
     it("shows no menu link or image for a restaurant with neither set", async () => {
-      server.use(
-        http.get("/api/rounds/1/public", () => HttpResponse.json(OPEN_ROUND_FOOD_ONLY)),
-        http.get("/api/employees", () => HttpResponse.json(EMPLOYEES)),
-        http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
-      );
+      const user = userEvent.setup();
+      serve(OPEN_ROUND_FOOD_ONLY);
 
       renderRound("1");
-      await screen.findByRole("combobox", { name: /food item/i });
+      await waitForForm();
+      await pickEmployee(user, "An Nguyen");
+      await screen.findByRole("listbox", { name: /food item/i });
 
       expect(screen.queryByRole("link", { name: /open menu/i })).not.toBeInTheDocument();
       expect(screen.queryByRole("img")).not.toBeInTheDocument();
     });
 
-    it("shows both food and drink menu links when both restaurants have a menuUrl", async () => {
-      server.use(
-        http.get("/api/rounds/1/public", () =>
-          HttpResponse.json({
-            ...OPEN_ROUND_WITH_DRINK,
-            foodRestaurant: { ...FOOD_RESTAURANT, menuUrl: "https://pho24.example.com" },
-            drinkRestaurant: { ...DRINK_RESTAURANT, menuUrl: "https://tradacorner.example.com" },
-          }),
-        ),
-        http.get("/api/employees", () => HttpResponse.json(EMPLOYEES)),
-        http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
-      );
+    it("shows the food menu link on the food step and the drink menu link on the drink step", async () => {
+      const user = userEvent.setup();
+      serve({
+        ...OPEN_ROUND_WITH_DRINK,
+        foodRestaurant: { ...FOOD_RESTAURANT, menuUrl: "https://pho24.example.com" },
+        drinkRestaurant: { ...DRINK_RESTAURANT, menuUrl: "https://tradacorner.example.com" },
+      });
 
       renderRound("1");
+      await waitForForm();
+      await pickEmployee(user, "An Nguyen");
 
-      const links = await screen.findAllByRole("link", { name: "Open menu ↗" });
-      expect(links).toHaveLength(2);
-      expect(links[0]).toHaveAttribute("href", "https://pho24.example.com");
-      expect(links[1]).toHaveAttribute("href", "https://tradacorner.example.com");
+      expect(await screen.findByRole("link", { name: "Open menu ↗" })).toHaveAttribute(
+        "href",
+        "https://pho24.example.com",
+      );
+
+      await pickFoodItem(user, "Pho Bo");
+
+      await waitFor(() => {
+        expect(screen.getByRole("link", { name: "Open menu ↗" })).toHaveAttribute(
+          "href",
+          "https://tradacorner.example.com",
+        );
+      });
     });
 
     it("renders the restaurant's menu image both inline and in the desktop side panel", async () => {
-      server.use(
-        http.get("/api/rounds/1/public", () =>
-          HttpResponse.json({
-            ...OPEN_ROUND_FOOD_ONLY,
-            foodRestaurant: { ...FOOD_RESTAURANT, menuImage: "abc123" },
-          }),
-        ),
-        http.get("/api/employees", () => HttpResponse.json(EMPLOYEES)),
-        http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
-      );
+      const user = userEvent.setup();
+      serve({
+        ...OPEN_ROUND_FOOD_ONLY,
+        foodRestaurant: { ...FOOD_RESTAURANT, menuImage: "abc123" },
+      });
 
       renderRound("1");
+      await waitForForm();
+      await pickEmployee(user, "An Nguyen");
 
-      const images = await screen.findAllByAltText("Pho 24 menu");
-      expect(images).toHaveLength(2);
-      for (const img of images) {
+      await waitFor(() => {
+        expect(screen.getAllByAltText("Pho 24 menu")).toHaveLength(2);
+      });
+      for (const img of screen.getAllByAltText("Pho 24 menu")) {
         expect(img).toHaveAttribute("src", "/api/restaurants/1/menu-image?v=abc123");
       }
       expect(screen.getByText("Menu Pho 24")).toBeInTheDocument();
@@ -634,15 +671,11 @@ describe("Round (public view)", () => {
 
   describe("no submissions list or edit affordance", () => {
     it("renders no submissions table or Edit action on the public page", async () => {
-      server.use(
-        http.get("/api/rounds/1/public", () => HttpResponse.json(OPEN_ROUND_FOOD_ONLY)),
-        http.get("/api/employees", () => HttpResponse.json(EMPLOYEES)),
-        http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
-      );
+      serve(OPEN_ROUND_FOOD_ONLY);
 
       renderRound("1");
 
-      await screen.findByText("Place your order");
+      await screen.findByText("Who's ordering?");
       expect(screen.queryByText("No submissions yet.")).not.toBeInTheDocument();
       expect(screen.queryByRole("table")).not.toBeInTheDocument();
       expect(screen.queryByRole("button", { name: "Edit submission" })).not.toBeInTheDocument();
@@ -683,7 +716,7 @@ describe("Round (public view)", () => {
       );
 
       renderRound("1");
-      await screen.findByRole("combobox", { name: /food item/i });
+      await waitForForm();
 
       await pickEmployee(user, "An Nguyen");
       await pickFoodItem(user, "Pho Bo");
@@ -691,14 +724,52 @@ describe("Round (public view)", () => {
       // before submitting -- otherwise this test would pass or fail
       // depending on timing, not on the dialog logic itself.
       await waitFor(() => expect(lookupRequested).toBe(true));
-      await user.click(screen.getByRole("button", { name: "Submit" }));
+      await submitOrder(user);
 
+      const dialog = await screen.findByRole("alertdialog");
       expect(
-        await screen.findByText("You already have a submission for this round"),
+        within(dialog).getByText("You already have a submission for this round"),
       ).toBeInTheDocument();
-      expect(screen.getByText(/Pho Bo/)).toBeInTheDocument();
-      expect(screen.getByText(/No cilantro/)).toBeInTheDocument();
+      expect(within(dialog).getByText(/Pho Bo/)).toBeInTheDocument();
+      expect(within(dialog).getByText(/No cilantro/)).toBeInTheDocument();
       expect(posted).toBe(false);
+    });
+
+    it("tells a returning employee on the review step that their order will be replaced", async () => {
+      const user = userEvent.setup();
+      let lookupRequested = false;
+      server.use(
+        http.get("/api/rounds/1/public", () => HttpResponse.json(OPEN_ROUND_FOOD_ONLY)),
+        http.get("/api/employees", () => HttpResponse.json(EMPLOYEES)),
+        http.get("/api/rounds/1/submissions", ({ request }) => {
+          const url = new URL(request.url);
+          if (url.searchParams.get("employeeId") === "1") {
+            lookupRequested = true;
+            return HttpResponse.json([
+              {
+                id: 5,
+                employeeName: "An Nguyen",
+                foodName: "Pho Bo",
+                foodNote: null,
+                drinkName: null,
+                drinkNote: null,
+                foodRoundMenuItemId: 10,
+                drinkRoundMenuItemId: null,
+              },
+            ]);
+          }
+          return HttpResponse.json([]);
+        }),
+      );
+
+      renderRound("1");
+      await waitForForm();
+
+      await pickEmployee(user, "An Nguyen");
+      await pickFoodItem(user, "Pho Bo");
+      await waitFor(() => expect(lookupRequested).toBe(true));
+
+      expect(await screen.findByText(/welcome back/i)).toBeInTheDocument();
     });
 
     it("submits the form's current values on 'Submit anyway'", async () => {
@@ -734,12 +805,12 @@ describe("Round (public view)", () => {
       );
 
       renderRound("1");
-      await screen.findByRole("combobox", { name: /food item/i });
+      await waitForForm();
 
       await pickEmployee(user, "An Nguyen");
       await pickFoodItem(user, "Pho Bo");
       await waitFor(() => expect(lookupRequested).toBe(true));
-      await user.click(screen.getByRole("button", { name: "Submit" }));
+      await submitOrder(user);
       await screen.findByText("You already have a submission for this round");
       await user.click(screen.getByRole("button", { name: "Submit anyway" }));
 
@@ -785,13 +856,14 @@ describe("Round (public view)", () => {
       );
 
       renderRound("1");
-      await screen.findByRole("combobox", { name: /food item/i });
+      await waitForForm();
 
       await pickEmployee(user, "An Nguyen");
-      await pickFoodItem(user, "Pho Bo");
+      await user.click(await screen.findByRole("option", { name: "Pho Bo" }));
       await user.type(screen.getByLabelText("Food note", { exact: false }), "Extra spicy");
+      await user.click(screen.getByRole("button", { name: /continue/i }));
       await waitFor(() => expect(lookupRequested).toBe(true));
-      await user.click(screen.getByRole("button", { name: "Submit" }));
+      await user.click(await screen.findByRole("button", { name: "Submit order" }));
       await screen.findByText("You already have a submission for this round");
 
       await user.click(screen.getByRole("button", { name: "Cancel" }));
@@ -802,7 +874,8 @@ describe("Round (public view)", () => {
         ).not.toBeInTheDocument();
       });
       expect(posted).toBe(false);
-      expect(screen.getByLabelText("Food note", { exact: false })).toHaveValue("Extra spicy");
+      // The note is still held in state and shown in the order summary.
+      expect(screen.getByText("Extra spicy")).toBeInTheDocument();
     });
   });
 });

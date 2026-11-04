@@ -1,23 +1,20 @@
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { type SubmitEvent, useState } from "react";
+import { cn } from "@/lib/utils";
+import { ArrowLeft, ArrowRight, Check } from "lucide-react";
+import { useState } from "react";
 import type { RoundSubmission } from "../../shared/useRoundSubmissions";
 import { useSubmissionForEmployee } from "../../shared/useRoundSubmissions";
 import type { PublicRound } from "../usePublicRound";
 import { useActiveEmployees, useCreateSubmission } from "../useSubmission";
-import { EmployeeCombobox } from "./EmployeeCombobox";
-import { ItemCombobox } from "./ItemCombobox";
 import { MenuImage } from "./MenuImage";
 import { MenuLink } from "./MenuLink";
-import { RestaurantNote } from "./RestaurantNote";
+import { OrderSummary } from "./OrderSummary";
 import { OverwriteSubmissionDialog } from "./OverwriteSubmissionDialog";
+import { PickerList } from "./PickerList";
+import { RestaurantNote } from "./RestaurantNote";
 
 type SubmissionInput = {
   employeeId: number;
@@ -25,6 +22,15 @@ type SubmissionInput = {
   foodNote?: string;
   drinkRoundMenuItemId?: number;
   drinkNote?: string;
+};
+
+type Step = "who" | "food" | "drink" | "review";
+
+const STEP_TITLES: Record<Step, string> = {
+  who: "Who's ordering?",
+  food: "Pick your food",
+  drink: "Pick your drink",
+  review: "Looks good?",
 };
 
 export function SubmissionForm({
@@ -38,22 +44,57 @@ export function SubmissionForm({
   const createSubmission = useCreateSubmission(roundId);
 
   const [employeeId, setEmployeeId] = useState<number | null>(null);
-  const [employeeError, setEmployeeError] = useState<string | null>(null);
   const [foodItemId, setFoodItemId] = useState<number | null>(null);
-  const [foodItemError, setFoodItemError] = useState<string | null>(null);
   const [foodNote, setFoodNote] = useState("");
   const [drinkItemId, setDrinkItemId] = useState<number | null>(null);
-  const [drinkItemError, setDrinkItemError] = useState<string | null>(null);
   const [drinkNote, setDrinkNote] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const [stepIndex, setStepIndex] = useState(0);
 
-  const { data: existingSubmissions } = useSubmissionForEmployee(roundId, employeeId);
+  const { data: existingSubmissions } = useSubmissionForEmployee(
+    roundId,
+    employeeId,
+  );
 
-  const [pendingInput, setPendingInput] = useState<SubmissionInput | null>(null);
-  const [existingSubmission, setExistingSubmission] = useState<RoundSubmission | null>(null);
+  const [pendingInput, setPendingInput] = useState<SubmissionInput | null>(
+    null,
+  );
+  const [existingSubmission, setExistingSubmission] =
+    useState<RoundSubmission | null>(null);
 
-  const hasFood = round.foodItems !== undefined && round.foodRestaurant !== undefined;
+  const hasFood =
+    round.foodItems !== undefined && round.foodRestaurant !== undefined;
+  const hasDrink = round.drinkItems !== undefined;
   const drinkRequired = !hasFood;
+
+  const steps: Step[] = [
+    "who",
+    ...(hasFood ? (["food"] as const) : []),
+    ...(hasDrink ? (["drink"] as const) : []),
+    "review",
+  ];
+  const step = steps[stepIndex];
+
+  const employee = employees?.find((e) => e.id === employeeId) ?? null;
+  const firstName = employee?.fullName.split(" ")[0] ?? null;
+  const food = round.foodItems?.find((i) => i.id === foodItemId) ?? null;
+  const drink = round.drinkItems?.find((i) => i.id === drinkItemId) ?? null;
+
+  const canContinue =
+    step === "who"
+      ? employeeId !== null
+      : step === "food"
+        ? foodItemId !== null
+        : step === "drink"
+          ? !drinkRequired || drinkItemId !== null
+          : true;
+
+  function goNext() {
+    setStepIndex((i) => Math.min(i + 1, steps.length - 1));
+  }
+  function goBack() {
+    setStepIndex((i) => Math.max(i - 1, 0));
+  }
 
   function buildInput(): SubmissionInput {
     return {
@@ -66,19 +107,10 @@ export function SubmissionForm({
     };
   }
 
-  function handleSubmit(e: SubmitEvent<HTMLFormElement>) {
-    e.preventDefault();
-
-    const employeeValid = employeeId !== null;
-    setEmployeeError(employeeValid ? null : "Please select your name.");
-
-    const foodValid = !hasFood || foodItemId !== null;
-    setFoodItemError(foodValid ? null : "Please select a food item.");
-
-    const drinkValid = !drinkRequired || drinkItemId !== null;
-    setDrinkItemError(drinkValid ? null : "Please select a drink item.");
-
-    if (!employeeValid || !foodValid || !drinkValid) return;
+  function handleSubmit() {
+    if (employeeId === null) return;
+    if (hasFood && foodItemId === null) return;
+    if (drinkRequired && drinkItemId === null) return;
 
     const existing = existingSubmissions?.[0] ?? null;
     if (existing) {
@@ -87,7 +119,9 @@ export function SubmissionForm({
       return;
     }
 
-    createSubmission.mutate(buildInput(), { onSuccess: () => setSubmitted(true) });
+    createSubmission.mutate(buildInput(), {
+      onSuccess: () => setSubmitted(true),
+    });
   }
 
   function handleCancelOverwrite() {
@@ -97,16 +131,54 @@ export function SubmissionForm({
 
   function handleConfirmOverwrite() {
     if (!pendingInput) return;
-    createSubmission.mutate(pendingInput, { onSuccess: () => setSubmitted(true) });
+    createSubmission.mutate(pendingInput, {
+      onSuccess: () => setSubmitted(true),
+    });
     setPendingInput(null);
     setExistingSubmission(null);
   }
 
+  const summaryRows = [
+    { label: "Name", value: employee?.fullName ?? null },
+    ...(hasFood
+      ? [
+          {
+            label: "Food",
+            value: food?.name ?? null,
+            note: foodNote.trim() || undefined,
+          },
+        ]
+      : []),
+    ...(hasDrink
+      ? [
+          {
+            label: "Drink",
+            value: drink?.name ?? null,
+            note: drinkNote.trim() || undefined,
+          },
+        ]
+      : []),
+  ];
+
   if (submitted) {
     return (
       <Card>
-        <CardContent className="py-6 text-center text-sm text-muted-foreground">
-          Thanks! Your order has been recorded.
+        <CardContent className="flex flex-col items-center gap-4 py-8 text-center">
+          <div className="flex size-14 items-center justify-center rounded-full bg-primary/10 text-primary animate-in zoom-in-50 duration-500">
+            <Check className="size-7" />
+          </div>
+          <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
+            <p className="text-lg font-semibold">
+              You're all set{firstName ? `, ${firstName}` : ""}!
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Thanks! Your order has been recorded.
+            </p>
+          </div>
+          <OrderSummary
+            rows={summaryRows}
+            className="w-full max-w-xs text-left"
+          />
         </CardContent>
       </Card>
     );
@@ -114,74 +186,109 @@ export function SubmissionForm({
 
   return (
     <Card className="overflow-visible">
-      <CardHeader>
-        <CardTitle>Place your order</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <form
-          className="flex flex-col gap-4"
-          onSubmit={handleSubmit}
-          noValidate
-        >
-          <EmployeeCombobox
-            employees={employees ?? []}
-            value={employeeId}
-            onChange={(id) => {
-              setEmployeeId(id);
-              setEmployeeError(null);
-            }}
-            error={employeeError}
-          />
-
-          {hasFood && (
-            <>
-          <ItemCombobox
-            id="submission-food-item"
-            label="Food item"
-            required
-            items={round.foodItems!}
-            value={foodItemId}
-            onChange={(id) => {
-              setFoodItemId(id);
-              setFoodItemError(null);
-            }}
-            error={foodItemError}
-            placeholder="Search food items…"
-          />
-          <MenuLink restaurant={round.foodRestaurant!} />
-          <RestaurantNote restaurant={round.foodRestaurant!} />
-          <MenuImage restaurant={round.foodRestaurant!} className="lg:hidden" />
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="submission-food-note">Food note</Label>
-            <Input
-              id="submission-food-note"
-              placeholder="Optional, e.g. no cilantro"
-              value={foodNote}
-              onChange={(e) => setFoodNote(e.target.value)}
-            />
+      <CardContent className="flex flex-col gap-5">
+        <nav aria-label="Progress" className="flex flex-col gap-2">
+          <div className="flex gap-1.5">
+            {steps.map((s, i) => (
+              <button
+                key={s}
+                type="button"
+                aria-label={`Step ${i + 1}: ${STEP_TITLES[s]}`}
+                aria-current={i === stepIndex ? "step" : undefined}
+                disabled={i >= stepIndex}
+                onClick={() => setStepIndex(i)}
+                className={cn(
+                  "h-1.5 flex-1 rounded-full transition-colors duration-300",
+                  i <= stepIndex ? "bg-primary" : "bg-muted",
+                  i < stepIndex && "cursor-pointer hover:opacity-70",
+                )}
+              />
+            ))}
           </div>
+          <p className="text-xs text-muted-foreground">
+            Step {stepIndex + 1} of {steps.length}
+          </p>
+        </nav>
+
+        {/* key remounts the block so each step slides in */}
+        <div
+          key={step}
+          className="flex flex-col gap-4 animate-in fade-in slide-in-from-right-4 duration-300"
+        >
+          <div>
+            <h2 className="text-xl font-semibold tracking-tight">
+              {STEP_TITLES[step]}
+            </h2>
+            {firstName && step !== "who" && (
+              <p className="text-sm text-muted-foreground">
+                Hi {firstName} 👋
+              </p>
+            )}
+          </div>
+
+          {step === "who" && (
+            <PickerList
+              label="Your name"
+              placeholder="Search your name…"
+              options={(employees ?? []).map((e) => ({
+                id: e.id,
+                label: e.fullName,
+              }))}
+              value={employeeId}
+              onSelect={(id) => {
+                setEmployeeId(id);
+                goNext();
+              }}
+              columns
+            />
+          )}
+
+          {step === "food" && round.foodItems && round.foodRestaurant && (
+            <>
+              <PickerList
+                label="Food item"
+                placeholder="Search food items…"
+                options={round.foodItems.map((i) => ({
+                  id: i.id,
+                  label: i.name,
+                }))}
+                value={foodItemId}
+                onSelect={setFoodItemId}
+              />
+              <MenuLink restaurant={round.foodRestaurant} />
+              <RestaurantNote restaurant={round.foodRestaurant} />
+              <MenuImage
+                restaurant={round.foodRestaurant}
+                className="lg:hidden"
+              />
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="submission-food-note">Food note</Label>
+                <Input
+                  id="submission-food-note"
+                  placeholder="Optional, e.g. no cilantro"
+                  value={foodNote}
+                  onChange={(e) => setFoodNote(e.target.value)}
+                />
+              </div>
             </>
           )}
 
-          {round.drinkItems && (
+          {step === "drink" && round.drinkItems && round.drinkRestaurant && (
             <>
-              <ItemCombobox
-                id="submission-drink-item"
+              <PickerList
                 label="Drink item"
-                required={drinkRequired}
-                items={round.drinkItems}
-                value={drinkItemId}
-                onChange={(id) => {
-                  setDrinkItemId(id);
-                  setDrinkItemError(null);
-                }}
-                error={drinkItemError}
                 placeholder="Search drink items…"
+                options={round.drinkItems.map((i) => ({
+                  id: i.id,
+                  label: i.name,
+                }))}
+                value={drinkItemId}
+                onSelect={setDrinkItemId}
               />
-              <MenuLink restaurant={round.drinkRestaurant!} />
-              <RestaurantNote restaurant={round.drinkRestaurant!} />
+              <MenuLink restaurant={round.drinkRestaurant} />
+              <RestaurantNote restaurant={round.drinkRestaurant} />
               <MenuImage
-                restaurant={round.drinkRestaurant!}
+                restaurant={round.drinkRestaurant}
                 className="lg:hidden"
               />
               <div className="flex flex-col gap-1.5">
@@ -197,14 +304,47 @@ export function SubmissionForm({
             </>
           )}
 
+          {step === "review" && existingSubmissions?.[0] && (
+            <p className="rounded-lg bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-400">
+              Welcome back — you already ordered for this round. Submitting
+              will replace it.
+            </p>
+          )}
+        </div>
+
+        <OrderSummary rows={summaryRows} />
+
+        <div className="flex items-center justify-between gap-2">
           <Button
-            type="submit"
-            disabled={createSubmission.isPending}
-            className="self-start"
+            type="button"
+            variant="ghost"
+            onClick={goBack}
+            className={cn(stepIndex === 0 && "invisible")}
           >
-            Submit
+            <ArrowLeft /> Back
           </Button>
-        </form>
+
+          {step === "review" ? (
+            <Button
+              type="button"
+              onClick={handleSubmit}
+              disabled={createSubmission.isPending}
+            >
+              Submit order
+            </Button>
+          ) : step === "who" ? null : (
+            <div className="flex gap-2">
+              {step === "drink" && !drinkRequired && drinkItemId === null && (
+                <Button type="button" variant="ghost" onClick={goNext}>
+                  Skip drink
+                </Button>
+              )}
+              <Button type="button" onClick={goNext} disabled={!canContinue}>
+                Continue <ArrowRight />
+              </Button>
+            </div>
+          )}
+        </div>
       </CardContent>
 
       <OverwriteSubmissionDialog
