@@ -590,6 +590,28 @@ describe("Round (public view)", () => {
       expect(screen.getByText("Menu Pho 24")).toBeInTheDocument();
     });
 
+    it("shows only the current step's menu in the side panel", async () => {
+      const user = userEvent.setup();
+      serve({
+        ...OPEN_ROUND_WITH_DRINK,
+        foodRestaurant: { ...FOOD_RESTAURANT, menuImage: "abc123" },
+        drinkRestaurant: { ...DRINK_RESTAURANT, menuImage: "def456" },
+      });
+
+      renderRound("1");
+      await waitForForm();
+      expect(screen.queryByText("Menu Pho 24")).not.toBeInTheDocument();
+      expect(screen.queryByText("Menu Tra Da Corner")).not.toBeInTheDocument();
+
+      await pickEmployee(user, "An Nguyen");
+      expect(await screen.findByText("Menu Pho 24")).toBeInTheDocument();
+      expect(screen.queryByText("Menu Tra Da Corner")).not.toBeInTheDocument();
+
+      await pickFoodItem(user, "Pho Bo");
+      expect(await screen.findByText("Menu Tra Da Corner")).toBeInTheDocument();
+      expect(screen.queryByText("Menu Pho 24")).not.toBeInTheDocument();
+    });
+
     it("opens a larger view of the panel image via the expand button, closable with the close button", async () => {
       const user = userEvent.setup();
       server.use(
@@ -604,6 +626,8 @@ describe("Round (public view)", () => {
       );
 
       renderRound("1");
+      await waitForForm();
+      await pickEmployee(user, "An Nguyen");
       await screen.findAllByAltText("Pho 24 menu");
 
       // Only the desktop side-panel copy gets an expand button, not the
@@ -634,6 +658,8 @@ describe("Round (public view)", () => {
       );
 
       renderRound("1");
+      await waitForForm();
+      await pickEmployee(user, "An Nguyen");
       await user.click(await screen.findByRole("button", { name: "View full size" }));
       await screen.findByRole("dialog");
 

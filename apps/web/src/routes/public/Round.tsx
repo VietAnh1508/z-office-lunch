@@ -1,15 +1,17 @@
 import { ApiError } from "@/lib/api";
-import { formatDate } from "@/lib/format-date";
+import { formatDateTime } from "@/lib/format-date";
 import { cn } from "@/lib/utils";
+import { useState } from "react";
 import { useParams } from "react-router";
 import { MenuPanel } from "./Round/MenuPanel";
-import { SubmissionForm } from "./Round/SubmissionForm";
+import { SubmissionForm, type Step } from "./Round/SubmissionForm";
 import { usePublicRound } from "./usePublicRound";
 
 export function Round() {
   const { roundId } = useParams<{ roundId: string }>();
   const id = Number(roundId);
   const { data: round, isPending, isError, error } = usePublicRound(id);
+  const [step, setStep] = useState<Step>("who");
 
   if (isPending) {
     return <p className="p-6 text-sm text-muted-foreground">Loading round…</p>;
@@ -75,14 +77,14 @@ export function Round() {
             {round.label}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Deadline: {formatDate(round.deadline)}
+            Deadline: {formatDateTime(round.deadline)}
           </p>
         </div>
 
-        <SubmissionForm roundId={id} round={round} />
+        <SubmissionForm roundId={id} round={round} onStepChange={setStep} />
       </div>
 
-      {hasMenuPanel && <MenuPanel round={round} />}
+      {hasMenuPanel && <MenuPanel round={round} step={step} />}
     </div>
   );
 }

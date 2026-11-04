@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { ArrowLeft, ArrowRight, Check } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { RoundSubmission } from "../../shared/useRoundSubmissions";
 import { useSubmissionForEmployee } from "../../shared/useRoundSubmissions";
 import type { PublicRound } from "../usePublicRound";
@@ -24,7 +24,7 @@ type SubmissionInput = {
   drinkNote?: string;
 };
 
-type Step = "who" | "food" | "drink" | "review";
+export type Step = "who" | "food" | "drink" | "review";
 
 const STEP_TITLES: Record<Step, string> = {
   who: "Who's ordering?",
@@ -36,9 +36,11 @@ const STEP_TITLES: Record<Step, string> = {
 export function SubmissionForm({
   roundId,
   round,
+  onStepChange,
 }: {
   roundId: number;
   round: PublicRound;
+  onStepChange?: (step: Step) => void;
 }) {
   const { data: employees } = useActiveEmployees();
   const createSubmission = useCreateSubmission(roundId);
@@ -74,6 +76,10 @@ export function SubmissionForm({
     "review",
   ];
   const step = steps[stepIndex];
+
+  useEffect(() => {
+    onStepChange?.(step);
+  }, [step, onStepChange]);
 
   const employee = employees?.find((e) => e.id === employeeId) ?? null;
   const firstName = employee?.fullName.split(" ")[0] ?? null;
