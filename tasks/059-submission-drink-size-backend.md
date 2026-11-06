@@ -1,7 +1,7 @@
 ---
 id: 059
 title: Submission drink size (backend): store, validate, clear, expose, reset impact
-status: in_review
+status: done
 depends_on: [058]
 parallelizable_with: []
 epic: drink-size-presets
