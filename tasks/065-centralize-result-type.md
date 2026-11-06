@@ -1,7 +1,7 @@
 ---
 id: 065
 title: Centralize the parse/validation result type used across API routes
-status: in_review
+status: done
 depends_on: [056]
 parallelizable_with: []
 epic:
