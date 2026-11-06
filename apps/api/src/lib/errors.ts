@@ -53,5 +53,7 @@ export const ERROR_MESSAGES = {
   sizePresetNotFound: "size preset not found",
   sizePresetIdInvalid: "sizePresetId must be a valid size preset id",
   sizePresetFoodRestaurant: "only a drink restaurant can have a size preset",
+  drinkSizeOptionInvalid: "drinkSizeOptionId must be a valid size option id",
+  drinkSizeNotAvailable: "drinkSizeOptionId is not available for the chosen drink item",
   sizePresetInUse: "size preset is in use by a restaurant",
 } as const;
