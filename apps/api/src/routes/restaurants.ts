@@ -1,10 +1,11 @@
-import { restaurants } from "db";
+import { restaurants, sizePresets } from "db";
 import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import type { Bindings } from "../bindings";
 import { ERROR_MESSAGES } from "../lib/errors";
 import { getDb } from "../lib/get-db";
+import { rebuildMenuItemSizes } from "../lib/menu-item-sizes";
 
 export const restaurantsRoute = new Hono<{ Bindings: Bindings }>();
 
@@ -15,6 +16,19 @@ const MENU_IMAGE_ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp
 
 function optionalText(value: unknown): string | null {
   return typeof value === "string" && value.trim() !== "" ? value : null;
+}
+
+// `undefined` = not sent, `null` = clear, number = assign.
+function parseSizePresetId(raw: unknown): number | null | undefined | "invalid" {
+  if (raw === undefined || raw === null) {
+    return raw;
+  }
+  return Number.isInteger(raw) ? (raw as number) : "invalid";
+}
+
+async function presetExists(db: ReturnType<typeof getDb>, id: number) {
+  const [preset] = await db.select({ id: sizePresets.id }).from(sizePresets).where(eq(sizePresets.id, id));
+  return !!preset;
 }
 
 function menuImageKey(restaurantId: number) {
@@ -95,9 +109,20 @@ restaurantsRoute.post("/", async (c) => {
   if (type !== "food" && type !== "drink") {
     return c.json({ error: ERROR_MESSAGES.typeInvalid }, 400);
   }
+  const sizePresetId = parseSizePresetId(body.sizePresetId);
+  if (sizePresetId === "invalid") {
+    return c.json({ error: ERROR_MESSAGES.sizePresetIdInvalid }, 400);
+  }
+  if (typeof sizePresetId === "number" && type === "food") {
+    return c.json({ error: ERROR_MESSAGES.sizePresetFoodRestaurant }, 400);
+  }
 
   const db = getDb(c);
   try {
+    if (typeof sizePresetId === "number" && !(await presetExists(db, sizePresetId))) {
+      return c.json({ error: ERROR_MESSAGES.sizePresetNotFound }, 404);
+    }
+    // A new restaurant has no menu items yet, so there's nothing to rebuild.
     const [row] = await db
       .insert(restaurants)
       .values({
@@ -106,6 +131,7 @@ restaurantsRoute.post("/", async (c) => {
         contactInfo: typeof body.contactInfo === "string" ? body.contactInfo : null,
         note: optionalText(body.note),
         menuUrl: optionalText(body.menuUrl),
+        sizePresetId: sizePresetId ?? null,
       })
       .returning();
     return c.json(row, 201);
@@ -130,6 +156,10 @@ restaurantsRoute.patch("/:id", async (c) => {
   const contactInfo = optionalText(body.contactInfo);
   const note = optionalText(body.note);
   const menuUrl = optionalText(body.menuUrl);
+  const sizePresetId = parseSizePresetId(body.sizePresetId);
+  if (sizePresetId === "invalid") {
+    return c.json({ error: ERROR_MESSAGES.sizePresetIdInvalid }, 400);
+  }
 
   const db = getDb(c);
   try {
@@ -137,11 +167,36 @@ restaurantsRoute.patch("/:id", async (c) => {
     if (!existing) {
       return c.json({ error: ERROR_MESSAGES.restaurantNotFound }, 404);
     }
-    const [row] = await db
-      .update(restaurants)
-      .set({ name, contactInfo, note, menuUrl })
-      .where(eq(restaurants.id, id))
-      .returning();
+    if (typeof sizePresetId === "number") {
+      if (existing.type === "food") {
+        return c.json({ error: ERROR_MESSAGES.sizePresetFoodRestaurant }, 400);
+      }
+      if (!(await presetExists(db, sizePresetId))) {
+        return c.json({ error: ERROR_MESSAGES.sizePresetNotFound }, 404);
+      }
+    }
+
+    // Omitted sizePresetId leaves it as-is (PATCH is otherwise a full replace);
+    // only an explicit null clears it.
+    const presetChanged = sizePresetId !== undefined && sizePresetId !== existing.sizePresetId;
+    const row = await db.transaction(async (tx) => {
+      const [updated] = await tx
+        .update(restaurants)
+        .set({
+          name,
+          contactInfo,
+          note,
+          menuUrl,
+          ...(sizePresetId !== undefined ? { sizePresetId } : {}),
+        })
+        .where(eq(restaurants.id, id))
+        .returning();
+      if (presetChanged) {
+        // Task 059 also clears affected drink-size picks on open rounds here.
+        await rebuildMenuItemSizes(tx, id, sizePresetId);
+      }
+      return updated;
+    });
     return c.json(row);
   } catch (e) {
     console.error(JSON.stringify({ message: "failed to update restaurant", error: String(e) }));

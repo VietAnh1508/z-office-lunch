@@ -51,4 +51,7 @@ export const ERROR_MESSAGES = {
   sizeOptionInvalid: "size option does not belong to this preset",
   sizePresetNameTaken: "a size preset with this name already exists",
   sizePresetNotFound: "size preset not found",
+  sizePresetIdInvalid: "sizePresetId must be a valid size preset id",
+  sizePresetFoodRestaurant: "only a drink restaurant can have a size preset",
+  sizePresetInUse: "size preset is in use by a restaurant",
 } as const;
