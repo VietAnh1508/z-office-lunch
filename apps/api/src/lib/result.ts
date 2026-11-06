@@ -4,8 +4,7 @@
 export type Failure<S extends number = 400> = { ok: false; error: string; status: S };
 
 export type Result<T extends object = object, S extends number = 400> =
-  | ({ ok: true } & T)
-  | Failure<S>;
+  ({ ok: true } & T) | Failure<S>;
 
 export function ok(): { ok: true };
 export function ok<T extends object>(value: T): { ok: true } & T;

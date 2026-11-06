@@ -39,7 +39,9 @@ test("admin curates a round's menu items and opens then closes it", async ({ pag
 
   await page.goto("/admin/rounds");
   await page.getByLabel("Label", { exact: false }).fill(roundLabel);
-  await page.getByLabel("Food restaurant", { exact: false }).selectOption({ label: restaurantName });
+  await page
+    .getByLabel("Food restaurant", { exact: false })
+    .selectOption({ label: restaurantName });
   await page.getByLabel("Deadline", { exact: false }).fill("2026-08-10T12:00");
   await page.getByRole("button", { name: "Add round" }).click();
 
@@ -86,7 +88,9 @@ test("employee-facing public round link reflects open then closed state", async 
 
   await page.goto("/admin/rounds");
   await page.getByLabel("Label", { exact: false }).fill(roundLabel);
-  await page.getByLabel("Food restaurant", { exact: false }).selectOption({ label: restaurantName });
+  await page
+    .getByLabel("Food restaurant", { exact: false })
+    .selectOption({ label: restaurantName });
   // Far in the future so the public page's "deadline passed" branch doesn't
   // trigger while this spec exercises the "open, before deadline" state.
   await page.getByLabel("Deadline", { exact: false }).fill("2030-01-01T12:00");
@@ -202,9 +206,7 @@ test("employee submits food and drink picks, then a second submission overwrites
   await page.goto(`/r/${roundId}`);
   await orderFoodAndDrink(page, employeeName);
 
-  await expect(
-    page.getByText("You already have a submission for this round"),
-  ).toBeVisible();
+  await expect(page.getByText("You already have a submission for this round")).toBeVisible();
   await page.getByRole("button", { name: "Submit anyway" }).click();
 
   await expect(page.getByText("Thanks! Your order has been recorded.")).toBeVisible();

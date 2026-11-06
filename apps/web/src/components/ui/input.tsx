@@ -16,4 +16,3 @@ function Input({ className, type, ...props }: ComponentProps<"input">) {
 }
 
 export { Input };
-

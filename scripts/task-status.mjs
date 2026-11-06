@@ -40,7 +40,9 @@ for (const file of files) {
   tasks.set(fm.id, { ...fm, file });
 }
 
-const inFlight = [...tasks.values()].filter((t) => t.status === "in_progress" || t.status === "in_review");
+const inFlight = [...tasks.values()].filter(
+  (t) => t.status === "in_progress" || t.status === "in_review",
+);
 
 if (inFlight.length > 0) {
   if (inFlight.length > 1) {
@@ -89,7 +91,8 @@ function printGrouped(list, formatLine) {
 }
 
 const ready = [...tasks.values()].filter(
-  (t) => t.status === "approved" && t.depends_on.every((depId) => tasks.get(depId)?.status === "done"),
+  (t) =>
+    t.status === "approved" && t.depends_on.every((depId) => tasks.get(depId)?.status === "done"),
 );
 
 console.log(ready.length > 0 ? "Ready to start:" : "No ready tasks.");

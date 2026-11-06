@@ -65,8 +65,10 @@ export function useBulkCreateMenuItems(restaurantId: number) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (input: { mode: "override" | "append"; items: { name: string; price: string }[] }) =>
-      api.post<MenuItem[]>(`/restaurants/${restaurantId}/menu-items/bulk`, input),
+    mutationFn: (input: {
+      mode: "override" | "append";
+      items: { name: string; price: string }[];
+    }) => api.post<MenuItem[]>(`/restaurants/${restaurantId}/menu-items/bulk`, input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: menuItemKeys.all(restaurantId) });
       toast.success("Menu items saved");
@@ -78,10 +80,7 @@ export function useBulkCreateMenuItems(restaurantId: number) {
 export function useGenerateMenuFromImage(restaurantId: number) {
   return useMutation({
     mutationFn: () =>
-      api.post<{ items: { name: string }[] }>(
-        `/restaurants/${restaurantId}/generate-menu`,
-        {},
-      ),
+      api.post<{ items: { name: string }[] }>(`/restaurants/${restaurantId}/generate-menu`, {}),
     onError: (error) => toastApiError(error, "Could not generate menu items from the image."),
   });
 }

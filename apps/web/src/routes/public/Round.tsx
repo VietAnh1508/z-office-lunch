@@ -30,11 +30,7 @@ export function Round() {
   // A draft round 404s identically to a nonexistent one — this generic
   // message must not leak which case it is either.
   if (isError || !round) {
-    return (
-      <p className="p-6 text-sm text-muted-foreground">
-        This round isn't open yet.
-      </p>
-    );
+    return <p className="p-6 text-sm text-muted-foreground">This round isn't open yet.</p>;
   }
 
   if (round.status === "closed") {
@@ -51,9 +47,7 @@ export function Round() {
     return (
       <div className="mx-auto flex max-w-xl flex-col gap-4 px-4 py-10 sm:px-6">
         <h1 className="text-2xl font-semibold tracking-tight">{round.label}</h1>
-        <p className="text-sm text-muted-foreground">
-          The deadline for this round has passed.
-        </p>
+        <p className="text-sm text-muted-foreground">The deadline for this round has passed.</p>
       </div>
     );
   }
@@ -73,9 +67,7 @@ export function Round() {
     >
       <div className="flex flex-col gap-6">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            {round.label}
-          </h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{round.label}</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Deadline: {formatDateTime(round.deadline)}
           </p>

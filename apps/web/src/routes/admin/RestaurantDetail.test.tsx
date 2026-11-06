@@ -83,7 +83,10 @@ describe("RestaurantDetail", () => {
 
     await screen.findByText("No menu items yet.");
 
-    await user.type(screen.getByLabelText("Name", { exact: false, selector: "#menu-item-name" }), "Banh Mi");
+    await user.type(
+      screen.getByLabelText("Name", { exact: false, selector: "#menu-item-name" }),
+      "Banh Mi",
+    );
     await user.type(
       screen.getByLabelText("Price", { exact: false, selector: "#menu-item-price" }),
       "25000",
@@ -94,7 +97,9 @@ describe("RestaurantDetail", () => {
       expect(screen.getByText("Banh Mi")).toBeInTheDocument();
     });
     expect(await screen.findByText("Menu item added")).toBeInTheDocument();
-    expect(screen.getByLabelText("Name", { exact: false, selector: "#menu-item-name" })).toHaveValue("");
+    expect(
+      screen.getByLabelText("Name", { exact: false, selector: "#menu-item-name" }),
+    ).toHaveValue("");
     expect(
       screen.getByLabelText("Price", { exact: false, selector: "#menu-item-price" }),
     ).toHaveValue("");
@@ -121,7 +126,10 @@ describe("RestaurantDetail", () => {
 
     await screen.findByText("No menu items yet.");
 
-    await user.type(screen.getByLabelText("Name", { exact: false, selector: "#menu-item-name" }), "Banh Mi");
+    await user.type(
+      screen.getByLabelText("Name", { exact: false, selector: "#menu-item-name" }),
+      "Banh Mi",
+    );
     await user.type(
       screen.getByLabelText("Price", { exact: false, selector: "#menu-item-price" }),
       "-500",
@@ -151,7 +159,10 @@ describe("RestaurantDetail", () => {
 
     await screen.findByText("No menu items yet.");
 
-    await user.type(screen.getByLabelText("Name", { exact: false, selector: "#menu-item-name" }), "Banh Mi");
+    await user.type(
+      screen.getByLabelText("Name", { exact: false, selector: "#menu-item-name" }),
+      "Banh Mi",
+    );
     await user.click(screen.getByRole("button", { name: "Add menu item" }));
 
     expect(await screen.findByText("Could not create menu item.")).toBeInTheDocument();
@@ -176,7 +187,10 @@ describe("RestaurantDetail", () => {
 
     await screen.findByText("No menu items yet.");
 
-    await user.type(screen.getByLabelText("Name", { exact: false, selector: "#menu-item-name" }), "Banh Mi");
+    await user.type(
+      screen.getByLabelText("Name", { exact: false, selector: "#menu-item-name" }),
+      "Banh Mi",
+    );
     await user.click(screen.getByRole("button", { name: "Add menu item" }));
 
     expect(await screen.findByText("Name already exists")).toBeInTheDocument();
@@ -285,7 +299,9 @@ describe("RestaurantDetail", () => {
 
       renderDetail("1");
 
-      expect(await screen.findByLabelText("Name", { exact: false, selector: "#restaurant-detail-name" })).toHaveValue("Pho 24");
+      expect(
+        await screen.findByLabelText("Name", { exact: false, selector: "#restaurant-detail-name" }),
+      ).toHaveValue("Pho 24");
       expect(screen.getByLabelText("Contact info", { exact: false })).toHaveValue("090-123-4567");
       expect(screen.getByLabelText("Note", { exact: false })).toHaveValue("Cash only");
       expect(screen.getByLabelText("Menu website", { exact: false })).toHaveValue(
@@ -305,7 +321,9 @@ describe("RestaurantDetail", () => {
 
       renderDetail("1");
 
-      expect(await screen.findByLabelText("Name", { exact: false, selector: "#restaurant-detail-name" })).toHaveValue("Pho 24");
+      expect(
+        await screen.findByLabelText("Name", { exact: false, selector: "#restaurant-detail-name" }),
+      ).toHaveValue("Pho 24");
       expect(screen.getByLabelText("Contact info", { exact: false })).toHaveValue("");
       expect(screen.getByLabelText("Note", { exact: false })).toHaveValue("");
       expect(screen.getByLabelText("Menu website", { exact: false })).toHaveValue("");
@@ -376,7 +394,10 @@ describe("RestaurantDetail", () => {
 
       renderDetail("1");
 
-      const nameInput = await screen.findByLabelText("Name", { exact: false, selector: "#restaurant-detail-name" });
+      const nameInput = await screen.findByLabelText("Name", {
+        exact: false,
+        selector: "#restaurant-detail-name",
+      });
       await user.clear(nameInput);
       await user.type(nameInput, "Pho 25");
       await user.click(screen.getByRole("button", { name: "Save" }));
@@ -413,7 +434,10 @@ describe("RestaurantDetail", () => {
 
       renderDetail("1");
 
-      const nameInput = await screen.findByLabelText("Name", { exact: false, selector: "#restaurant-detail-name" });
+      const nameInput = await screen.findByLabelText("Name", {
+        exact: false,
+        selector: "#restaurant-detail-name",
+      });
       await user.clear(nameInput);
       await user.click(screen.getByRole("button", { name: "Save" }));
 
@@ -448,7 +472,15 @@ describe("RestaurantDetail", () => {
       server.use(
         http.get("/api/restaurants", () =>
           HttpResponse.json([
-            { id: 1, name: "Pho 24", type: "food", contactInfo: null, note: null, menuUrl: null, menuImage: null },
+            {
+              id: 1,
+              name: "Pho 24",
+              type: "food",
+              contactInfo: null,
+              note: null,
+              menuUrl: null,
+              menuImage: null,
+            },
           ]),
         ),
         http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
@@ -457,7 +489,9 @@ describe("RestaurantDetail", () => {
       renderDetail("1");
 
       await screen.findByLabelText("Name", { exact: false, selector: "#restaurant-detail-name" });
-      expect(screen.queryByRole("button", { name: "Generate menu from image" })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: "Generate menu from image" }),
+      ).not.toBeInTheDocument();
     });
 
     it("renders a Generate menu from image button next to the uploaded menu image", async () => {
@@ -480,7 +514,9 @@ describe("RestaurantDetail", () => {
 
       renderDetail("1");
 
-      expect(await screen.findByRole("button", { name: "Generate menu from image" })).toBeInTheDocument();
+      expect(
+        await screen.findByRole("button", { name: "Generate menu from image" }),
+      ).toBeInTheDocument();
     });
 
     it("uploads a menu image via the file picker and shows a preview + success toast", async () => {
@@ -489,7 +525,15 @@ describe("RestaurantDetail", () => {
       server.use(
         http.get("/api/restaurants", () =>
           HttpResponse.json([
-            { id: 1, name: "Pho 24", type: "food", contactInfo: null, note: null, menuUrl: null, menuImage: null },
+            {
+              id: 1,
+              name: "Pho 24",
+              type: "food",
+              contactInfo: null,
+              note: null,
+              menuUrl: null,
+              menuImage: null,
+            },
           ]),
         ),
         http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
@@ -563,7 +607,15 @@ describe("RestaurantDetail", () => {
       server.use(
         http.get("/api/restaurants", () =>
           HttpResponse.json([
-            { id: 1, name: "Pho 24", type: "food", contactInfo: null, note: null, menuUrl: null, menuImage: null },
+            {
+              id: 1,
+              name: "Pho 24",
+              type: "food",
+              contactInfo: null,
+              note: null,
+              menuUrl: null,
+              menuImage: null,
+            },
           ]),
         ),
         http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),

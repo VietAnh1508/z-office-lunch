@@ -34,9 +34,7 @@ export function ItemCombobox({
   const filtered =
     query.trim() === ""
       ? sorted
-      : sorted.filter((item) =>
-          item.name.toLowerCase().includes(query.trim().toLowerCase()),
-        );
+      : sorted.filter((item) => item.name.toLowerCase().includes(query.trim().toLowerCase()));
 
   return (
     <div className="flex flex-col gap-1.5">

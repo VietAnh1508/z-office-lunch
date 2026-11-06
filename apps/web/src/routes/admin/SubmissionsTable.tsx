@@ -19,7 +19,9 @@ export function SubmissionsTable({
   const totalActiveEmployees = employees?.filter((employee) => employee.active).length;
   const submittedCount = submissions?.length ?? 0;
   const countLabel =
-    totalActiveEmployees !== undefined ? `${submittedCount} / ${totalActiveEmployees} submitted` : null;
+    totalActiveEmployees !== undefined
+      ? `${submittedCount} / ${totalActiveEmployees} submitted`
+      : null;
 
   if (!submissions || submissions.length === 0) {
     return (
@@ -62,7 +64,9 @@ export function SubmissionsTable({
                 {hasFood && <td className="py-1.5 pr-4">{submission.foodNote}</td>}
                 {hasDrink && <td className="py-1.5 pr-4">{submission.drinkName}</td>}
                 {hasDrink && (
-                  <td className={renderActions ? "py-1.5 pr-4" : "py-1.5"}>{submission.drinkNote}</td>
+                  <td className={renderActions ? "py-1.5 pr-4" : "py-1.5"}>
+                    {submission.drinkNote}
+                  </td>
                 )}
                 {renderActions && <td className="py-1.5">{renderActions(submission)}</td>}
               </tr>

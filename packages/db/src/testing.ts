@@ -133,10 +133,7 @@ export async function seedSizePreset(
   return { preset: preset!, options };
 }
 
-export async function seedMenuItemSize(
-  db: Db,
-  values: typeof schema.menuItemSizes.$inferInsert,
-) {
+export async function seedMenuItemSize(db: Db, values: typeof schema.menuItemSizes.$inferInsert) {
   const [row] = await db.insert(schema.menuItemSizes).values(values).returning();
   return row;
 }

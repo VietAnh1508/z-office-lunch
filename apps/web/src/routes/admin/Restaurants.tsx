@@ -29,9 +29,8 @@ export function Restaurants() {
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
 
   const filteredRestaurants =
-    restaurants?.filter(
-      (restaurant) => typeFilter === "all" || restaurant.type === typeFilter,
-    ) ?? [];
+    restaurants?.filter((restaurant) => typeFilter === "all" || restaurant.type === typeFilter) ??
+    [];
 
   function handleSubmit(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -65,19 +64,13 @@ export function Restaurants() {
             <CardTitle>Add restaurant</CardTitle>
           </CardHeader>
           <CardContent>
-            <form
-              className="flex flex-col gap-3"
-              onSubmit={handleSubmit}
-              noValidate
-            >
+            <form className="flex flex-col gap-3" onSubmit={handleSubmit} noValidate>
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="restaurant-name">
                   Name <span className="text-destructive">*</span>
                 </Label>
                 <Input id="restaurant-name" {...name.inputProps} />
-                {name.error && (
-                  <p className="text-sm text-destructive">{name.error}</p>
-                )}
+                {name.error && <p className="text-sm text-destructive">{name.error}</p>}
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="restaurant-type">Type</Label>
@@ -101,7 +94,9 @@ export function Restaurants() {
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="restaurant-note">Note</Label>
-                <p className="text-xs text-muted-foreground">Shown to employees on the order page.</p>
+                <p className="text-xs text-muted-foreground">
+                  Shown to employees on the order page.
+                </p>
                 <Textarea
                   id="restaurant-note"
                   value={note}
@@ -148,28 +143,18 @@ export function Restaurants() {
           </CardHeader>
           <CardContent>
             {isPending ? (
-              <p className="text-sm text-muted-foreground">
-                Loading restaurants…
-              </p>
+              <p className="text-sm text-muted-foreground">Loading restaurants…</p>
             ) : isError && !restaurants ? (
-              <p className="text-sm text-destructive">
-                Could not load restaurants.
-              </p>
+              <p className="text-sm text-destructive">Could not load restaurants.</p>
             ) : (
               <>
                 {isError && (
-                  <p className="mb-2 text-sm text-destructive">
-                    Could not refresh restaurants.
-                  </p>
+                  <p className="mb-2 text-sm text-destructive">Could not refresh restaurants.</p>
                 )}
                 {restaurants.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    No restaurants yet.
-                  </p>
+                  <p className="text-sm text-muted-foreground">No restaurants yet.</p>
                 ) : filteredRestaurants.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    No restaurants match this filter.
-                  </p>
+                  <p className="text-sm text-muted-foreground">No restaurants match this filter.</p>
                 ) : (
                   <ul className="flex flex-col divide-y divide-border">
                     {filteredRestaurants.map((restaurant) => (
@@ -185,9 +170,7 @@ export function Restaurants() {
                         </Link>
                         <RestaurantTypeBadge type={restaurant.type} />
                         {restaurant.contactInfo && (
-                          <span className="text-muted-foreground">
-                            — {restaurant.contactInfo}
-                          </span>
+                          <span className="text-muted-foreground">— {restaurant.contactInfo}</span>
                         )}
                       </li>
                     ))}

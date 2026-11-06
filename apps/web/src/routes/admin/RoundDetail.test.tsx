@@ -53,7 +53,9 @@ describe("RoundDetail", () => {
 
   it("shows a not-found message for an unknown round id", async () => {
     server.use(
-      http.get("/api/rounds/999", () => HttpResponse.json({ error: "round not found" }, { status: 404 })),
+      http.get("/api/rounds/999", () =>
+        HttpResponse.json({ error: "round not found" }, { status: 404 }),
+      ),
       http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
       http.get("/api/employees", () => HttpResponse.json([])),
       http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
@@ -70,7 +72,9 @@ describe("RoundDetail", () => {
       http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
       http.get("/api/employees", () => HttpResponse.json([])),
       http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
-      http.get("/api/rounds/1/menu-items", () => HttpResponse.json([{ id: 5, roundId: 1, menuItemId: 10 }])),
+      http.get("/api/rounds/1/menu-items", () =>
+        HttpResponse.json([{ id: 5, roundId: 1, menuItemId: 10 }]),
+      ),
       http.get("/api/restaurants/1/menu-items", () =>
         HttpResponse.json([
           { id: 10, restaurantId: 1, name: "Pho Bo", price: null, active: true },
@@ -93,7 +97,9 @@ describe("RoundDetail", () => {
       http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
       http.get("/api/employees", () => HttpResponse.json([])),
       http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
-      http.get("/api/rounds/1/menu-items", () => HttpResponse.json([{ id: 5, roundId: 1, menuItemId: 10 }])),
+      http.get("/api/rounds/1/menu-items", () =>
+        HttpResponse.json([{ id: 5, roundId: 1, menuItemId: 10 }]),
+      ),
       http.get("/api/restaurants/1/menu-items", () =>
         HttpResponse.json([{ id: 10, restaurantId: 1, name: "Pho Bo", price: null, active: true }]),
       ),
@@ -111,7 +117,9 @@ describe("RoundDetail", () => {
       http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
       http.get("/api/employees", () => HttpResponse.json([])),
       http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
-      http.get("/api/rounds/1/menu-items", () => HttpResponse.json([{ id: 5, roundId: 1, menuItemId: 10 }])),
+      http.get("/api/rounds/1/menu-items", () =>
+        HttpResponse.json([{ id: 5, roundId: 1, menuItemId: 10 }]),
+      ),
       http.get("/api/restaurants/1/menu-items", () =>
         HttpResponse.json([{ id: 10, restaurantId: 1, name: "Pho Bo", price: null, active: true }]),
       ),
@@ -200,7 +208,9 @@ describe("RoundDetail", () => {
       http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
       http.get("/api/employees", () => HttpResponse.json([])),
       http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
-      http.get("/api/rounds/1/menu-items", () => HttpResponse.json([{ id: 5, roundId: 1, menuItemId: 10 }])),
+      http.get("/api/rounds/1/menu-items", () =>
+        HttpResponse.json([{ id: 5, roundId: 1, menuItemId: 10 }]),
+      ),
       http.get("/api/restaurants/1/menu-items", () =>
         HttpResponse.json([{ id: 10, restaurantId: 1, name: "Pho Bo", price: null, active: true }]),
       ),
@@ -255,7 +265,9 @@ describe("RoundDetail", () => {
       http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
       http.get("/api/employees", () => HttpResponse.json([])),
       http.get("/api/rounds/1/submissions", () => HttpResponse.json([])),
-      http.get("/api/rounds/1/menu-items", () => HttpResponse.json([{ id: 5, roundId: 1, menuItemId: 10 }])),
+      http.get("/api/rounds/1/menu-items", () =>
+        HttpResponse.json([{ id: 5, roundId: 1, menuItemId: 10 }]),
+      ),
       http.get("/api/restaurants/1/menu-items", () =>
         HttpResponse.json([{ id: 10, restaurantId: 1, name: "Pho Bo", price: null, active: true }]),
       ),
@@ -762,9 +774,13 @@ describe("RoundDetail", () => {
         http.get("/api/rounds/1", () => HttpResponse.json(DRINK_ONLY())),
         http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
         http.get("/api/employees", () => HttpResponse.json([])),
-        http.get("/api/rounds/1/menu-items", () => HttpResponse.json([{ id: 20, roundId: 1, menuItemId: 200 }])),
+        http.get("/api/rounds/1/menu-items", () =>
+          HttpResponse.json([{ id: 20, roundId: 1, menuItemId: 200 }]),
+        ),
         http.get("/api/restaurants/2/menu-items", () =>
-          HttpResponse.json([{ id: 200, restaurantId: 2, name: "Tra Da", price: null, active: true }]),
+          HttpResponse.json([
+            { id: 200, restaurantId: 2, name: "Tra Da", price: null, active: true },
+          ]),
         ),
       ];
     }
@@ -1006,7 +1022,9 @@ describe("RoundDetail", () => {
       { id: 101, restaurantId: 1, name: "Pho Ga", price: "10000", active: true },
       { id: 102, restaurantId: 1, name: "Bun Cha", price: "12000", active: true },
     ];
-    const DRINK_MENU_ITEMS = [{ id: 200, restaurantId: 2, name: "Tra Da", price: "5000", active: true }];
+    const DRINK_MENU_ITEMS = [
+      { id: 200, restaurantId: 2, name: "Tra Da", price: "5000", active: true },
+    ];
     const SUBMISSION = {
       id: 1,
       employeeName: "An Nguyen",
@@ -1164,7 +1182,9 @@ describe("RoundDetail", () => {
       server.use(
         ...baseHandlers(),
         http.get("/api/rounds/1/submissions", () =>
-          HttpResponse.json([{ ...SUBMISSION, foodName: null, foodNote: null, foodRoundMenuItemId: null }]),
+          HttpResponse.json([
+            { ...SUBMISSION, foodName: null, foodNote: null, foodRoundMenuItemId: null },
+          ]),
         ),
         http.patch("/api/rounds/1/submissions/1", () => {
           patchCalled = true;

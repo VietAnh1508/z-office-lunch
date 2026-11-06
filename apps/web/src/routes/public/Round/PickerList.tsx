@@ -24,9 +24,7 @@ export function PickerList({
 }) {
   const [query, setQuery] = useState("");
   const q = query.trim().toLowerCase();
-  const filtered = (
-    q ? options.filter((o) => o.label.toLowerCase().includes(q)) : options
-  )
+  const filtered = (q ? options.filter((o) => o.label.toLowerCase().includes(q)) : options)
     .slice()
     .sort((a, b) => a.label.localeCompare(b.label));
 
@@ -42,10 +40,7 @@ export function PickerList({
       <ul
         role="listbox"
         aria-label={label}
-        className={cn(
-          "grid max-h-80 gap-2 overflow-auto p-0.5",
-          columns && "sm:grid-cols-2",
-        )}
+        className={cn("grid max-h-80 gap-2 overflow-auto p-0.5", columns && "sm:grid-cols-2")}
       >
         {filtered.map((o) => {
           const selected = o.id === value;
@@ -70,9 +65,7 @@ export function PickerList({
           );
         })}
         {filtered.length === 0 && (
-          <li className="px-2 py-4 text-sm text-muted-foreground">
-            No matches.
-          </li>
+          <li className="px-2 py-4 text-sm text-muted-foreground">No matches.</li>
         )}
       </ul>
     </div>

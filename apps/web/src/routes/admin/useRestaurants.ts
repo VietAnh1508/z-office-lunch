@@ -57,7 +57,8 @@ export function useUpdateRestaurant(id: number) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (input: UpdateRestaurantInput) => api.patch<Restaurant>(`/restaurants/${id}`, input),
+    mutationFn: (input: UpdateRestaurantInput) =>
+      api.patch<Restaurant>(`/restaurants/${id}`, input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: restaurantKeys.list() });
       toast.success("Restaurant updated");

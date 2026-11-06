@@ -6,9 +6,9 @@ import { renderWithProviders } from "@/test/render";
 import { server } from "@/test/mocks/server";
 import { BulkAddMenuItems } from "./BulkAddMenuItems";
 
-function mockBulkCreate(
-  handler?: (body: Record<string, unknown>) => void,
-): { getBody: () => Record<string, unknown> | null } {
+function mockBulkCreate(handler?: (body: Record<string, unknown>) => void): {
+  getBody: () => Record<string, unknown> | null;
+} {
   let requestBody: Record<string, unknown> | null = null;
   server.use(
     http.post("/api/restaurants/1/menu-items/bulk", async ({ request }) => {
@@ -79,9 +79,7 @@ describe("BulkAddMenuItems", () => {
     render();
 
     await openDialog(user);
-    await user.click(
-      screen.getByRole("checkbox", { name: "Overwrite current menu items" }),
-    );
+    await user.click(screen.getByRole("checkbox", { name: "Overwrite current menu items" }));
     await user.click(screen.getByRole("textbox", { name: /paste menu item names/i }));
     await user.paste("Pho Bo");
     await user.click(screen.getByRole("button", { name: "Parse" }));
@@ -156,9 +154,7 @@ describe("BulkAddMenuItems", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 
     await openDialog(user);
-    expect(
-      screen.getByRole("textbox", { name: /paste menu item names/i }),
-    ).toHaveValue("");
+    expect(screen.getByRole("textbox", { name: /paste menu item names/i })).toHaveValue("");
     expect(screen.queryByDisplayValue("Pho Bo")).not.toBeInTheDocument();
   });
 });

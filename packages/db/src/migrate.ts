@@ -11,7 +11,8 @@ export async function runMigrations(connectionString: string) {
   await db.$client.end();
 }
 
-const isMain = process.argv[1] !== undefined && fileURLToPath(import.meta.url) === path.resolve(process.argv[1]);
+const isMain =
+  process.argv[1] !== undefined && fileURLToPath(import.meta.url) === path.resolve(process.argv[1]);
 
 if (isMain) {
   const connectionString =

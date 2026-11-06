@@ -23,9 +23,7 @@ describe("BrowseRounds (public homepage)", () => {
 
     expect(await screen.findByText("Current office lunches")).toBeInTheDocument();
     expect(screen.getByText("Past office lunches")).toBeInTheDocument();
-    expect(
-      screen.getByText("No office lunch is open for orders right now."),
-    ).toBeInTheDocument();
+    expect(screen.getByText("No office lunch is open for orders right now.")).toBeInTheDocument();
     expect(screen.getByText("No past office lunches yet.")).toBeInTheDocument();
   });
 

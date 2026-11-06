@@ -3,26 +3,15 @@ import { parseMenuItemNames } from "./parse-menu-item-names";
 
 describe("parseMenuItemNames", () => {
   it("splits multi-line input into trimmed names", () => {
-    expect(parseMenuItemNames("Pho\nBun Cha\nCom Tam")).toEqual([
-      "Pho",
-      "Bun Cha",
-      "Com Tam",
-    ]);
+    expect(parseMenuItemNames("Pho\nBun Cha\nCom Tam")).toEqual(["Pho", "Bun Cha", "Com Tam"]);
   });
 
   it("handles CRLF line endings", () => {
-    expect(parseMenuItemNames("Pho\r\nBun Cha\r\nCom Tam")).toEqual([
-      "Pho",
-      "Bun Cha",
-      "Com Tam",
-    ]);
+    expect(parseMenuItemNames("Pho\r\nBun Cha\r\nCom Tam")).toEqual(["Pho", "Bun Cha", "Com Tam"]);
   });
 
   it("drops leading and trailing blank lines", () => {
-    expect(parseMenuItemNames("\n\nPho\nBun Cha\n\n")).toEqual([
-      "Pho",
-      "Bun Cha",
-    ]);
+    expect(parseMenuItemNames("\n\nPho\nBun Cha\n\n")).toEqual(["Pho", "Bun Cha"]);
   });
 
   it("drops whitespace-only lines interspersed between real lines", () => {
@@ -34,10 +23,7 @@ describe("parseMenuItemNames", () => {
   });
 
   it("trims surrounding whitespace on each line", () => {
-    expect(parseMenuItemNames("  Pho  \n  Bun Cha  ")).toEqual([
-      "Pho",
-      "Bun Cha",
-    ]);
+    expect(parseMenuItemNames("  Pho  \n  Bun Cha  ")).toEqual(["Pho", "Bun Cha"]);
   });
 
   it("keeps duplicate names", () => {

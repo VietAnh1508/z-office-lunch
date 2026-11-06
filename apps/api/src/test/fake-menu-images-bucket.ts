@@ -1,5 +1,8 @@
 export function createFakeMenuImagesBucket() {
-  const objects = new Map<string, { bytes: Uint8Array; httpMetadata?: { contentType?: string }; httpEtag: string }>();
+  const objects = new Map<
+    string,
+    { bytes: Uint8Array; httpMetadata?: { contentType?: string }; httpEtag: string }
+  >();
   let etagCounter = 0;
   return {
     objects, // exposed for tests to assert exact contents/count directly

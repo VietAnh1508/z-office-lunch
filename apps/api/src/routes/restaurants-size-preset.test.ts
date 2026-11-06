@@ -53,12 +53,17 @@ describe("restaurant size preset", () => {
       expect(res.status).toBe(201);
       expect(((await res.json()) as Restaurant).sizePresetId).toBe(preset.id);
 
-      const list = (await (await app.request("/api/restaurants", {}, testEnv)).json()) as Restaurant[];
+      const list = (await (
+        await app.request("/api/restaurants", {}, testEnv)
+      ).json()) as Restaurant[];
       expect(list[0]?.sizePresetId).toBe(preset.id);
     });
 
     it("defaults sizePresetId to null when omitted or null", async () => {
-      for (const body of [{ name: "A", type: "drink" }, { name: "B", type: "drink", sizePresetId: null }]) {
+      for (const body of [
+        { name: "A", type: "drink" },
+        { name: "B", type: "drink", sizePresetId: null },
+      ]) {
         const res = await post(body);
         expect(res.status).toBe(201);
         expect(((await res.json()) as Restaurant).sizePresetId).toBeNull();

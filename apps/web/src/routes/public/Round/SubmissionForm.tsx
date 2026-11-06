@@ -53,19 +53,12 @@ export function SubmissionForm({
   const [submitted, setSubmitted] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
 
-  const { data: existingSubmissions } = useSubmissionForEmployee(
-    roundId,
-    employeeId,
-  );
+  const { data: existingSubmissions } = useSubmissionForEmployee(roundId, employeeId);
 
-  const [pendingInput, setPendingInput] = useState<SubmissionInput | null>(
-    null,
-  );
-  const [existingSubmission, setExistingSubmission] =
-    useState<RoundSubmission | null>(null);
+  const [pendingInput, setPendingInput] = useState<SubmissionInput | null>(null);
+  const [existingSubmission, setExistingSubmission] = useState<RoundSubmission | null>(null);
 
-  const hasFood =
-    round.foodItems !== undefined && round.foodRestaurant !== undefined;
+  const hasFood = round.foodItems !== undefined && round.foodRestaurant !== undefined;
   const hasDrink = round.drinkItems !== undefined;
   const drinkRequired = !hasFood;
 
@@ -108,8 +101,7 @@ export function SubmissionForm({
       foodRoundMenuItemId: hasFood ? (foodItemId as number) : undefined,
       foodNote: hasFood ? foodNote.trim() || undefined : undefined,
       drinkRoundMenuItemId: drinkItemId ?? undefined,
-      drinkNote:
-        drinkItemId !== null && drinkNote.trim() ? drinkNote.trim() : undefined,
+      drinkNote: drinkItemId !== null && drinkNote.trim() ? drinkNote.trim() : undefined,
     };
   }
 
@@ -177,14 +169,9 @@ export function SubmissionForm({
             <p className="text-lg font-semibold">
               You're all set{firstName ? `, ${firstName}` : ""}!
             </p>
-            <p className="text-sm text-muted-foreground">
-              Thanks! Your order has been recorded.
-            </p>
+            <p className="text-sm text-muted-foreground">Thanks! Your order has been recorded.</p>
           </div>
-          <OrderSummary
-            rows={summaryRows}
-            className="w-full max-w-xs text-left"
-          />
+          <OrderSummary rows={summaryRows} className="w-full max-w-xs text-left" />
         </CardContent>
       </Card>
     );
@@ -222,20 +209,15 @@ export function SubmissionForm({
           className="flex flex-col gap-4 animate-in fade-in slide-in-from-right-4 duration-300"
         >
           <div>
-            <h2 className="text-xl font-semibold tracking-tight">
-              {STEP_TITLES[step]}
-            </h2>
+            <h2 className="text-xl font-semibold tracking-tight">{STEP_TITLES[step]}</h2>
             {firstName && step !== "who" && (
-              <p className="text-sm text-muted-foreground">
-                Hi {firstName} 👋
-              </p>
+              <p className="text-sm text-muted-foreground">Hi {firstName} 👋</p>
             )}
           </div>
 
           {stepIndex === 1 && existingSubmissions?.[0] && (
             <p className="rounded-lg bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-400">
-              Welcome back — you already ordered for this round. Submitting
-              will replace it.
+              Welcome back — you already ordered for this round. Submitting will replace it.
             </p>
           )}
 
@@ -270,10 +252,7 @@ export function SubmissionForm({
               />
               <MenuLink restaurant={round.foodRestaurant} />
               <RestaurantNote restaurant={round.foodRestaurant} />
-              <MenuImage
-                restaurant={round.foodRestaurant}
-                className="lg:hidden"
-              />
+              <MenuImage restaurant={round.foodRestaurant} className="lg:hidden" />
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="submission-food-note">Food note</Label>
                 <Input
@@ -300,10 +279,7 @@ export function SubmissionForm({
               />
               <MenuLink restaurant={round.drinkRestaurant} />
               <RestaurantNote restaurant={round.drinkRestaurant} />
-              <MenuImage
-                restaurant={round.drinkRestaurant}
-                className="lg:hidden"
-              />
+              <MenuImage restaurant={round.drinkRestaurant} className="lg:hidden" />
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="submission-drink-note">Drink note</Label>
                 <Input
@@ -316,7 +292,6 @@ export function SubmissionForm({
               </div>
             </>
           )}
-
         </div>
 
         <OrderSummary rows={summaryRows} />
@@ -332,11 +307,7 @@ export function SubmissionForm({
           </Button>
 
           {step === "review" ? (
-            <Button
-              type="button"
-              onClick={handleSubmit}
-              disabled={createSubmission.isPending}
-            >
+            <Button type="button" onClick={handleSubmit} disabled={createSubmission.isPending}>
               Submit order
             </Button>
           ) : step === "who" ? null : (

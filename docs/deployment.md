@@ -120,7 +120,7 @@ Deploys are automatic via **Cloudflare Workers Builds** — connected directly t
 (`VietAnh1508/z-office-lunch`) through the Cloudflare dashboard (Workers & Pages → the Worker →
 Settings → Build), not a workflow file in this repo. A push to `main` builds and deploys to
 production; pushes to any other branch (PRs included) run the same build but upload a preview
-*version* instead of deploying it, so they never touch production.
+_version_ instead of deploying it, so they never touch production.
 
 Dashboard configuration, for reference if it ever needs recreating:
 
@@ -173,4 +173,3 @@ Hyperdrive stores the credential on Cloudflare's side, so the Worker itself neve
 - pg's `sslmode=require` on the Neon connection string triggers a deprecation warning during
   migrations (a future `pg`/`pg-connection-string` major version changes its semantics) —
   not currently broken, just worth knowing about before that upgrade lands.
-

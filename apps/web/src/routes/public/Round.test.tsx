@@ -8,7 +8,13 @@ import { server } from "@/test/mocks/server";
 import { Round } from "./Round";
 
 const FOOD_RESTAURANT = { id: 1, name: "Pho 24", menuUrl: null, menuImage: null, note: null };
-const DRINK_RESTAURANT = { id: 2, name: "Tra Da Corner", menuUrl: null, menuImage: null, note: null };
+const DRINK_RESTAURANT = {
+  id: 2,
+  name: "Tra Da Corner",
+  menuUrl: null,
+  menuImage: null,
+  note: null,
+};
 
 const OPEN_ROUND_WITH_DRINK = {
   label: "Week 1",
@@ -152,9 +158,7 @@ describe("Round (public view)", () => {
     renderRound("1");
 
     expect(await screen.findByRole("heading", { name: "Week 1" })).toBeInTheDocument();
-    expect(
-      await screen.findByText("The deadline for this round has passed."),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("The deadline for this round has passed.")).toBeInTheDocument();
   });
 
   it("starts on the name step and shows a food picker after picking a name, with no drink step", async () => {
@@ -222,9 +226,7 @@ describe("Round (public view)", () => {
     await pickDrinkItem(user, "Tra Da");
     await submitOrder(user);
 
-    expect(
-      await screen.findByText("Thanks! Your order has been recorded."),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("Thanks! Your order has been recorded.")).toBeInTheDocument();
     expect(submittedBody).toEqual({ employeeId: 1, drinkRoundMenuItemId: 20 });
   });
 
@@ -300,9 +302,7 @@ describe("Round (public view)", () => {
     await pickFoodItem(user, "Pho Bo");
     await submitOrder(user);
 
-    expect(
-      await screen.findByText("Thanks! Your order has been recorded."),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("Thanks! Your order has been recorded.")).toBeInTheDocument();
     expect(screen.getByText("You're all set, An!")).toBeInTheDocument();
     await waitFor(() => {
       expect(submittedBody).toEqual({ employeeId: 1, foodRoundMenuItemId: 10 });
@@ -377,9 +377,7 @@ describe("Round (public view)", () => {
     await pickFoodItem(user, "Pho Bo");
     await submitOrder(user);
 
-    expect(
-      await screen.findByText("Thanks! Your order has been recorded."),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("Thanks! Your order has been recorded.")).toBeInTheDocument();
   });
 
   describe("restaurant note", () => {
@@ -839,9 +837,7 @@ describe("Round (public view)", () => {
       await screen.findByText("You already have a submission for this round");
       await user.click(screen.getByRole("button", { name: "Submit anyway" }));
 
-      expect(
-        await screen.findByText("Thanks! Your order has been recorded."),
-      ).toBeInTheDocument();
+      expect(await screen.findByText("Thanks! Your order has been recorded.")).toBeInTheDocument();
       expect(submittedBody).toEqual({
         employeeId: 1,
         foodRoundMenuItemId: 10,

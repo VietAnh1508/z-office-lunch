@@ -84,4 +84,3 @@ If you're picking this project up with no prior context, read things in this ord
 2. `git log --oneline -20` — recent history.
 3. `pnpm tasks:status` (reads `tasks/*.md` frontmatter directly, so it can't drift) — shows the in-flight task if one exists, otherwise which approved tasks are unblocked. Fall back to `ls tasks/` and reading frontmatter by hand only if you need detail beyond what it reports.
 4. `docs/architecture.md`, if you need the app's data model or stack rationale.
-

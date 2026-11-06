@@ -8,11 +8,7 @@ type Tx = Parameters<Parameters<ReturnType<typeof getDb>["transaction"]>[0]>[0];
 // wipes them, then (if there's a preset) ticks every option for every item,
 // active and inactive. Callers run it inside a transaction.
 // Inserts are guarded because Drizzle throws on an empty `.values([])`.
-export async function rebuildMenuItemSizes(
-  tx: Tx,
-  restaurantId: number,
-  presetId: number | null,
-) {
+export async function rebuildMenuItemSizes(tx: Tx, restaurantId: number, presetId: number | null) {
   const items = await tx
     .select({ id: menuItems.id })
     .from(menuItems)
@@ -21,9 +17,7 @@ export async function rebuildMenuItemSizes(
   if (itemIds.length === 0) {
     return;
   }
-  await tx
-    .delete(menuItemSizes)
-    .where(inArray(menuItemSizes.menuItemId, itemIds));
+  await tx.delete(menuItemSizes).where(inArray(menuItemSizes.menuItemId, itemIds));
   if (presetId === null) {
     return;
   }

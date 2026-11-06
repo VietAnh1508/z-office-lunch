@@ -74,9 +74,7 @@ export function RoundList() {
           <p className="text-sm text-destructive">Could not load rounds.</p>
         ) : (
           <>
-            {isError && (
-              <p className="mb-2 text-sm text-destructive">Could not refresh rounds.</p>
-            )}
+            {isError && <p className="mb-2 text-sm text-destructive">Could not refresh rounds.</p>}
             {rounds.length === 0 ? (
               <p className="text-sm text-muted-foreground">No rounds yet.</p>
             ) : filteredRounds.length === 0 ? (
@@ -130,9 +128,7 @@ export function RoundList() {
                               type="button"
                               variant="destructive"
                               size="sm"
-                              disabled={
-                                deleteRound.isPending && deleteRound.variables === round.id
-                              }
+                              disabled={deleteRound.isPending && deleteRound.variables === round.id}
                             >
                               Delete
                             </Button>

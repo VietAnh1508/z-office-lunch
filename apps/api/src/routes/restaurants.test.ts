@@ -544,7 +544,11 @@ describe("restaurants routes", () => {
         const res = await app.request(
           "/api/restaurants/999999/generate-menu",
           { method: "POST" },
-          { ...testEnv, MENU_IMAGES: createFakeMenuImagesBucket(), AI: createFakeAiBinding() as unknown },
+          {
+            ...testEnv,
+            MENU_IMAGES: createFakeMenuImagesBucket(),
+            AI: createFakeAiBinding() as unknown,
+          },
         );
 
         expect(res.status).toBe(404);
@@ -557,7 +561,11 @@ describe("restaurants routes", () => {
         const res = await app.request(
           `/api/restaurants/${restaurant.id}/generate-menu`,
           { method: "POST" },
-          { ...testEnv, MENU_IMAGES: createFakeMenuImagesBucket(), AI: createFakeAiBinding() as unknown },
+          {
+            ...testEnv,
+            MENU_IMAGES: createFakeMenuImagesBucket(),
+            AI: createFakeAiBinding() as unknown,
+          },
         );
 
         expect(res.status).toBe(404);
@@ -732,7 +740,11 @@ describe("restaurants routes", () => {
         const res = await app.request(
           "/api/restaurants/1/generate-menu",
           { method: "POST" },
-          { ...unreachableEnv, MENU_IMAGES: createFakeMenuImagesBucket(), AI: createFakeAiBinding() as unknown },
+          {
+            ...unreachableEnv,
+            MENU_IMAGES: createFakeMenuImagesBucket(),
+            AI: createFakeAiBinding() as unknown,
+          },
         );
 
         expect(res.status).toBe(500);
