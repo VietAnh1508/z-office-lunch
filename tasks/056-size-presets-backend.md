@@ -1,7 +1,7 @@
 ---
 id: 056
 title: Size presets backend (presets + options tables and CRUD API)
-status: in_review
+status: done
 depends_on: []
 parallelizable_with: []
 epic: drink-size-presets
