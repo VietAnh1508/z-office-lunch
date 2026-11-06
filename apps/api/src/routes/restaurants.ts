@@ -5,7 +5,11 @@ import { bodyLimit } from "hono/body-limit";
 import type { Bindings } from "../bindings";
 import { ERROR_MESSAGES } from "../lib/errors";
 import { getDb } from "../lib/get-db";
-import { rebuildMenuItemSizes } from "../lib/menu-item-sizes";
+import {
+  clearRestaurantDrinkSizes,
+  countRestaurantDrinkSizes,
+  rebuildMenuItemSizes,
+} from "../lib/menu-item-sizes";
 
 export const restaurantsRoute = new Hono<{ Bindings: Bindings }>();
 
@@ -195,7 +199,7 @@ restaurantsRoute.patch("/:id", async (c) => {
         .where(eq(restaurants.id, id))
         .returning();
       if (presetChanged) {
-        // Task 059 also clears affected drink-size picks on open rounds here.
+        await clearRestaurantDrinkSizes(tx, id);
         await rebuildMenuItemSizes(tx, id, sizePresetId);
       }
       return updated;
@@ -203,6 +207,39 @@ restaurantsRoute.patch("/:id", async (c) => {
     return c.json(row);
   } catch (e) {
     console.error(JSON.stringify({ message: "failed to update restaurant", error: String(e) }));
+    return c.json({ error: ERROR_MESSAGES.internal }, 500);
+  } finally {
+    await db.$client.end();
+  }
+});
+
+// Read-only preview for the UI: how many picked drink sizes would a preset
+// change clear. `sizePresetId` is a preset id or the literal "null".
+restaurantsRoute.get("/:id/size-reset-impact", async (c) => {
+  const id = Number(c.req.param("id"));
+  if (!Number.isInteger(id)) {
+    return c.json({ error: ERROR_MESSAGES.restaurantNotFound }, 404);
+  }
+  const raw = c.req.query("sizePresetId");
+  const target =
+    raw === "null" ? null : raw !== undefined && /^\d+$/.test(raw) ? Number(raw) : "invalid";
+  if (target === "invalid") {
+    return c.json({ error: ERROR_MESSAGES.sizePresetIdInvalid }, 400);
+  }
+
+  const db = getDb(c);
+  try {
+    const [existing] = await db.select().from(restaurants).where(eq(restaurants.id, id));
+    if (!existing) {
+      return c.json({ error: ERROR_MESSAGES.restaurantNotFound }, 404);
+    }
+    const affectedSubmissions =
+      target === existing.sizePresetId ? 0 : await countRestaurantDrinkSizes(db, id);
+    return c.json({ affectedSubmissions });
+  } catch (e) {
+    console.error(
+      JSON.stringify({ message: "failed to compute size reset impact", error: String(e) }),
+    );
     return c.json({ error: ERROR_MESSAGES.internal }, 500);
   } finally {
     await db.$client.end();

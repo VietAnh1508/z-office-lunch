@@ -4,7 +4,7 @@ import { Hono } from "hono";
 import type { Bindings } from "../bindings";
 import { ERROR_MESSAGES } from "../lib/errors";
 import { getDb } from "../lib/get-db";
-import { fillSizesForItems } from "../lib/menu-item-sizes";
+import { clearRemovedItemSizes, fillSizesForItems } from "../lib/menu-item-sizes";
 import { fail, ok, type Result } from "../lib/result";
 
 function parseName(raw: unknown): string {
@@ -241,6 +241,7 @@ menuItemsRoute.put("/:id/menu-items/:itemId/sizes", async (c) => {
 
     await db.transaction(async (tx) => {
       await tx.delete(menuItemSizes).where(eq(menuItemSizes.menuItemId, itemId));
+      await clearRemovedItemSizes(tx, restaurantId, itemId, requested);
       if (requested.length > 0) {
         await tx
           .insert(menuItemSizes)

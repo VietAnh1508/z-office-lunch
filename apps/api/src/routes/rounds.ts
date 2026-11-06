@@ -1,6 +1,15 @@
-import { and, eq, inArray, ne, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, ne, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
-import { employees, menuItems, restaurants, roundMenuItems, rounds, submissions } from "db";
+import {
+  employees,
+  menuItemSizes,
+  menuItems,
+  restaurants,
+  roundMenuItems,
+  rounds,
+  sizeOptions,
+  submissions,
+} from "db";
 import { Hono } from "hono";
 import type { Bindings } from "../bindings";
 import { ERROR_MESSAGES } from "../lib/errors";
@@ -15,6 +24,7 @@ const foodRoundMenuItemAlias = alias(roundMenuItems, "food_round_menu_item");
 const drinkRoundMenuItemAlias = alias(roundMenuItems, "drink_round_menu_item");
 const foodMenuItemAlias = alias(menuItems, "food_menu_item");
 const drinkMenuItemAlias = alias(menuItems, "drink_menu_item");
+const drinkSizeOptionAlias = alias(sizeOptions, "drink_size_option");
 
 type Tx = Parameters<Parameters<ReturnType<typeof getDb>["transaction"]>[0]>[0];
 
@@ -219,7 +229,7 @@ roundsRoute.get("/:id/public", async (c) => {
 
     const selectCuratedItems = (restaurantId: number) =>
       db
-        .select({ id: roundMenuItems.id, name: menuItems.name })
+        .select({ id: roundMenuItems.id, name: menuItems.name, menuItemId: menuItems.id })
         .from(roundMenuItems)
         .innerJoin(menuItems, eq(roundMenuItems.menuItemId, menuItems.id))
         .where(and(eq(roundMenuItems.roundId, round.id), eq(menuItems.restaurantId, restaurantId)))
@@ -237,10 +247,41 @@ roundsRoute.get("/:id/public", async (c) => {
         .from(restaurants)
         .where(eq(restaurants.id, restaurantId));
 
+    const stripMenuItemId = ({ id, name }: { id: number; name: string }) => ({ id, name });
     const foodItems =
-      round.foodRestaurantId !== null ? await selectCuratedItems(round.foodRestaurantId) : null;
-    const drinkItems =
+      round.foodRestaurantId !== null
+        ? (await selectCuratedItems(round.foodRestaurantId)).map(stripMenuItemId)
+        : null;
+    const curatedDrinks =
       round.drinkRestaurantId !== null ? await selectCuratedItems(round.drinkRestaurantId) : null;
+    let drinkItems: { id: number; name: string; sizes: { id: number; label: string }[] }[] | null =
+      null;
+    if (curatedDrinks !== null) {
+      const sizeRows =
+        curatedDrinks.length > 0
+          ? await db
+              .select({
+                menuItemId: menuItemSizes.menuItemId,
+                id: sizeOptions.id,
+                label: sizeOptions.label,
+              })
+              .from(menuItemSizes)
+              .innerJoin(sizeOptions, eq(sizeOptions.id, menuItemSizes.sizeOptionId))
+              .where(
+                inArray(
+                  menuItemSizes.menuItemId,
+                  curatedDrinks.map((i) => i.menuItemId),
+                ),
+              )
+              .orderBy(asc(sizeOptions.sortOrder), asc(sizeOptions.id))
+          : [];
+      drinkItems = curatedDrinks.map((item) => ({
+        ...stripMenuItemId(item),
+        sizes: sizeRows
+          .filter((r) => r.menuItemId === item.menuItemId)
+          .map(({ id, label }) => ({ id, label })),
+      }));
+    }
 
     const foodRestaurant =
       round.foodRestaurantId !== null
@@ -371,7 +412,7 @@ roundsRoute.delete("/:id/menu-items/:itemId", async (c) => {
         .where(eq(submissions.foodRoundMenuItemId, itemId));
       await tx
         .update(submissions)
-        .set({ drinkRoundMenuItemId: null, drinkNote: null })
+        .set({ drinkRoundMenuItemId: null, drinkNote: null, drinkSizeOptionId: null })
         .where(eq(submissions.drinkRoundMenuItemId, itemId));
       return tx.delete(roundMenuItems).where(eq(roundMenuItems.id, itemId)).returning();
     });
@@ -494,7 +535,7 @@ roundsRoute.patch("/:id", async (c) => {
           .set(
             side === "food"
               ? { foodRoundMenuItemId: null, foodNote: null }
-              : { drinkRoundMenuItemId: null, drinkNote: null },
+              : { drinkRoundMenuItemId: null, drinkNote: null, drinkSizeOptionId: null },
           )
           .where(
             inArray(
@@ -652,6 +693,7 @@ type SubmissionFieldsResult = Result<
     foodNote: string | null;
     drinkRoundMenuItemId: number | null;
     drinkNote: string | null;
+    drinkSizeOptionId: number | null;
   },
   400 | 404
 >;
@@ -702,6 +744,21 @@ async function parseSubmissionFields(
   if (!hasFood && drinkRoundMenuItemId === null) {
     return fail(ERROR_MESSAGES.drinkRoundMenuItemIdRequired);
   }
+  let drinkSizeOptionId: number | null = null;
+  if (
+    body.drinkSizeOptionId !== undefined &&
+    body.drinkSizeOptionId !== null &&
+    body.drinkSizeOptionId !== ""
+  ) {
+    const parsed = Number(body.drinkSizeOptionId);
+    if (!Number.isInteger(parsed)) {
+      return fail(ERROR_MESSAGES.drinkSizeOptionInvalid);
+    }
+    // Only meaningful alongside a drink item; otherwise it is dropped.
+    if (drinkRoundMenuItemId !== null) {
+      drinkSizeOptionId = parsed;
+    }
+  }
   const drinkNote =
     drinkRoundMenuItemId !== null && typeof body.drinkNote === "string" && body.drinkNote.trim()
       ? body.drinkNote.trim()
@@ -709,7 +766,11 @@ async function parseSubmissionFields(
 
   const selectRoundMenuItem = (id: number) =>
     db
-      .select({ id: roundMenuItems.id, restaurantId: menuItems.restaurantId })
+      .select({
+        id: roundMenuItems.id,
+        restaurantId: menuItems.restaurantId,
+        menuItemId: roundMenuItems.menuItemId,
+      })
       .from(roundMenuItems)
       .innerJoin(menuItems, eq(roundMenuItems.menuItemId, menuItems.id))
       .where(and(eq(roundMenuItems.id, id), eq(roundMenuItems.roundId, round.id)));
@@ -735,9 +796,29 @@ async function parseSubmissionFields(
     if (drinkItem.restaurantId !== round.drinkRestaurantId) {
       return fail(ERROR_MESSAGES.drinkRoundMenuItemInvalid);
     }
+    if (drinkSizeOptionId !== null) {
+      const [available] = await db
+        .select({ id: menuItemSizes.id })
+        .from(menuItemSizes)
+        .where(
+          and(
+            eq(menuItemSizes.menuItemId, drinkItem.menuItemId),
+            eq(menuItemSizes.sizeOptionId, drinkSizeOptionId),
+          ),
+        );
+      if (!available) {
+        return fail(ERROR_MESSAGES.drinkSizeNotAvailable);
+      }
+    }
   }
 
-  return ok({ foodRoundMenuItemId, foodNote, drinkRoundMenuItemId, drinkNote });
+  return ok({
+    foodRoundMenuItemId,
+    foodNote,
+    drinkRoundMenuItemId,
+    drinkNote,
+    drinkSizeOptionId,
+  });
 }
 
 roundsRoute.post("/:id/submissions", async (c) => {
@@ -777,7 +858,8 @@ roundsRoute.post("/:id/submissions", async (c) => {
     if (!fields.ok) {
       return c.json({ error: fields.error }, fields.status);
     }
-    const { foodRoundMenuItemId, foodNote, drinkRoundMenuItemId, drinkNote } = fields;
+    const { foodRoundMenuItemId, foodNote, drinkRoundMenuItemId, drinkNote, drinkSizeOptionId } =
+      fields;
 
     const [existing] = await db
       .select()
@@ -792,6 +874,7 @@ roundsRoute.post("/:id/submissions", async (c) => {
           foodNote,
           drinkRoundMenuItemId,
           drinkNote,
+          drinkSizeOptionId,
           updatedAt: new Date(),
         })
         .where(eq(submissions.id, existing.id))
@@ -808,6 +891,7 @@ roundsRoute.post("/:id/submissions", async (c) => {
         foodNote,
         drinkRoundMenuItemId,
         drinkNote,
+        drinkSizeOptionId,
       })
       .returning();
     return c.json(row, 201);
@@ -855,7 +939,8 @@ roundsRoute.patch("/:id/submissions/:submissionId", async (c) => {
     if (!fields.ok) {
       return c.json({ error: fields.error }, fields.status);
     }
-    const { foodRoundMenuItemId, foodNote, drinkRoundMenuItemId, drinkNote } = fields;
+    const { foodRoundMenuItemId, foodNote, drinkRoundMenuItemId, drinkNote, drinkSizeOptionId } =
+      fields;
 
     const [row] = await db
       .update(submissions)
@@ -864,6 +949,7 @@ roundsRoute.patch("/:id/submissions/:submissionId", async (c) => {
         foodNote,
         drinkRoundMenuItemId,
         drinkNote,
+        drinkSizeOptionId,
         updatedAt: new Date(),
       })
       .where(eq(submissions.id, submissionId))
@@ -904,6 +990,8 @@ roundsRoute.get("/:id/submissions", async (c) => {
         drinkNote: submissions.drinkNote,
         foodRoundMenuItemId: submissions.foodRoundMenuItemId,
         drinkRoundMenuItemId: submissions.drinkRoundMenuItemId,
+        drinkSizeOptionId: submissions.drinkSizeOptionId,
+        drinkSize: drinkSizeOptionAlias.label,
       })
       .from(submissions)
       .innerJoin(employees, eq(submissions.employeeId, employees.id))
@@ -917,6 +1005,7 @@ roundsRoute.get("/:id/submissions", async (c) => {
         eq(submissions.drinkRoundMenuItemId, drinkRoundMenuItemAlias.id),
       )
       .leftJoin(drinkMenuItemAlias, eq(drinkRoundMenuItemAlias.menuItemId, drinkMenuItemAlias.id))
+      .leftJoin(drinkSizeOptionAlias, eq(submissions.drinkSizeOptionId, drinkSizeOptionAlias.id))
       .where(
         filterByEmployee
           ? and(eq(submissions.roundId, roundId), eq(submissions.employeeId, employeeId))
