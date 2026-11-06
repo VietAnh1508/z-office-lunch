@@ -9,5 +9,7 @@ describe("schema", () => {
     expect(schema.rounds).toBeDefined();
     expect(schema.roundMenuItems).toBeDefined();
     expect(schema.submissions).toBeDefined();
+    expect(schema.sizePresets).toBeDefined();
+    expect(schema.sizeOptions).toBeDefined();
   });
 });
