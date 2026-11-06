@@ -89,3 +89,21 @@ export const submissions = pgTable(
   },
   (table) => [unique().on(table.roundId, table.employeeId)],
 );
+
+export const sizePresets = pgTable("size_presets", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull().unique(),
+});
+
+export const sizeOptions = pgTable(
+  "size_options",
+  {
+    id: serial("id").primaryKey(),
+    presetId: integer("preset_id")
+      .notNull()
+      .references(() => sizePresets.id, { onDelete: "cascade" }),
+    label: text("label").notNull(),
+    sortOrder: integer("sort_order").notNull(),
+  },
+  (table) => [unique().on(table.presetId, table.label)],
+);

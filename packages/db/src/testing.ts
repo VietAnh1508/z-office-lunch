@@ -35,7 +35,7 @@ export async function ensureTestDatabase() {
 
 export async function truncateAll(db: Db) {
   await db.execute(
-    sql`TRUNCATE TABLE submissions, round_menu_items, rounds, employees, menu_items, restaurants RESTART IDENTITY CASCADE`,
+    sql`TRUNCATE TABLE submissions, round_menu_items, rounds, employees, menu_items, restaurants, size_options, size_presets RESTART IDENTITY CASCADE`,
   );
 }
 
@@ -110,4 +110,25 @@ export async function seedSubmission(
     .values({ ...overrides })
     .returning();
   return row;
+}
+
+export async function seedSizePreset(
+  db: Db,
+  overrides: Partial<typeof schema.sizePresets.$inferInsert> = {},
+) {
+  const [preset] = await db
+    .insert(schema.sizePresets)
+    .values({ name: "Test Preset", ...overrides })
+    .returning();
+  const options = await db
+    .insert(schema.sizeOptions)
+    .values(
+      ["S", "M", "L"].map((label, sortOrder) => ({
+        presetId: preset!.id,
+        label,
+        sortOrder,
+      })),
+    )
+    .returning();
+  return { preset: preset!, options };
 }

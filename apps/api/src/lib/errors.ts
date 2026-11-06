@@ -46,4 +46,9 @@ export const ERROR_MESSAGES = {
   submissionNotFound: "submission not found",
   passwordRequired: "password is required",
   adminPasswordIncorrect: "incorrect password",
+  sizeOptionsRequired: "at least one size option is required",
+  sizeOptionsDuplicate: "size option labels must be unique",
+  sizeOptionInvalid: "size option does not belong to this preset",
+  sizePresetNameTaken: "a size preset with this name already exists",
+  sizePresetNotFound: "size preset not found",
 } as const;
