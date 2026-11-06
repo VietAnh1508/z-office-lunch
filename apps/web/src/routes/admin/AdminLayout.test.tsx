@@ -33,9 +33,7 @@ describe("AdminLayout", () => {
   it("shows a password prompt instead of admin content when locked", () => {
     renderApp("/admin");
 
-    expect(
-      screen.queryByRole("heading", { name: "Admin" }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Admin" })).not.toBeInTheDocument();
     expect(screen.getByLabelText("Password")).toBeInTheDocument();
   });
 
@@ -73,9 +71,7 @@ describe("AdminLayout", () => {
   });
 
   it("unlocks and shows admin content on the correct password", async () => {
-    server.use(
-      http.post("/api/admin/verify-password", () => HttpResponse.json({ ok: true })),
-    );
+    server.use(http.post("/api/admin/verify-password", () => HttpResponse.json({ ok: true })));
     const user = userEvent.setup();
     renderApp("/admin");
 
@@ -151,10 +147,7 @@ describe("AdminLayout", () => {
 
     await user.click(nav.getByRole("link", { name: "Restaurants" }));
 
-    expect(nav.getByRole("link", { name: "Restaurants" })).toHaveAttribute(
-      "aria-current",
-      "page",
-    );
+    expect(nav.getByRole("link", { name: "Restaurants" })).toHaveAttribute("aria-current", "page");
     expect(nav.getByRole("link", { name: "Employees" })).not.toHaveAttribute("aria-current");
   });
 });

@@ -1,11 +1,5 @@
 import { Link } from "react-router";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDateTime } from "@/lib/format-date";
 import { RoundStatusBadge } from "@/routes/admin/RoundStatusBadge";
 import { usePublicRounds } from "./usePublicRound";
@@ -25,9 +19,7 @@ function RoundRow({ round }: { round: PublicRoundListItem }) {
           .filter((name) => name != null)
           .join(" + ")}
       </p>
-      <p className="text-xs text-muted-foreground">
-        Deadline {formatDateTime(round.deadline)}
-      </p>
+      <p className="text-xs text-muted-foreground">Deadline {formatDateTime(round.deadline)}</p>
     </li>
   );
 }

@@ -37,7 +37,8 @@ export function useRoundSubmissions(roundId: number) {
 export function useSubmissionForEmployee(roundId: number, employeeId: number | null) {
   return useQuery({
     queryKey: [...roundSubmissionKeys.list(roundId), "employee", employeeId],
-    queryFn: () => api.get<RoundSubmission[]>(`/rounds/${roundId}/submissions?employeeId=${employeeId}`),
+    queryFn: () =>
+      api.get<RoundSubmission[]>(`/rounds/${roundId}/submissions?employeeId=${employeeId}`),
     enabled: employeeId !== null,
   });
 }

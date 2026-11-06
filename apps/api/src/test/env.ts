@@ -11,7 +11,9 @@ export const testEnv = {
 
 export const unreachableEnv = {
   ASSETS: {} as unknown,
-  HYPERDRIVE: { connectionString: "postgres://postgres:postgres@localhost:1/nonexistent" } as unknown,
+  HYPERDRIVE: {
+    connectionString: "postgres://postgres:postgres@localhost:1/nonexistent",
+  } as unknown,
   MENU_IMAGES: {} as unknown,
   AI: {} as unknown,
   ADMIN_PASSWORD: "test-admin-password",

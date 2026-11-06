@@ -3,13 +3,7 @@ import { cn } from "@/lib/utils";
 type Row = { label: string; value: string | null; note?: string };
 
 // Live "your order" card — fills in as the user moves through the steps.
-export function OrderSummary({
-  rows,
-  className,
-}: {
-  rows: Row[];
-  className?: string;
-}) {
+export function OrderSummary({ rows, className }: { rows: Row[]; className?: string }) {
   return (
     <div
       aria-label="Your order"

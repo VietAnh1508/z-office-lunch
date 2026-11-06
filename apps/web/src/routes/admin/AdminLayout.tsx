@@ -31,22 +31,11 @@ function AdminPasswordGate({
 
   return (
     <div className="flex min-h-svh items-center justify-center bg-background px-4">
-      <form
-        onSubmit={handleSubmit}
-        noValidate
-        className="flex w-full max-w-xs flex-col gap-3"
-      >
+      <form onSubmit={handleSubmit} noValidate className="flex w-full max-w-xs flex-col gap-3">
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="admin-gate-password">Password</Label>
-          <Input
-            id="admin-gate-password"
-            type="password"
-            autoFocus
-            {...password.inputProps}
-          />
-          {password.error && (
-            <p className="text-sm text-destructive">{password.error}</p>
-          )}
+          <Input id="admin-gate-password" type="password" autoFocus {...password.inputProps} />
+          {password.error && <p className="text-sm text-destructive">{password.error}</p>}
         </div>
         <Button type="submit" disabled={pending}>
           Unlock

@@ -219,7 +219,11 @@ describe("menu items routes", () => {
         expect(res.status).toBe(400);
       }
 
-      const getRes = await app.request(`/api/restaurants/${restaurant!.id}/menu-items`, {}, testEnv);
+      const getRes = await app.request(
+        `/api/restaurants/${restaurant!.id}/menu-items`,
+        {},
+        testEnv,
+      );
       const rows = (await getRes.json()) as MenuItem[];
       expect(rows[0]?.name).toBe("Banh Mi");
     });
@@ -243,7 +247,11 @@ describe("menu items routes", () => {
       );
       expect(res.status).toBe(400);
 
-      const getRes = await app.request(`/api/restaurants/${restaurant!.id}/menu-items`, {}, testEnv);
+      const getRes = await app.request(
+        `/api/restaurants/${restaurant!.id}/menu-items`,
+        {},
+        testEnv,
+      );
       const rows = (await getRes.json()) as MenuItem[];
       expect(rows[0]?.price).toBe("5");
     });
@@ -336,10 +344,7 @@ describe("menu items routes", () => {
 
       const res = await postBulk(restaurant!.id, {
         mode: "append",
-        items: [
-          { name: "Banh Mi", price: "25000" },
-          { name: "Bun Cha" },
-        ],
+        items: [{ name: "Banh Mi", price: "25000" }, { name: "Bun Cha" }],
       });
 
       expect(res.status).toBe(201);
@@ -348,7 +353,11 @@ describe("menu items routes", () => {
       expect(inserted.every((i) => i.active)).toBe(true);
       expect(inserted.map((i) => i.name).sort()).toEqual(["Banh Mi", "Bun Cha"]);
 
-      const getRes = await app.request(`/api/restaurants/${restaurant!.id}/menu-items`, {}, testEnv);
+      const getRes = await app.request(
+        `/api/restaurants/${restaurant!.id}/menu-items`,
+        {},
+        testEnv,
+      );
       const rows = (await getRes.json()) as MenuItem[];
       expect(rows).toHaveLength(3);
       const stillThere = rows.find((r) => r.id === existing!.id);
@@ -374,7 +383,11 @@ describe("menu items routes", () => {
       expect(inserted[0]?.name).toBe("Banh Mi");
       expect(inserted[0]?.active).toBe(true);
 
-      const getRes = await app.request(`/api/restaurants/${restaurant!.id}/menu-items`, {}, testEnv);
+      const getRes = await app.request(
+        `/api/restaurants/${restaurant!.id}/menu-items`,
+        {},
+        testEnv,
+      );
       const rows = (await getRes.json()) as MenuItem[];
       expect(rows).toHaveLength(2);
       const oldRow = rows.find((r) => r.id === existing!.id);
@@ -401,7 +414,11 @@ describe("menu items routes", () => {
 
       expect(res.status).toBe(201);
 
-      const getRes = await app.request(`/api/restaurants/${restaurant!.id}/menu-items`, {}, testEnv);
+      const getRes = await app.request(
+        `/api/restaurants/${restaurant!.id}/menu-items`,
+        {},
+        testEnv,
+      );
       const rows = (await getRes.json()) as MenuItem[];
       const oldRow = rows.find((r) => r.id === item!.id);
       expect(oldRow).toBeDefined();
@@ -444,7 +461,11 @@ describe("menu items routes", () => {
       });
       expect(res.status).toBe(400);
 
-      const getRes = await app.request(`/api/restaurants/${restaurant!.id}/menu-items`, {}, testEnv);
+      const getRes = await app.request(
+        `/api/restaurants/${restaurant!.id}/menu-items`,
+        {},
+        testEnv,
+      );
       expect(await getRes.json()).toEqual([]);
     });
 
@@ -457,7 +478,11 @@ describe("menu items routes", () => {
       });
       expect(res.status).toBe(400);
 
-      const getRes = await app.request(`/api/restaurants/${restaurant!.id}/menu-items`, {}, testEnv);
+      const getRes = await app.request(
+        `/api/restaurants/${restaurant!.id}/menu-items`,
+        {},
+        testEnv,
+      );
       expect(await getRes.json()).toEqual([]);
     });
 

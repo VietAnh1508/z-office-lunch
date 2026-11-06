@@ -152,7 +152,10 @@ describe("size presets routes", () => {
       expect(body.options[0]!.id).toBe(l!.id);
       expect(body.options[2]!.id).toBe(s!.id);
 
-      const remaining = await db.select().from(sizeOptions).where(eq(sizeOptions.presetId, preset.id));
+      const remaining = await db
+        .select()
+        .from(sizeOptions)
+        .where(eq(sizeOptions.presetId, preset.id));
       expect(remaining.map((o) => o.id)).not.toContain(m!.id);
     });
 

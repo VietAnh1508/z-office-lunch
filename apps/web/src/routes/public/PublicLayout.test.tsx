@@ -20,10 +20,7 @@ describe("PublicLayout", () => {
 
     renderApp("/");
 
-    expect(await screen.findByRole("link", { name: "Office Lunch" })).toHaveAttribute(
-      "href",
-      "/",
-    );
+    expect(await screen.findByRole("link", { name: "Office Lunch" })).toHaveAttribute("href", "/");
   });
 
   it("shows the app brand link on a public round page", async () => {
@@ -35,10 +32,7 @@ describe("PublicLayout", () => {
 
     renderApp("/r/1");
 
-    expect(await screen.findByRole("link", { name: "Office Lunch" })).toHaveAttribute(
-      "href",
-      "/",
-    );
+    expect(await screen.findByRole("link", { name: "Office Lunch" })).toHaveAttribute("href", "/");
   });
 
   it("does not render a nav menu on public pages", async () => {

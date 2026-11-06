@@ -113,9 +113,7 @@ export function BulkAddMenuItems({ restaurantId }: { restaurantId: number }) {
                   checked={override}
                   onCheckedChange={(checked) => setOverride(checked === true)}
                 />
-                <Label htmlFor="bulk-add-menu-items-overwrite">
-                  Overwrite current menu items
-                </Label>
+                <Label htmlFor="bulk-add-menu-items-overwrite">Overwrite current menu items</Label>
               </div>
               <DialogFooter>
                 <Button type="button" onClick={handleParse}>

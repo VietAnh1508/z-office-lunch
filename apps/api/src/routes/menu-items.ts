@@ -161,7 +161,9 @@ menuItemsRoute.patch("/:id/menu-items/:itemId/details", async (c) => {
       .returning();
     return c.json(row);
   } catch (e) {
-    console.error(JSON.stringify({ message: "failed to update menu item details", error: String(e) }));
+    console.error(
+      JSON.stringify({ message: "failed to update menu item details", error: String(e) }),
+    );
     return c.json({ error: ERROR_MESSAGES.internal }, 500);
   } finally {
     await db.$client.end();

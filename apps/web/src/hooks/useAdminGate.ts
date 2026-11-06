@@ -7,9 +7,7 @@ import { toastApiError } from "@/lib/toast";
 const STORAGE_KEY = "admin-unlocked";
 
 export function useAdminGate() {
-  const [unlocked, setUnlocked] = useState(
-    () => sessionStorage.getItem(STORAGE_KEY) === "true",
-  );
+  const [unlocked, setUnlocked] = useState(() => sessionStorage.getItem(STORAGE_KEY) === "true");
 
   const verifyPassword = useMutation({
     mutationFn: (input: { password: string }) =>

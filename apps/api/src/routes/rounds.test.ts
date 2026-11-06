@@ -395,7 +395,10 @@ describe("rounds routes", () => {
       const food = await seedRestaurant(db, { type: "food" });
       const drink = await seedRestaurant(db, { name: "Tra Da Corner", type: "drink" });
       const drinkItem = await seedMenuItem(db, { restaurantId: drink!.id, name: "Tra Da" });
-      const round = await seedRound(db, { foodRestaurantId: food!.id, drinkRestaurantId: drink!.id });
+      const round = await seedRound(db, {
+        foodRestaurantId: food!.id,
+        drinkRestaurantId: drink!.id,
+      });
 
       const res = await app.request(
         `/api/rounds/${round!.id}/menu-items`,
@@ -520,9 +523,18 @@ describe("rounds routes", () => {
       const drink = await seedRestaurant(db, { name: "Tra Da Corner", type: "drink" });
       const foodItem = await seedMenuItem(db, { restaurantId: food!.id, name: "Pho Bo" });
       const drinkItem = await seedMenuItem(db, { restaurantId: drink!.id, name: "Tra Da" });
-      const round = await seedRound(db, { foodRestaurantId: food!.id, drinkRestaurantId: drink!.id });
-      const curatedFood = await seedRoundMenuItem(db, { roundId: round!.id, menuItemId: foodItem!.id });
-      const curatedDrink = await seedRoundMenuItem(db, { roundId: round!.id, menuItemId: drinkItem!.id });
+      const round = await seedRound(db, {
+        foodRestaurantId: food!.id,
+        drinkRestaurantId: drink!.id,
+      });
+      const curatedFood = await seedRoundMenuItem(db, {
+        roundId: round!.id,
+        menuItemId: foodItem!.id,
+      });
+      const curatedDrink = await seedRoundMenuItem(db, {
+        roundId: round!.id,
+        menuItemId: drinkItem!.id,
+      });
       const employee = await seedEmployee(db);
       const submission = await seedSubmission(db, {
         roundId: round!.id,
@@ -556,9 +568,18 @@ describe("rounds routes", () => {
       const drink = await seedRestaurant(db, { name: "Tra Da Corner", type: "drink" });
       const foodItem = await seedMenuItem(db, { restaurantId: food!.id, name: "Pho Bo" });
       const drinkItem = await seedMenuItem(db, { restaurantId: drink!.id, name: "Tra Da" });
-      const round = await seedRound(db, { foodRestaurantId: food!.id, drinkRestaurantId: drink!.id });
-      const curatedFood = await seedRoundMenuItem(db, { roundId: round!.id, menuItemId: foodItem!.id });
-      const curatedDrink = await seedRoundMenuItem(db, { roundId: round!.id, menuItemId: drinkItem!.id });
+      const round = await seedRound(db, {
+        foodRestaurantId: food!.id,
+        drinkRestaurantId: drink!.id,
+      });
+      const curatedFood = await seedRoundMenuItem(db, {
+        roundId: round!.id,
+        menuItemId: foodItem!.id,
+      });
+      const curatedDrink = await seedRoundMenuItem(db, {
+        roundId: round!.id,
+        menuItemId: drinkItem!.id,
+      });
       const employee = await seedEmployee(db);
       const submission = await seedSubmission(db, {
         roundId: round!.id,
@@ -1924,7 +1945,12 @@ describe("rounds routes", () => {
       expect(res.status).toBe(200);
       const body = (await res.json()) as {
         drinkItems: Array<{ id: number; name: string }>;
-        drinkRestaurant: { id: number; name: string; menuUrl: string | null; menuImage: string | null };
+        drinkRestaurant: {
+          id: number;
+          name: string;
+          menuUrl: string | null;
+          menuImage: string | null;
+        };
       };
       expect(body.drinkItems).toHaveLength(1);
       expect(body.drinkItems[0]?.name).toBe("Tra Da");
@@ -2169,10 +2195,7 @@ describe("rounds routes", () => {
       const { round, foodRoundMenuItem } = await seedOpenFoodRound();
       const drink = await seedRestaurant(db, { name: "Tra Da Corner", type: "drink" });
       const drinkMenuItem = await seedMenuItem(db, { restaurantId: drink!.id, name: "Tra Da" });
-      await db
-        .update(rounds)
-        .set({ drinkRestaurantId: drink!.id })
-        .where(eq(rounds.id, round.id));
+      await db.update(rounds).set({ drinkRestaurantId: drink!.id }).where(eq(rounds.id, round.id));
       const drinkRoundMenuItem = await seedRoundMenuItem(db, {
         roundId: round.id,
         menuItemId: drinkMenuItem!.id,
@@ -2354,10 +2377,7 @@ describe("rounds routes", () => {
       });
       const drink = await seedRestaurant(db, { name: "Tra Da Corner", type: "drink" });
       const drinkMenuItem = await seedMenuItem(db, { restaurantId: drink!.id, name: "Tra Da" });
-      await db
-        .update(rounds)
-        .set({ drinkRestaurantId: drink!.id })
-        .where(eq(rounds.id, round.id));
+      await db.update(rounds).set({ drinkRestaurantId: drink!.id }).where(eq(rounds.id, round.id));
       const drinkRoundMenuItem = await seedRoundMenuItem(db, {
         roundId: round.id,
         menuItemId: drinkMenuItem!.id,

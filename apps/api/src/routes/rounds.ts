@@ -53,8 +53,14 @@ function parseOptionalRestaurantId(
 roundsRoute.post("/", async (c) => {
   const body = await c.req.json().catch(() => ({}));
   const label = typeof body.label === "string" ? body.label.trim() : "";
-  const food = parseOptionalRestaurantId(body.foodRestaurantId, ERROR_MESSAGES.foodRestaurantIdInvalid);
-  const drink = parseOptionalRestaurantId(body.drinkRestaurantId, ERROR_MESSAGES.drinkRestaurantIdInvalid);
+  const food = parseOptionalRestaurantId(
+    body.foodRestaurantId,
+    ERROR_MESSAGES.foodRestaurantIdInvalid,
+  );
+  const drink = parseOptionalRestaurantId(
+    body.drinkRestaurantId,
+    ERROR_MESSAGES.drinkRestaurantIdInvalid,
+  );
   const deadline =
     typeof body.deadline === "string" || typeof body.deadline === "number"
       ? new Date(body.deadline)
@@ -303,10 +309,7 @@ roundsRoute.post("/:id/menu-items", async (c) => {
       return c.json({ error: ERROR_MESSAGES.roundMenuItemAlreadyCurated }, 409);
     }
 
-    const [row] = await db
-      .insert(roundMenuItems)
-      .values({ roundId, menuItemId })
-      .returning();
+    const [row] = await db.insert(roundMenuItems).values({ roundId, menuItemId }).returning();
     return c.json(row, 201);
   } catch (e) {
     console.error(JSON.stringify({ message: "failed to add round menu item", error: String(e) }));
@@ -390,8 +393,14 @@ roundsRoute.patch("/:id", async (c) => {
   }
 
   const body = await c.req.json().catch(() => ({}));
-  const food = parseOptionalRestaurantId(body.foodRestaurantId, ERROR_MESSAGES.foodRestaurantIdInvalid);
-  const drink = parseOptionalRestaurantId(body.drinkRestaurantId, ERROR_MESSAGES.drinkRestaurantIdInvalid);
+  const food = parseOptionalRestaurantId(
+    body.foodRestaurantId,
+    ERROR_MESSAGES.foodRestaurantIdInvalid,
+  );
+  const drink = parseOptionalRestaurantId(
+    body.drinkRestaurantId,
+    ERROR_MESSAGES.drinkRestaurantIdInvalid,
+  );
   const deadline =
     typeof body.deadline === "string" || typeof body.deadline === "number"
       ? new Date(body.deadline)
@@ -460,15 +469,20 @@ roundsRoute.patch("/:id", async (c) => {
           .where(and(eq(roundMenuItems.roundId, id), eq(menuItems.restaurantId, restaurantId)));
 
       const purgeStaleItems = (restaurantId: number) =>
-        tx.delete(roundMenuItems).where(
-          and(
-            eq(roundMenuItems.roundId, id),
-            inArray(
-              roundMenuItems.menuItemId,
-              tx.select({ id: menuItems.id }).from(menuItems).where(eq(menuItems.restaurantId, restaurantId)),
+        tx
+          .delete(roundMenuItems)
+          .where(
+            and(
+              eq(roundMenuItems.roundId, id),
+              inArray(
+                roundMenuItems.menuItemId,
+                tx
+                  .select({ id: menuItems.id })
+                  .from(menuItems)
+                  .where(eq(menuItems.restaurantId, restaurantId)),
+              ),
             ),
-          ),
-        );
+          );
 
       // Runs before the purge's DELETE, keyed on the round-menu-item ids
       // about to be removed -- not on the FK's post-delete null state, which
@@ -622,16 +636,10 @@ roundsRoute.patch("/:id/status", async (c) => {
       }
     }
 
-    const [row] = await db
-      .update(rounds)
-      .set({ status })
-      .where(eq(rounds.id, roundId))
-      .returning();
+    const [row] = await db.update(rounds).set({ status }).where(eq(rounds.id, roundId)).returning();
     return c.json(row);
   } catch (e) {
-    console.error(
-      JSON.stringify({ message: "failed to update round status", error: String(e) }),
-    );
+    console.error(JSON.stringify({ message: "failed to update round status", error: String(e) }));
     return c.json({ error: ERROR_MESSAGES.internal }, 500);
   } finally {
     await db.$client.end();
@@ -779,7 +787,13 @@ roundsRoute.post("/:id/submissions", async (c) => {
     if (existing) {
       const [row] = await db
         .update(submissions)
-        .set({ foodRoundMenuItemId, foodNote, drinkRoundMenuItemId, drinkNote, updatedAt: new Date() })
+        .set({
+          foodRoundMenuItemId,
+          foodNote,
+          drinkRoundMenuItemId,
+          drinkNote,
+          updatedAt: new Date(),
+        })
         .where(eq(submissions.id, existing.id))
         .returning();
       return c.json(row);
@@ -845,7 +859,13 @@ roundsRoute.patch("/:id/submissions/:submissionId", async (c) => {
 
     const [row] = await db
       .update(submissions)
-      .set({ foodRoundMenuItemId, foodNote, drinkRoundMenuItemId, drinkNote, updatedAt: new Date() })
+      .set({
+        foodRoundMenuItemId,
+        foodNote,
+        drinkRoundMenuItemId,
+        drinkNote,
+        updatedAt: new Date(),
+      })
       .where(eq(submissions.id, submissionId))
       .returning();
     return c.json(row);

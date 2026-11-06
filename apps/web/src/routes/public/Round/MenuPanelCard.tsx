@@ -1,25 +1,11 @@
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Maximize2 } from "lucide-react";
 import { MenuImage, menuImageSrc } from "./MenuImage";
 import type { PublicRoundRestaurant } from "../usePublicRound";
 
-export function MenuPanelCard({
-  restaurant,
-}: {
-  restaurant: PublicRoundRestaurant;
-}) {
+export function MenuPanelCard({ restaurant }: { restaurant: PublicRoundRestaurant }) {
   return (
     <Card>
       <CardHeader>
@@ -41,9 +27,7 @@ export function MenuPanelCard({
               </Button>
             </DialogTrigger>
             <DialogContent className="w-auto max-w-none border-none bg-transparent p-0 shadow-none ring-0">
-              <DialogTitle className="sr-only">
-                {restaurant.name} menu
-              </DialogTitle>
+              <DialogTitle className="sr-only">{restaurant.name} menu</DialogTitle>
               <img
                 src={menuImageSrc(restaurant)}
                 alt={`${restaurant.name} menu`}

@@ -27,7 +27,10 @@ function parseSizePresetId(raw: unknown): number | null | undefined | "invalid" 
 }
 
 async function presetExists(db: ReturnType<typeof getDb>, id: number) {
-  const [preset] = await db.select({ id: sizePresets.id }).from(sizePresets).where(eq(sizePresets.id, id));
+  const [preset] = await db
+    .select({ id: sizePresets.id })
+    .from(sizePresets)
+    .where(eq(sizePresets.id, id));
   return !!preset;
 }
 
@@ -299,7 +302,10 @@ restaurantsRoute.get("/:id/menu-image", async (c) => {
     const object = await c.env.MENU_IMAGES.get(restaurant.menuImage);
     if (!object) {
       console.error(
-        JSON.stringify({ message: "menu image key set on row but missing from storage", restaurantId: id }),
+        JSON.stringify({
+          message: "menu image key set on row but missing from storage",
+          restaurantId: id,
+        }),
       );
       return c.json({ error: ERROR_MESSAGES.menuImageNotFound }, 404);
     }
@@ -335,7 +341,10 @@ restaurantsRoute.post("/:id/generate-menu", async (c) => {
     const object = await c.env.MENU_IMAGES.get(restaurant.menuImage);
     if (!object) {
       console.error(
-        JSON.stringify({ message: "menu image key set on row but missing from storage", restaurantId: id }),
+        JSON.stringify({
+          message: "menu image key set on row but missing from storage",
+          restaurantId: id,
+        }),
       );
       return c.json({ error: ERROR_MESSAGES.internal }, 500);
     }
@@ -360,14 +369,19 @@ restaurantsRoute.post("/:id/generate-menu", async (c) => {
       });
       modelResponse = (result as { response?: unknown }).response;
     } catch (e) {
-      console.error(JSON.stringify({ message: "menu generation model call failed", error: String(e) }));
+      console.error(
+        JSON.stringify({ message: "menu generation model call failed", error: String(e) }),
+      );
       return c.json({ error: ERROR_MESSAGES.internal }, 500);
     }
 
     const items = parseGeneratedItems(modelResponse);
     if (!items) {
       console.error(
-        JSON.stringify({ message: "menu generation model returned an unexpected shape", restaurantId: id }),
+        JSON.stringify({
+          message: "menu generation model returned an unexpected shape",
+          restaurantId: id,
+        }),
       );
       return c.json({ error: ERROR_MESSAGES.internal }, 500);
     }
