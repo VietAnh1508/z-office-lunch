@@ -24,7 +24,8 @@
     "db:down": "docker compose down",
     "tasks:status": "node scripts/task-status.mjs",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "prepare": "husky"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",
@@ -35,5 +36,8 @@
     "prettier": "^3.9.10",
     "typescript": "~6.0.3",
     "vitest": "^4.1.10"
+  },
+  "lint-staged": {
+    "*": "prettier --write --ignore-unknown"
   }
 }
