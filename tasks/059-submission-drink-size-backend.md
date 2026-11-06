@@ -1,7 +1,7 @@
 ---
 id: 059
 title: Submission drink size (backend): store, validate, clear, expose, reset impact
-status: approved
+status: in_review
 depends_on: [058]
 parallelizable_with: []
 epic: drink-size-presets
@@ -37,17 +37,22 @@ Submissions can carry a chosen drink size, validated against the picked item's s
 
 (Filled in by /implement-task.)
 
-- red commit: <sha> — `<test_command>` -> N failing
-- green commit: <sha> — `<test_command>` -> all passing
+- red commit: 11cda89 — `pnpm test` -> 15 failing (all in the new `submission-drink-size.test.ts`; the other 33 files passed)
+- green commit: 1352f7f — `pnpm -r typecheck && pnpm --filter web build && pnpm test` -> all passing (34 files, 524 tests)
+- `pnpm lint`: no findings in touched files (3 pre-existing web warnings only)
 
 ## Plan Deviations
 
 (Filled in by /implement-task, honestly, before requesting review — write "None." if genuinely nothing applies, don't skip this section silently. Only list genuine deviations — if a step was carried out as the Plan described, it doesn't belong here, even if it's worth doing again.)
 
-- Where did the actual implementation differ from the Plan above, and why?
-- Any wrong assumption, dead end, or approach abandoned partway through?
-- Anything the user had to correct or redirect mid-task?
+- The red commit also carries the schema column, migration `0009_graceful_baron_strucker.sql`, and the two new `ERROR_MESSAGES` entries. The tests seed `drinkSizeOptionId` directly and reference the messages, so they would not typecheck or run without them. This is more than "test/fixture files only".
+- Clear/count queries live in `apps/api/src/lib/menu-item-sizes.ts` (shared by restaurants.ts and menu-items.ts), not inline in `rounds.ts`/`restaurants.ts` as the Plan's file list implied.
+- `drinkSizeOptionId` sent without a drink item is silently dropped (the criteria say "kept only when a drink item is chosen"), so no error is returned for it.
 
 ## Review Notes
 
-(Output of the feature-dev:code-reviewer agent, appended by /implement-task.)
+feature-dev:code-reviewer: no issues at confidence >= 80.
+
+Checked and found fine: no empty `inArray`/`notInArray` calls; null picks excluded by `isNotNull`; preset change clears picks before the rebuild in the same transaction; closed rounds untouched (open + draft covered); size validated against the item's `menu_item_sizes` and dropped without a drink item; cleared in both drink-nulling paths; `size-reset-impact` returns 0 for the same preset and follows the try/catch/finally rule.
+
+Below threshold: `Number(body.drinkSizeOptionId)` accepts `true` (-> 1) and numeric strings. Harmless, since the availability check rejects anything that isn't a real size.
