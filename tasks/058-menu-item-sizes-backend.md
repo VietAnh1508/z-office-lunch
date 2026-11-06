@@ -1,7 +1,7 @@
 ---
 id: 058
 title: Per-item sizes: auto-fill for new items, edit endpoint, preset option sync
-status: approved
+status: in_review
 depends_on: [057]
 parallelizable_with: []
 epic: drink-size-presets
@@ -36,17 +36,20 @@ Keep each menu item's available sizes correct as items and presets change, and l
 
 (Filled in by /implement-task.)
 
-- red commit: <sha> — `<test_command>` -> N failing
-- green commit: <sha> — `<test_command>` -> all passing
+- red commit: 309b618 — `pnpm test` -> 11 failing (all expected: missing PUT route/sizes/sync)
+- green commit: 7d9b516 — `pnpm -r typecheck && pnpm --filter web build && pnpm test` -> all passing (33 files, 504 tests)
 
 ## Plan Deviations
 
 (Filled in by /implement-task, honestly, before requesting review — write "None." if genuinely nothing applies, don't skip this section silently. Only list genuine deviations — if a step was carried out as the Plan described, it doesn't belong here, even if it's worth doing again.)
 
-- Where did the actual implementation differ from the Plan above, and why?
-- Any wrong assumption, dead end, or approach abandoned partway through?
-- Anything the user had to correct or redirect mid-task?
+None.
 
 ## Review Notes
 
-(Output of the feature-dev:code-reviewer agent, appended by /implement-task.)
+No real bugs or convention violations at confidence >= 80. Minor points below the reporting bar:
+
+- Check-then-write race: PUT, POST and bulk POST read the preset outside the write transaction. A concurrent preset PATCH in between could cause an FK error (500) or a missing row. Unlikely in an internal tool.
+- `fillSizesForItems` duplicates the options select and rows insert in `rebuildMenuItemSizes`; the latter could call it. Style only.
+- A literal `null` JSON body makes `body.sizeOptionIds` throw before the try. Existing handlers share this gap.
+- Reviewer did not read the new test files.
