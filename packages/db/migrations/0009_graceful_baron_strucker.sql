@@ -1,0 +1,2 @@
+ALTER TABLE "submissions" ADD COLUMN "drink_size_option_id" integer;--> statement-breakpoint
+ALTER TABLE "submissions" ADD CONSTRAINT "submissions_drink_size_option_id_size_options_id_fk" FOREIGN KEY ("drink_size_option_id") REFERENCES "public"."size_options"("id") ON DELETE set null ON UPDATE no action;

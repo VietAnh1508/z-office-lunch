@@ -90,6 +90,9 @@ export const submissions = pgTable(
       onDelete: "set null",
     }),
     drinkNote: text("drink_note"),
+    drinkSizeOptionId: integer("drink_size_option_id").references(() => sizeOptions.id, {
+      onDelete: "set null",
+    }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
