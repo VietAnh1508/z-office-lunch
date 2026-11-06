@@ -37,12 +37,24 @@ One agreed code format for the whole repo, applied automatically so neither huma
 
 ## Implementation Log
 
-(Filled in when implemented.)
+Commits on branch `task/066-setup-prettier` (tdd: exempt, so no red/green pair):
+
+- `3695025` chore: add prettier config and scripts
+- `0fde40f` chore: format repo with prettier (formatting only; listed in `.git-blame-ignore-revs`)
+- `13d43a3` chore: format staged files on commit (husky + lint-staged + `prepare`, CLAUDE.md line)
+
+`pnpm format:check && pnpm -r typecheck && pnpm --filter web build && pnpm test` -> all passing (31 files, 489 tests). `pnpm lint` has only the existing react-refresh warnings. The pre-commit hook ran on the third commit and worked.
 
 ## Plan Deviations
 
-(Filled in when implemented.)
+- Ran as branch + PR (user chose this when asked) instead of direct commits on `main`, because `/implement-task` was invoked. No red commit since the task is `tdd: exempt`.
+- Added `tasks/` to `.prettierignore` (the Plan allowed this if noisy): reformatting touched about 35 task files and `scripts/task-status.mjs` parses their frontmatter.
+- First typecheck/build/test run failed with missing `vite` modules because `node_modules` was stale after `pnpm add`. A plain `pnpm install` fixed it; not a code problem.
+- `.git-blame-ignore-revs` only helps local `git blame` after `git config blame.ignoreRevsFile .git-blame-ignore-revs` (GitHub reads it automatically). Not documented.
 
 ## Review Notes
 
-(Filled in when implemented.)
+`feature-dev:code-reviewer`: no blocking issues. Minor:
+1. Local blame ignores the revs file until each clone runs `git config blame.ignoreRevsFile .git-blame-ignore-revs`.
+2. If a build sets `NODE_ENV=production` at install time, devDependencies are skipped and `prepare` fails with "husky: command not found". Fix if it happens: `"prepare": "husky || true"` or `HUSKY=0`.
+3. The merge must be a merge commit so `0fde40f` keeps its sha (already required by CLAUDE.md).
