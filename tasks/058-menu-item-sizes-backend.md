@@ -2,7 +2,7 @@
 id: 058
 title: Per-item sizes: auto-fill for new items, edit endpoint, preset option sync
 status: approved
-depends_on: ["057"]
+depends_on: [057]
 parallelizable_with: []
 epic: drink-size-presets
 tdd: required

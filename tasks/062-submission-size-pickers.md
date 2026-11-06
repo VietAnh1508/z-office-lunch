@@ -2,7 +2,7 @@
 id: 062
 title: Size picker on the public order form and admin submission edit dialog
 status: approved
-depends_on: ["061"]
+depends_on: [061]
 parallelizable_with: []
 epic: drink-size-presets
 tdd: required

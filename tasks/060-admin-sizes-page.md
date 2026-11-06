@@ -2,7 +2,7 @@
 id: 060
 title: Admin "Sizes" page to manage size presets
 status: approved
-depends_on: ["056", "059"]
+depends_on: [056, 059]
 parallelizable_with: []
 epic: drink-size-presets
 tdd: required

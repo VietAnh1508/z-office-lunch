@@ -2,7 +2,7 @@
 id: 057
 title: Assign a size preset to a drink restaurant (backend) with item size auto-fill
 status: approved
-depends_on: ["056"]
+depends_on: [056]
 parallelizable_with: []
 epic: drink-size-presets
 tdd: required

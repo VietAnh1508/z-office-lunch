@@ -2,7 +2,7 @@
 id: 064
 title: "Same as last time" one-tap reorder on the public round page
 status: proposed
-depends_on: ["062"]
+depends_on: [062]
 parallelizable_with: []
 epic:
 tdd: required

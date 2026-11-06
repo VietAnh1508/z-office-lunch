@@ -2,7 +2,7 @@
 id: 063
 title: Require drink size when the item has sizes; show Size in table and CSV
 status: approved
-depends_on: ["062"]
+depends_on: [062]
 parallelizable_with: []
 epic: drink-size-presets
 tdd: required
