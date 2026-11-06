@@ -1,4 +1,4 @@
-import { menuItemSizes, menuItems, sizeOptions } from "db";
+import { menuItemSizes, menuItems, restaurants, sizeOptions } from "db";
 import { eq, inArray } from "drizzle-orm";
 import type { getDb } from "./get-db";
 
@@ -30,5 +30,36 @@ export async function rebuildMenuItemSizes(tx: Tx, restaurantId: number, presetI
   );
   if (rows.length > 0) {
     await tx.insert(menuItemSizes).values(rows);
+  }
+}
+
+// Ticks every option of a preset for the given items (new items start with all sizes).
+export async function fillSizesForItems(tx: Tx, itemIds: number[], presetId: number | null) {
+  if (presetId === null || itemIds.length === 0) {
+    return;
+  }
+  const options = await tx
+    .select({ id: sizeOptions.id })
+    .from(sizeOptions)
+    .where(eq(sizeOptions.presetId, presetId));
+  const rows = itemIds.flatMap((menuItemId) =>
+    options.map((o) => ({ menuItemId, sizeOptionId: o.id })),
+  );
+  if (rows.length > 0) {
+    await tx.insert(menuItemSizes).values(rows);
+  }
+}
+
+// Ticks one newly added preset option for every item of every restaurant using the preset.
+export async function addOptionToRestaurants(tx: Tx, presetId: number, optionId: number) {
+  const items = await tx
+    .select({ id: menuItems.id })
+    .from(menuItems)
+    .innerJoin(restaurants, eq(restaurants.id, menuItems.restaurantId))
+    .where(eq(restaurants.sizePresetId, presetId));
+  if (items.length > 0) {
+    await tx
+      .insert(menuItemSizes)
+      .values(items.map((i) => ({ menuItemId: i.id, sizeOptionId: optionId })));
   }
 }

@@ -4,6 +4,7 @@ import { Hono } from "hono";
 import type { Bindings } from "../bindings";
 import { ERROR_MESSAGES } from "../lib/errors";
 import { getDb } from "../lib/get-db";
+import { addOptionToRestaurants } from "../lib/menu-item-sizes";
 import { fail, ok, type Result } from "../lib/result";
 
 type Db = ReturnType<typeof getDb>;
@@ -176,7 +177,11 @@ sizePresetsRoute.patch("/:id", async (c) => {
       }
       for (const [sortOrder, o] of parsed.options.entries()) {
         if (o.id === undefined) {
-          await tx.insert(sizeOptions).values({ presetId: id, label: o.label, sortOrder });
+          const [added] = await tx
+            .insert(sizeOptions)
+            .values({ presetId: id, label: o.label, sortOrder })
+            .returning({ id: sizeOptions.id });
+          await addOptionToRestaurants(tx, id, added!.id);
         } else {
           await tx
             .update(sizeOptions)
