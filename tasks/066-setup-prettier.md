@@ -1,7 +1,7 @@
 ---
 id: 066
 title: Set up Prettier (printWidth 100), auto-applied on commit
-status: approved
+status: done
 depends_on: []
 parallelizable_with: []
 epic:
