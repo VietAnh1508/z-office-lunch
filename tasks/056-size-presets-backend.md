@@ -1,7 +1,7 @@
 ---
 id: 056
 title: Size presets backend (presets + options tables and CRUD API)
-status: approved
+status: in_review
 depends_on: []
 parallelizable_with: []
 epic: drink-size-presets
@@ -38,19 +38,21 @@ Add named size presets (e.g. "Starbucks": Tall / Grande / Venti) with an ordered
 
 ## Implementation Log
 
-(Filled in by /implement-task.)
-
-- red commit: <sha> — `<test_command>` -> N failing
-- green commit: <sha> — `<test_command>` -> all passing
+- red commit: 3515042 — `pnpm test` -> 20 failing (missing schema exports, seed helper, route)
+- green commit: 8cba7a5 — `pnpm -r typecheck && pnpm --filter web build && pnpm test` -> all passing (29 files, 466 tests)
 
 ## Plan Deviations
 
-(Filled in by /implement-task, honestly, before requesting review — write "None." if genuinely nothing applies, don't skip this section silently. Only list genuine deviations — if a step was carried out as the Plan described, it doesn't belong here, even if it's worth doing again.)
-
-- Where did the actual implementation differ from the Plan above, and why?
-- Any wrong assumption, dead end, or approach abandoned partway through?
-- Anything the user had to correct or redirect mid-task?
+- PATCH label updates go through a temporary label (`__tmp__<id>`) first. The Plan didn't mention it, but the `(presetId, label)` unique constraint isn't deferrable, so swapping or renaming labels in place would fail mid-update.
+- The 409 `sizePresetNameTaken` is a pre-check query, not a catch on the DB unique violation (see Review Notes — a concurrent duplicate still returns 500).
 
 ## Review Notes
 
-(Output of the feature-dev:code-reviewer agent, appended by /implement-task.)
+Reviewer (feature-dev:code-reviewer), verbatim summary:
+
+- **Important (~80% confidence): name uniqueness is only pre-checked** (size-presets.ts POST/PATCH). Two concurrent requests with the same name can both pass the check; the loser hits the Postgres unique violation (23505) inside the transaction and gets `500 internal` instead of `409 sizePresetNameTaken`. Suggested fix: also detect 23505 on the name constraint in the catch block.
+- Minor: PATCH reads `existing` outside the transaction, so a concurrent PATCH could silently drop an option or hit the label unique constraint (500). Unlikely for an internal tool; fix by loading inside the transaction / `for update`.
+- Minor: a path id above int4 range (e.g. `/api/size-presets/99999999999`) passes `Number.isInteger` and gives 500 instead of 404 on PATCH/DELETE.
+- Body-is-`null` crash outside try is a pre-existing pattern in every route.
+
+Not fixed in this task (concurrency edge cases on an internal admin tool); left for the reviewer to decide.
