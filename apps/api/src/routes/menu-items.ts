@@ -4,24 +4,29 @@ import { Hono } from "hono";
 import type { Bindings } from "../bindings";
 import { ERROR_MESSAGES } from "../lib/errors";
 import { getDb } from "../lib/get-db";
+import { fail, ok, type Result } from "../lib/result";
 
 function parseName(raw: unknown): string {
   return typeof raw === "string" ? raw.trim() : "";
 }
 
-function parsePrice(raw: unknown): { ok: true; price: string | null } | { ok: false } {
+function parsePrice(raw: unknown): Result<{ price: string | null }> {
   if (raw === undefined || raw === null || raw === "") {
-    return { ok: true, price: null };
+    return ok({ price: null });
   }
   if (typeof raw === "number") {
-    return Number.isFinite(raw) && raw >= 0 ? { ok: true, price: String(raw) } : { ok: false };
+    return Number.isFinite(raw) && raw >= 0
+      ? ok({ price: String(raw) })
+      : fail(ERROR_MESSAGES.priceInvalid);
   }
   if (typeof raw !== "string") {
-    return { ok: false };
+    return fail(ERROR_MESSAGES.priceInvalid);
   }
   const trimmed = raw.trim();
   const num = Number(trimmed);
-  return Number.isFinite(num) && num >= 0 ? { ok: true, price: trimmed } : { ok: false };
+  return Number.isFinite(num) && num >= 0
+    ? ok({ price: trimmed })
+    : fail(ERROR_MESSAGES.priceInvalid);
 }
 
 export const menuItemsRoute = new Hono<{ Bindings: Bindings }>();
@@ -36,7 +41,7 @@ menuItemsRoute.post("/:id/menu-items", async (c) => {
     return c.json({ error: ERROR_MESSAGES.nameRequired }, 400);
   }
   if (!parsedPrice.ok) {
-    return c.json({ error: ERROR_MESSAGES.priceInvalid }, 400);
+    return c.json({ error: parsedPrice.error }, parsedPrice.status);
   }
   if (!Number.isInteger(restaurantId)) {
     return c.json({ error: ERROR_MESSAGES.restaurantNotFound }, 404);
@@ -136,7 +141,7 @@ menuItemsRoute.patch("/:id/menu-items/:itemId/details", async (c) => {
     return c.json({ error: ERROR_MESSAGES.nameRequired }, 400);
   }
   if (!parsedPrice.ok) {
-    return c.json({ error: ERROR_MESSAGES.priceInvalid }, 400);
+    return c.json({ error: parsedPrice.error }, parsedPrice.status);
   }
 
   const db = getDb(c);
@@ -182,7 +187,7 @@ menuItemsRoute.post("/:id/menu-items/bulk", async (c) => {
     }
     const parsedPrice = parsePrice(item?.price);
     if (!parsedPrice.ok) {
-      return c.json({ error: ERROR_MESSAGES.priceInvalid }, 400);
+      return c.json({ error: parsedPrice.error }, parsedPrice.status);
     }
     parsedItems.push({ name, price: parsedPrice.price });
   }

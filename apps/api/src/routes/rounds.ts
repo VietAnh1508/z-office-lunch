@@ -5,6 +5,7 @@ import { Hono } from "hono";
 import type { Bindings } from "../bindings";
 import { ERROR_MESSAGES } from "../lib/errors";
 import { getDb } from "../lib/get-db";
+import { fail, ok, type Result } from "../lib/result";
 
 export const roundsRoute = new Hono<{ Bindings: Bindings }>();
 
@@ -38,19 +39,22 @@ async function insertActiveMenuItems(tx: Tx, roundId: number, restaurantId: numb
 
 // Shared by POST and PATCH: a missing/null/"" value means "none", anything
 // else must be an integer id. Used for both restaurant sides.
-function parseOptionalRestaurantId(value: unknown): { ok: true; id: number | null } | { ok: false } {
+function parseOptionalRestaurantId(
+  value: unknown,
+  invalidMessage: string,
+): Result<{ id: number | null }> {
   if (value === undefined || value === null || value === "") {
-    return { ok: true, id: null };
+    return ok({ id: null });
   }
   const parsed = Number(value);
-  return Number.isInteger(parsed) ? { ok: true, id: parsed } : { ok: false };
+  return Number.isInteger(parsed) ? ok({ id: parsed }) : fail(invalidMessage);
 }
 
 roundsRoute.post("/", async (c) => {
   const body = await c.req.json().catch(() => ({}));
   const label = typeof body.label === "string" ? body.label.trim() : "";
-  const food = parseOptionalRestaurantId(body.foodRestaurantId);
-  const drink = parseOptionalRestaurantId(body.drinkRestaurantId);
+  const food = parseOptionalRestaurantId(body.foodRestaurantId, ERROR_MESSAGES.foodRestaurantIdInvalid);
+  const drink = parseOptionalRestaurantId(body.drinkRestaurantId, ERROR_MESSAGES.drinkRestaurantIdInvalid);
   const deadline =
     typeof body.deadline === "string" || typeof body.deadline === "number"
       ? new Date(body.deadline)
@@ -60,13 +64,13 @@ roundsRoute.post("/", async (c) => {
     return c.json({ error: ERROR_MESSAGES.labelRequired }, 400);
   }
   if (!food.ok) {
-    return c.json({ error: ERROR_MESSAGES.foodRestaurantIdInvalid }, 400);
+    return c.json({ error: food.error }, food.status);
   }
   if (!deadline || Number.isNaN(deadline.getTime())) {
     return c.json({ error: ERROR_MESSAGES.deadlineInvalid }, 400);
   }
   if (!drink.ok) {
-    return c.json({ error: ERROR_MESSAGES.drinkRestaurantIdInvalid }, 400);
+    return c.json({ error: drink.error }, drink.status);
   }
   const foodRestaurantId = food.id;
   const drinkRestaurantId = drink.id;
@@ -386,21 +390,21 @@ roundsRoute.patch("/:id", async (c) => {
   }
 
   const body = await c.req.json().catch(() => ({}));
-  const food = parseOptionalRestaurantId(body.foodRestaurantId);
-  const drink = parseOptionalRestaurantId(body.drinkRestaurantId);
+  const food = parseOptionalRestaurantId(body.foodRestaurantId, ERROR_MESSAGES.foodRestaurantIdInvalid);
+  const drink = parseOptionalRestaurantId(body.drinkRestaurantId, ERROR_MESSAGES.drinkRestaurantIdInvalid);
   const deadline =
     typeof body.deadline === "string" || typeof body.deadline === "number"
       ? new Date(body.deadline)
       : null;
 
   if (!food.ok) {
-    return c.json({ error: ERROR_MESSAGES.foodRestaurantIdInvalid }, 400);
+    return c.json({ error: food.error }, food.status);
   }
   if (!deadline || Number.isNaN(deadline.getTime())) {
     return c.json({ error: ERROR_MESSAGES.deadlineInvalid }, 400);
   }
   if (!drink.ok) {
-    return c.json({ error: ERROR_MESSAGES.drinkRestaurantIdInvalid }, 400);
+    return c.json({ error: drink.error }, drink.status);
   }
   const foodRestaurantId = food.id;
   const drinkRestaurantId = drink.id;
@@ -634,15 +638,15 @@ roundsRoute.patch("/:id/status", async (c) => {
   }
 });
 
-type SubmissionFieldsResult =
-  | {
-      ok: true;
-      foodRoundMenuItemId: number | null;
-      foodNote: string | null;
-      drinkRoundMenuItemId: number | null;
-      drinkNote: string | null;
-    }
-  | { ok: false; error: string; status: 400 | 404 };
+type SubmissionFieldsResult = Result<
+  {
+    foodRoundMenuItemId: number | null;
+    foodNote: string | null;
+    drinkRoundMenuItemId: number | null;
+    drinkNote: string | null;
+  },
+  400 | 404
+>;
 
 // Shared by POST (self-service submit) and PATCH (admin edit): parses and
 // validates foodRoundMenuItemId/drinkRoundMenuItemId/notes against the given
@@ -659,13 +663,13 @@ async function parseSubmissionFields(
     body.foodRoundMenuItemId !== null &&
     body.foodRoundMenuItemId !== "";
   if (!hasFood && foodGiven) {
-    return { ok: false, error: ERROR_MESSAGES.submissionNoFoodRestaurant, status: 400 };
+    return fail(ERROR_MESSAGES.submissionNoFoodRestaurant);
   }
   let foodRoundMenuItemId: number | null = null;
   if (hasFood) {
     const parsed = Number(body.foodRoundMenuItemId);
     if (!Number.isInteger(parsed)) {
-      return { ok: false, error: ERROR_MESSAGES.foodRoundMenuItemIdRequired, status: 400 };
+      return fail(ERROR_MESSAGES.foodRoundMenuItemIdRequired);
     }
     foodRoundMenuItemId = parsed;
   }
@@ -682,13 +686,13 @@ async function parseSubmissionFields(
   ) {
     const parsed = Number(body.drinkRoundMenuItemId);
     if (!Number.isInteger(parsed)) {
-      return { ok: false, error: ERROR_MESSAGES.drinkRoundMenuItemIdInvalid, status: 400 };
+      return fail(ERROR_MESSAGES.drinkRoundMenuItemIdInvalid);
     }
     drinkRoundMenuItemId = parsed;
   }
   // A drink-only round has nothing else to order, so the drink pick is required.
   if (!hasFood && drinkRoundMenuItemId === null) {
-    return { ok: false, error: ERROR_MESSAGES.drinkRoundMenuItemIdRequired, status: 400 };
+    return fail(ERROR_MESSAGES.drinkRoundMenuItemIdRequired);
   }
   const drinkNote =
     drinkRoundMenuItemId !== null && typeof body.drinkNote === "string" && body.drinkNote.trim()
@@ -705,27 +709,27 @@ async function parseSubmissionFields(
   if (foodRoundMenuItemId !== null) {
     const [foodItem] = await selectRoundMenuItem(foodRoundMenuItemId);
     if (!foodItem) {
-      return { ok: false, error: ERROR_MESSAGES.roundMenuItemNotFound, status: 404 };
+      return fail(ERROR_MESSAGES.roundMenuItemNotFound, 404);
     }
     if (foodItem.restaurantId !== round.foodRestaurantId) {
-      return { ok: false, error: ERROR_MESSAGES.foodRoundMenuItemInvalid, status: 400 };
+      return fail(ERROR_MESSAGES.foodRoundMenuItemInvalid);
     }
   }
 
   if (drinkRoundMenuItemId !== null) {
     if (round.drinkRestaurantId === null) {
-      return { ok: false, error: ERROR_MESSAGES.submissionNoDrinkRestaurant, status: 400 };
+      return fail(ERROR_MESSAGES.submissionNoDrinkRestaurant);
     }
     const [drinkItem] = await selectRoundMenuItem(drinkRoundMenuItemId);
     if (!drinkItem) {
-      return { ok: false, error: ERROR_MESSAGES.roundMenuItemNotFound, status: 404 };
+      return fail(ERROR_MESSAGES.roundMenuItemNotFound, 404);
     }
     if (drinkItem.restaurantId !== round.drinkRestaurantId) {
-      return { ok: false, error: ERROR_MESSAGES.drinkRoundMenuItemInvalid, status: 400 };
+      return fail(ERROR_MESSAGES.drinkRoundMenuItemInvalid);
     }
   }
 
-  return { ok: true, foodRoundMenuItemId, foodNote, drinkRoundMenuItemId, drinkNote };
+  return ok({ foodRoundMenuItemId, foodNote, drinkRoundMenuItemId, drinkNote });
 }
 
 roundsRoute.post("/:id/submissions", async (c) => {
