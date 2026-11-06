@@ -22,12 +22,17 @@
     "db:migrate": "pnpm --filter db migrate",
     "db:up": "docker compose up -d",
     "db:down": "docker compose down",
-    "tasks:status": "node scripts/task-status.mjs"
+    "tasks:status": "node scripts/task-status.mjs",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",
     "@types/node": "^24.13.3",
     "concurrently": "^10.0.4",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.6.0",
+    "prettier": "^3.9.10",
     "typescript": "~6.0.3",
     "vitest": "^4.1.10"
   }
