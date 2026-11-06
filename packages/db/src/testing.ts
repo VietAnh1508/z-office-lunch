@@ -35,7 +35,7 @@ export async function ensureTestDatabase() {
 
 export async function truncateAll(db: Db) {
   await db.execute(
-    sql`TRUNCATE TABLE submissions, round_menu_items, rounds, employees, menu_items, restaurants, size_options, size_presets RESTART IDENTITY CASCADE`,
+    sql`TRUNCATE TABLE submissions, round_menu_items, rounds, employees, menu_items, restaurants, menu_item_sizes, size_options, size_presets RESTART IDENTITY CASCADE`,
   );
 }
 
@@ -131,4 +131,12 @@ export async function seedSizePreset(
     )
     .returning();
   return { preset: preset!, options };
+}
+
+export async function seedMenuItemSize(
+  db: Db,
+  values: typeof schema.menuItemSizes.$inferInsert,
+) {
+  const [row] = await db.insert(schema.menuItemSizes).values(values).returning();
+  return row;
 }

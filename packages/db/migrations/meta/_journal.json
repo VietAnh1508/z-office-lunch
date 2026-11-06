@@ -57,6 +57,13 @@
       "when": 1793954716045,
       "tag": "0007_abandoned_doctor_spectrum",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1793958171944,
+      "tag": "0008_busy_paibok",
+      "breakpoints": true
     }
   ]
 }
