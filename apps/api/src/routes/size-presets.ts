@@ -4,14 +4,13 @@ import { Hono } from "hono";
 import type { Bindings } from "../bindings";
 import { ERROR_MESSAGES } from "../lib/errors";
 import { getDb } from "../lib/get-db";
+import { fail, ok, type Result } from "../lib/result";
 
 type Db = ReturnType<typeof getDb>;
 
 type OptionInput = { id?: number; label: string };
 
-type ParsedPreset =
-  | { ok: true; name: string; options: OptionInput[] }
-  | { ok: false; status: 400; error: string };
+type ParsedPreset = Result<{ name: string; options: OptionInput[] }>;
 
 function parseName(raw: unknown): string {
   return typeof raw === "string" ? raw.trim() : "";
@@ -25,27 +24,27 @@ function parseLabel(raw: unknown): string {
 function validatePreset(rawName: unknown, entries: unknown): ParsedPreset {
   const name = parseName(rawName);
   if (!name) {
-    return { ok: false, status: 400, error: ERROR_MESSAGES.nameRequired };
+    return fail(ERROR_MESSAGES.nameRequired);
   }
   if (!Array.isArray(entries) || entries.length === 0) {
-    return { ok: false, status: 400, error: ERROR_MESSAGES.sizeOptionsRequired };
+    return fail(ERROR_MESSAGES.sizeOptionsRequired);
   }
   const options: OptionInput[] = [];
   for (const entry of entries) {
     const label = parseLabel(entry?.label);
     if (!label) {
-      return { ok: false, status: 400, error: ERROR_MESSAGES.sizeOptionsRequired };
+      return fail(ERROR_MESSAGES.sizeOptionsRequired);
     }
     const id = entry.id;
     if (id !== undefined && id !== null && !Number.isInteger(id)) {
-      return { ok: false, status: 400, error: ERROR_MESSAGES.sizeOptionInvalid };
+      return fail(ERROR_MESSAGES.sizeOptionInvalid);
     }
     options.push({ id: id ?? undefined, label });
   }
   if (new Set(options.map((o) => o.label)).size !== options.length) {
-    return { ok: false, status: 400, error: ERROR_MESSAGES.sizeOptionsDuplicate };
+    return fail(ERROR_MESSAGES.sizeOptionsDuplicate);
   }
-  return { ok: true, name, options };
+  return ok({ name, options });
 }
 
 async function loadPreset(db: Db, id: number) {

@@ -1,7 +1,7 @@
 ---
 id: 065
 title: Centralize the parse/validation result type used across API routes
-status: approved
+status: in_review
 depends_on: [056]
 parallelizable_with: []
 epic:
@@ -37,17 +37,21 @@ The `{ ok: true, ... } | { ok: false, error, status }` result shape is hand-writ
 
 (Filled in by /implement-task.)
 
-- red commit: <sha> — `<test_command>` -> N failing
-- green commit: <sha> — `<test_command>` -> all passing
+- red commit: 7aa0bd1 — `pnpm -r typecheck && pnpm --filter web build && pnpm test` -> 1 failing (result.test.ts: missing `./result` module)
+- green commit: 0032d7e — `pnpm -r typecheck && pnpm --filter web build && pnpm test` -> all passing (30 files, 471 tests)
 
 ## Plan Deviations
 
 (Filled in by /implement-task, honestly, before requesting review — write "None." if genuinely nothing applies, don't skip this section silently. Only list genuine deviations — if a step was carried out as the Plan described, it doesn't belong here, even if it's worth doing again.)
 
-- Where did the actual implementation differ from the Plan above, and why?
-- Any wrong assumption, dead end, or approach abandoned partway through?
-- Anything the user had to correct or redirect mid-task?
+- Bare-`{ ok: false }` parsers: chose to give them their messages rather than make `error`/`status` optional. `parsePrice` fails with `ERROR_MESSAGES.priceInvalid`; `parseOptionalRestaurantId` now takes the invalid-message as a second argument (food vs drink differ). Callers reply with `result.error` / `result.status`; messages and status codes unchanged.
+- `admin.ts` `/verify-password` `{ ok: true }` body and `useAdminGate`'s `api.post<{ ok: true }>` left as is: it's a plain success ack, not a parse result, and the wire body is unchanged.
+- `apps/web/src/lib/api.ts` inline `{ error?: string }` left as is: web has no import path to the api package (only `@/` aliases), and adding one just for a one-field type isn't worth the coupling.
 
 ## Review Notes
 
-(Output of the feature-dev:code-reviewer agent, appended by /implement-task.)
+(Output of the feature-dev:code-reviewer agent, appended by /implement-task. Two independent passes were run; the first prompt was sent without the diff pasted, so it was re-run with the diff.)
+
+**Pass 1:** No high-confidence issues. Behaviour unchanged (same messages, statuses, wire bodies; check order preserved); types sound (discriminated union narrows, `fail(msg, 404)` infers literal 404). Minor, below threshold: `ok()` spreads the payload after `ok: true`, so a payload with its own `ok` key would override the flag at runtime; no caller does this. Putting `ok: true` after the spread would close it.
+
+**Pass 2:** No issues at confidence 80+. Same behaviour/type conclusions. Nitpicks: same `ok()` spread-order point; two `parseOptionalRestaurantId` call lines in `rounds.ts` are ~103 chars (no formatter config enforces line length).
