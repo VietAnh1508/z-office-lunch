@@ -1,7 +1,7 @@
 ---
 id: 057
 title: Assign a size preset to a drink restaurant (backend) with item size auto-fill
-status: approved
+status: in_review
 depends_on: [056]
 parallelizable_with: []
 epic: drink-size-presets
@@ -38,17 +38,21 @@ A drink restaurant can point at a size preset. Assigning, changing or removing i
 
 (Filled in by /implement-task.)
 
-- red commit: <sha> — `<test_command>` -> N failing
-- green commit: <sha> — `<test_command>` -> all passing
+- red commit: 4b3ba7b — `pnpm test -- apps/api/src/routes/restaurants-size-preset.test.ts` -> 12 failing (6 new tests passed already, e.g. omitted-id-unchanged)
+- green commit: 27bc89b — `pnpm -r typecheck && pnpm --filter web build && pnpm test` -> all passing (489 tests, 31 files); `pnpm lint` clean for touched files
 
 ## Plan Deviations
 
-(Filled in by /implement-task, honestly, before requesting review — write "None." if genuinely nothing applies, don't skip this section silently. Only list genuine deviations — if a step was carried out as the Plan described, it doesn't belong here, even if it's worth doing again.)
-
-- Where did the actual implementation differ from the Plan above, and why?
-- Any wrong assumption, dead end, or approach abandoned partway through?
-- Anything the user had to correct or redirect mid-task?
+- Schema, migration `0008_busy_paibok.sql` and `db/testing.ts` helpers went into the red commit (not just test files), so the tests fail on behavior instead of a missing table/column.
+- Moved `sizePresets`/`sizeOptions` above `restaurants` in `schema.ts` so the new FK can reference `sizePresets`.
+- Mistake caught mid-task: I ran prettier on `restaurants.ts` (repo has no prettier config), which reformatted the whole file. Redid the edits without it and amended the unpushed green commit.
+- Added a small `presetExists` helper in `restaurants.ts`, not in the Plan.
 
 ## Review Notes
 
 (Output of the feature-dev:code-reviewer agent, appended by /implement-task.)
+
+feature-dev:code-reviewer: no issues at confidence >= 80. Compliant with api-error-handling rules; PATCH omit/null semantics and transaction use correct.
+Below the reporting bar (optional, not fixed):
+- Race: a preset deleted between `presetExists` and the update hits the FK and returns 500 instead of 404 (tiny window).
+- `Number.isInteger` accepts negatives and values like 1e21; these fail at the Postgres int cast and return 500 instead of 400/404.

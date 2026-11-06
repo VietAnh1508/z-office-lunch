@@ -1,5 +1,5 @@
 import { and, asc, eq, inArray, ne } from "drizzle-orm";
-import { sizeOptions, sizePresets } from "db";
+import { restaurants, sizeOptions, sizePresets } from "db";
 import { Hono } from "hono";
 import type { Bindings } from "../bindings";
 import { ERROR_MESSAGES } from "../lib/errors";
@@ -202,6 +202,14 @@ sizePresetsRoute.delete("/:id", async (c) => {
 
   const db = getDb(c);
   try {
+    const [inUse] = await db
+      .select({ id: restaurants.id })
+      .from(restaurants)
+      .where(eq(restaurants.sizePresetId, id))
+      .limit(1);
+    if (inUse) {
+      return c.json({ error: ERROR_MESSAGES.sizePresetInUse }, 409);
+    }
     const [row] = await db
       .delete(sizePresets)
       .where(eq(sizePresets.id, id))

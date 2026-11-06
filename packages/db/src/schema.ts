@@ -13,6 +13,11 @@ import {
 export const restaurantType = pgEnum("restaurant_type", ["food", "drink"]);
 export const roundStatus = pgEnum("round_status", ["draft", "open", "closed"]);
 
+export const sizePresets = pgTable("size_presets", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull().unique(),
+});
+
 export const restaurants = pgTable("restaurants", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
@@ -21,6 +26,9 @@ export const restaurants = pgTable("restaurants", {
   note: text("note"),
   menuUrl: text("menu_url"),
   menuImage: text("menu_image"),
+  sizePresetId: integer("size_preset_id").references(() => sizePresets.id, {
+    onDelete: "set null",
+  }),
 });
 
 export const menuItems = pgTable("menu_items", {
@@ -90,11 +98,6 @@ export const submissions = pgTable(
   (table) => [unique().on(table.roundId, table.employeeId)],
 );
 
-export const sizePresets = pgTable("size_presets", {
-  id: serial("id").primaryKey(),
-  name: text("name").notNull().unique(),
-});
-
 export const sizeOptions = pgTable(
   "size_options",
   {
@@ -106,4 +109,18 @@ export const sizeOptions = pgTable(
     sortOrder: integer("sort_order").notNull(),
   },
   (table) => [unique().on(table.presetId, table.label)],
+);
+
+export const menuItemSizes = pgTable(
+  "menu_item_sizes",
+  {
+    id: serial("id").primaryKey(),
+    menuItemId: integer("menu_item_id")
+      .notNull()
+      .references(() => menuItems.id, { onDelete: "cascade" }),
+    sizeOptionId: integer("size_option_id")
+      .notNull()
+      .references(() => sizeOptions.id, { onDelete: "cascade" }),
+  },
+  (table) => [unique().on(table.menuItemId, table.sizeOptionId)],
 );
