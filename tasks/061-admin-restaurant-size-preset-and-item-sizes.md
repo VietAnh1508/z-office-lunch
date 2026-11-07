@@ -1,7 +1,7 @@
 ---
 id: 061
 title: Admin UI: assign preset to a restaurant and tick sizes per menu item
-status: approved
+status: in_review
 depends_on: [059, 060]
 parallelizable_with: []
 epic: drink-size-presets
@@ -33,19 +33,23 @@ On a drink restaurant, admin picks a size preset (with a warning before changing
 
 ## Implementation Log
 
-(Filled in by /implement-task.)
-
-- red commit: <sha> — `<test_command>` -> N failing
-- green commit: <sha> — `<test_command>` -> all passing
+- red commit: abcc18f — `pnpm test -- Restaurants/RestaurantDetail` -> 7 failing
+- green commit: 7e9d8e5 — size preset select (create + details), impact dialog, per-item size checkboxes, `api.put`, cache invalidation; `pnpm -r typecheck && pnpm --filter web build && pnpm test` -> all passing (547 tests)
+- e2e commit: 5d858da — `admin-restaurants.spec.ts` and `admin-restaurant-detail.spec.ts` updated; 5 e2e tests pass
 
 ## Plan Deviations
 
-(Filled in by /implement-task, honestly, before requesting review — write "None." if genuinely nothing applies, don't skip this section silently. Only list genuine deviations — if a step was carried out as the Plan described, it doesn't belong here, even if it's worth doing again.)
-
-- Where did the actual implementation differ from the Plan above, and why?
-- Any wrong assumption, dead end, or approach abandoned partway through?
-- Anything the user had to correct or redirect mid-task?
+- Added `api.put` to `apps/web/src/lib/api.ts` (only get/post/patch existed) and a `publicRoundKeys.all` key in `usePublicRound.ts`; neither was listed in the Plan's files.
+- Extracted a shared `SizePresetSelect.tsx` used by both forms instead of duplicating the select.
+- `useSizePresets` got an `enabled` option so the detail page doesn't fetch presets for restaurants without one (existing tests have no default MSW handler for `/api/size-presets`).
+- `useSizeResetImpact` is a mutation (called imperatively on Save), not a query.
+- Existing `RestaurantDetail.test.tsx` menu-item fixtures needed `sizeOptionIds: []`.
+- Review was run on a diff saved to a file rather than pasted into the prompt, since it was ~1000 lines.
 
 ## Review Notes
 
-(Output of the feature-dev:code-reviewer agent, appended by /implement-task.)
+feature-dev:code-reviewer: no issues at confidence >= 80. Checked acceptance criteria, save order, cache invalidation, stale checkbox state. Minor items below threshold, left as is:
+
+- If PATCH /details succeeds and PUT /sizes then fails, the user sees "Menu item updated" then an error toast; the row stays in edit mode with name/price already saved.
+- Briefly after a preset change, `sizeOptions` can come from the new preset while menu items are still the old ones, until the refetch finishes.
+- A row already in edit mode when the preset changes keeps its old `sizeIds` until cancel and reopen.
