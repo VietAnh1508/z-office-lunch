@@ -19,6 +19,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useRequiredField } from "@/hooks/useRequiredField";
 import {
+  type SizeOption,
   type SizePreset,
   useCreateSizePreset,
   useDeleteSizePreset,
@@ -32,6 +33,27 @@ function parseOptionLabels(text: string): string[] {
     .split(/[\n,]/)
     .map((label) => label.trim())
     .filter((label) => label !== "");
+}
+
+// Decides which existing option each edited line is, since the API only keeps
+// an option if it is sent back with its id (anything else is deleted/re-added,
+// which wipes its item ticks and submission sizes).
+// 1. A line whose label matches an existing option keeps that option's id.
+// 2. A line that matches nothing, sitting at the same position as an existing
+//    option that no line matched, is a rename (e.g. a typo fix): keep that id.
+//    Otherwise it is a new option.
+function matchOptionIds(
+  labels: string[],
+  existing: SizeOption[],
+): { id?: number; label: string }[] {
+  const byLabel = new Map(existing.map((o) => [o.label, o.id]));
+  const matchedIds = new Set(labels.flatMap((l) => (byLabel.has(l) ? [byLabel.get(l)!] : [])));
+  return labels.map((label, index) => {
+    const id = byLabel.get(label);
+    if (id !== undefined) return { id, label };
+    const sameSpot = existing[index];
+    return sameSpot && !matchedIds.has(sameSpot.id) ? { id: sameSpot.id, label } : { label };
+  });
 }
 
 function SizePresetRow({ preset }: { preset: SizePreset }) {
@@ -48,16 +70,11 @@ function SizePresetRow({ preset }: { preset: SizePreset }) {
     const nameOk = name.validate();
     const optionsOk = options.validate();
     if (!nameOk || !optionsOk) return;
-    // An option whose label is unchanged keeps its id; anything else is new.
-    const idByLabel = new Map(preset.options.map((o) => [o.label, o.id]));
     updatePreset.mutate(
       {
         id: preset.id,
         name: name.value.trim(),
-        options: parseOptionLabels(options.value).map((label) => {
-          const id = idByLabel.get(label);
-          return id === undefined ? { label } : { id, label };
-        }),
+        options: matchOptionIds(parseOptionLabels(options.value), preset.options),
       },
       { onSuccess: () => setIsEditing(false) },
     );
