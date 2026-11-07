@@ -44,7 +44,7 @@ Admin can create, rename, edit options of, and delete size presets from a new "S
 
 - Acceptance criteria asked for move up/down reorder buttons, but the Plan said textarea-only and "one input path". Followed the Plan: order = line order, no reorder buttons.
 - Added a small change to `useRequiredField` (onChange typed for textarea too) so the Options textarea could use it.
-- Unchanged option labels keep their id on save; a renamed label is sent as remove + add (so item ticks/submission sizes for it are dropped).
+- Unchanged option labels keep their id on save. First version sent a renamed label as remove + add (wiping item ticks/submission sizes); the user asked for a fix, so a non-matching line at the same position as an unmatched option now keeps that option's id (follow-up red `cd91154`, green `a1ebc9c`). Adding+removing different lines at different positions is still delete + add.
 
 ## Review Notes
 
