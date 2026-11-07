@@ -181,6 +181,70 @@ describe("Sizes", () => {
     expect(screen.queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
   });
 
+  it("renaming one option in place keeps its id instead of deleting and re-adding it", async () => {
+    const user = userEvent.setup();
+    let patched: unknown;
+
+    server.use(
+      http.get("/api/size-presets", () => HttpResponse.json([DRINK_SIZES])),
+      http.patch("/api/size-presets/1", async ({ request }) => {
+        patched = await request.json();
+        return HttpResponse.json(DRINK_SIZES);
+      }),
+    );
+
+    renderSizes();
+    await screen.findByText("Drink sizes");
+    await user.click(screen.getByRole("button", { name: "Edit preset" }));
+
+    const options = within(screen.getByRole("listitem")).getByLabelText("Options");
+    await user.clear(options);
+    await user.type(options, "S{Enter}Medium{Enter}L");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(patched).toBeDefined());
+    expect(patched).toEqual({
+      name: "Drink sizes",
+      options: [
+        { id: 10, label: "S" },
+        { id: 11, label: "Medium" },
+        { id: 12, label: "L" },
+      ],
+    });
+  });
+
+  it("reordering lines keeps each option's id with its label", async () => {
+    const user = userEvent.setup();
+    let patched: unknown;
+
+    server.use(
+      http.get("/api/size-presets", () => HttpResponse.json([DRINK_SIZES])),
+      http.patch("/api/size-presets/1", async ({ request }) => {
+        patched = await request.json();
+        return HttpResponse.json(DRINK_SIZES);
+      }),
+    );
+
+    renderSizes();
+    await screen.findByText("Drink sizes");
+    await user.click(screen.getByRole("button", { name: "Edit preset" }));
+
+    const options = within(screen.getByRole("listitem")).getByLabelText("Options");
+    await user.clear(options);
+    await user.type(options, "L{Enter}M{Enter}S");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(patched).toBeDefined());
+    expect(patched).toEqual({
+      name: "Drink sizes",
+      options: [
+        { id: 12, label: "L" },
+        { id: 11, label: "M" },
+        { id: 10, label: "S" },
+      ],
+    });
+  });
+
   it("blocks saving with a blank name or no options", async () => {
     const user = userEvent.setup();
     let patchCount = 0;
