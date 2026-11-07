@@ -1076,3 +1076,64 @@ describe("RestaurantDetail size presets", () => {
     expect(putBody).toEqual({ sizeOptionIds: [1, 2] });
   });
 });
+
+describe("RestaurantDetail item size summary", () => {
+  it("shows each item's available sizes next to its name, in preset order", async () => {
+    server.use(
+      http.get("/api/restaurants", () =>
+        HttpResponse.json([
+          {
+            id: 1,
+            name: "Tra Da",
+            type: "drink",
+            contactInfo: null,
+            note: null,
+            menuUrl: null,
+            menuImage: null,
+            sizePresetId: 5,
+          },
+        ]),
+      ),
+      http.get("/api/size-presets", () =>
+        HttpResponse.json([
+          {
+            id: 5,
+            name: "Cups",
+            options: [
+              { id: 1, label: "S", sortOrder: 0 },
+              { id: 2, label: "M", sortOrder: 1 },
+              { id: 3, label: "L", sortOrder: 2 },
+            ],
+          },
+        ]),
+      ),
+      http.get("/api/restaurants/1/menu-items", () =>
+        HttpResponse.json([
+          {
+            id: 10,
+            restaurantId: 1,
+            name: "Milk Tea",
+            price: null,
+            active: true,
+            sizeOptionIds: [3, 1],
+          },
+          {
+            id: 11,
+            restaurantId: 1,
+            name: "Water",
+            price: null,
+            active: true,
+            sizeOptionIds: [],
+          },
+        ]),
+      ),
+    );
+
+    renderDetail("1");
+
+    const milkTea = (await screen.findByText("Milk Tea")).closest("li")!;
+    expect(await within(milkTea).findByText("S / L")).toBeInTheDocument();
+    const water = screen.getByText("Water").closest("li")!;
+    expect(within(water).queryByText(/\//)).not.toBeInTheDocument();
+  });
+});
