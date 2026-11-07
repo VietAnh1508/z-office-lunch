@@ -1,9 +1,9 @@
-import { ClipboardList, Store, Users } from "lucide-react";
+import { ClipboardList, Ruler, Store, Users } from "lucide-react";
 import { Link } from "react-router";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 // These share their accessible name with the nav bar's links to the same
-// sections (both say "Restaurants", "Employees", "Rounds"). Tests that query
+// sections (both say "Restaurants", "Employees", "Rounds", "Sizes"). Tests that query
 // nav links by role+name must scope to the nav landmark rather than the
 // whole page — see AdminLayout.test.tsx and e2e/admin-nav.spec.ts.
 const SECTIONS = [
@@ -25,6 +25,12 @@ const SECTIONS = [
     description: "Start a round, pick its menu, then open it for orders.",
     icon: ClipboardList,
   },
+  {
+    to: "/admin/sizes",
+    label: "Sizes",
+    description: "Define drink size presets, like S / M / L, for drink restaurants.",
+    icon: Ruler,
+  },
 ];
 
 export function AdminOverview() {
@@ -36,7 +42,7 @@ export function AdminOverview() {
           Manage the restaurants, employees, and lunch rounds behind office lunch orders.
         </p>
       </div>
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {SECTIONS.map((section) => (
           <Link key={section.to} to={section.to} className="group">
             <Card className="h-full transition-colors group-hover:border-primary/40 group-hover:ring-primary/20">

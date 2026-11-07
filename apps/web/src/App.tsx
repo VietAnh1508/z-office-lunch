@@ -4,6 +4,7 @@ import { AdminOverview } from "@/routes/admin/AdminOverview";
 import { Employees } from "@/routes/admin/Employees";
 import { RestaurantDetail } from "@/routes/admin/RestaurantDetail";
 import { Restaurants } from "@/routes/admin/Restaurants";
+import { Sizes } from "@/routes/admin/Sizes";
 import { RoundDetail } from "@/routes/admin/RoundDetail";
 import { Rounds } from "@/routes/admin/Rounds";
 import { BrowseRounds } from "@/routes/public/BrowseRounds";
@@ -24,6 +25,7 @@ function App() {
         <Route path="employees" element={<Employees />} />
         <Route path="rounds" element={<Rounds />} />
         <Route path="rounds/:id" element={<RoundDetail />} />
+        <Route path="sizes" element={<Sizes />} />
       </Route>
     </Routes>
   );

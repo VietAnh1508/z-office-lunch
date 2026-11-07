@@ -4,7 +4,7 @@ export function useRequiredField(errorMessage: string, initialValue = "") {
   const [value, setValue] = useState(initialValue);
   const [error, setError] = useState<string | null>(null);
 
-  function onChange(e: ChangeEvent<HTMLInputElement>) {
+  function onChange(e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
     setValue(e.target.value);
     setError(null);
   }

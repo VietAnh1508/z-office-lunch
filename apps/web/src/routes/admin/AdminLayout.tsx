@@ -12,6 +12,7 @@ const NAV_LINKS = [
   { to: "/admin/restaurants", label: "Restaurants" },
   { to: "/admin/employees", label: "Employees" },
   { to: "/admin/rounds", label: "Rounds" },
+  { to: "/admin/sizes", label: "Sizes" },
 ];
 
 function AdminPasswordGate({
