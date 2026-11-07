@@ -1219,4 +1219,126 @@ describe("RoundDetail", () => {
       expect(header?.split("\t")).toEqual(["Employee", "Food", "Food note", "Drink", "Drink note"]);
     });
   });
+
+  describe("submission edit: drink size", () => {
+    const SIZED_RESTAURANTS = [RESTAURANTS[0], { ...RESTAURANTS[1], sizePresetId: 7 }];
+    const PRESETS = [
+      {
+        id: 7,
+        name: "S/M/L",
+        options: [
+          { id: 1, label: "S", sortOrder: 0 },
+          { id: 2, label: "M", sortOrder: 1 },
+          { id: 3, label: "L", sortOrder: 2 },
+        ],
+      },
+    ];
+    const SIZED_SUBMISSION = {
+      id: 1,
+      employeeName: "An Nguyen",
+      foodName: null,
+      foodNote: null,
+      drinkName: "Tra Da",
+      drinkNote: null,
+      foodRoundMenuItemId: null,
+      drinkRoundMenuItemId: 20,
+      drinkSizeOptionId: 2,
+      drinkSize: "M",
+    };
+
+    function handlers(drinkItem: Record<string, unknown>) {
+      return [
+        http.get("/api/rounds/1", () =>
+          HttpResponse.json(draftRound({ foodRestaurantId: null, drinkRestaurantId: 2 })),
+        ),
+        http.get("/api/restaurants", () => HttpResponse.json(SIZED_RESTAURANTS)),
+        http.get("/api/size-presets", () => HttpResponse.json(PRESETS)),
+        http.get("/api/employees", () => HttpResponse.json([])),
+        http.get("/api/rounds/1/menu-items", () =>
+          HttpResponse.json([{ id: 20, roundId: 1, menuItemId: 200 }]),
+        ),
+        http.get("/api/restaurants/2/menu-items", () =>
+          HttpResponse.json([
+            {
+              id: 200,
+              restaurantId: 2,
+              name: "Tra Da",
+              price: null,
+              active: true,
+              sizeOptionIds: [],
+              ...drinkItem,
+            },
+          ]),
+        ),
+        http.get("/api/rounds/1/submissions", () => HttpResponse.json([SIZED_SUBMISSION])),
+      ];
+    }
+
+    it("pre-fills the size from drinkSizeOptionId, offering only the item's sizes", async () => {
+      const user = userEvent.setup({ pointerEventsCheck: 0 });
+      server.use(...handlers({ sizeOptionIds: [1, 2] }));
+
+      renderDetail("1");
+      await user.click(await screen.findByRole("button", { name: "Edit submission" }));
+
+      const dialog = within(await screen.findByRole("dialog"));
+      const size = await dialog.findByLabelText("Drink size", { exact: false });
+      expect(size).toHaveValue("2");
+      expect(within(size).queryByRole("option", { name: "L" })).not.toBeInTheDocument();
+    });
+
+    it("PATCHes drinkSizeOptionId with the chosen size", async () => {
+      const user = userEvent.setup({ pointerEventsCheck: 0 });
+      let patchBody: Record<string, unknown> | null = null;
+      server.use(
+        ...handlers({ sizeOptionIds: [1, 2, 3] }),
+        http.patch("/api/rounds/1/submissions/1", async ({ request }) => {
+          patchBody = (await request.json()) as Record<string, unknown>;
+          return HttpResponse.json({ id: 1 });
+        }),
+      );
+
+      renderDetail("1");
+      await user.click(await screen.findByRole("button", { name: "Edit submission" }));
+      const dialog = within(await screen.findByRole("dialog"));
+      await user.selectOptions(await dialog.findByLabelText("Drink size", { exact: false }), "3");
+      await user.click(dialog.getByRole("button", { name: "Save" }));
+
+      await waitFor(() => expect(patchBody).not.toBeNull());
+      expect(patchBody).toMatchObject({ drinkRoundMenuItemId: 20, drinkSizeOptionId: 3 });
+    });
+
+    it("requires a size when the item has sizes, sending no request without one", async () => {
+      const user = userEvent.setup({ pointerEventsCheck: 0 });
+      let patched = false;
+      server.use(
+        ...handlers({ sizeOptionIds: [1, 2, 3] }),
+        http.patch("/api/rounds/1/submissions/1", () => {
+          patched = true;
+          return HttpResponse.json({ id: 1 });
+        }),
+      );
+
+      renderDetail("1");
+      await user.click(await screen.findByRole("button", { name: "Edit submission" }));
+      const dialog = within(await screen.findByRole("dialog"));
+      await user.selectOptions(await dialog.findByLabelText("Drink size", { exact: false }), "");
+      await user.click(dialog.getByRole("button", { name: "Save" }));
+
+      expect(await dialog.findByText(/select a drink size/i)).toBeInTheDocument();
+      expect(patched).toBe(false);
+    });
+
+    it("shows no size field for an item without sizes", async () => {
+      const user = userEvent.setup({ pointerEventsCheck: 0 });
+      server.use(...handlers({ sizeOptionIds: [] }));
+
+      renderDetail("1");
+      await user.click(await screen.findByRole("button", { name: "Edit submission" }));
+
+      const dialog = within(await screen.findByRole("dialog"));
+      await dialog.findByLabelText("Drink item", { exact: false });
+      expect(dialog.queryByLabelText("Drink size", { exact: false })).not.toBeInTheDocument();
+    });
+  });
 });

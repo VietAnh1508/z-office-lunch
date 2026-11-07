@@ -899,4 +899,179 @@ describe("Round (public view)", () => {
       expect(screen.getByText("Extra spicy")).toBeInTheDocument();
     });
   });
+
+  describe("drink size", () => {
+    const SIZED_DRINK_ROUND = {
+      ...OPEN_ROUND_DRINK_ONLY,
+      drinkItems: [
+        {
+          id: 20,
+          name: "Tra Da",
+          sizes: [
+            { id: 1, label: "S" },
+            { id: 2, label: "M" },
+            { id: 3, label: "L" },
+          ],
+        },
+        { id: 21, name: "Nuoc Loc", sizes: [{ id: 4, label: "Regular" }] },
+        { id: 22, name: "Cafe", sizes: [] },
+      ],
+    };
+
+    function capturePost() {
+      const captured: { body: Record<string, unknown> | null; count: number } = {
+        body: null,
+        count: 0,
+      };
+      const handler = http.post("/api/rounds/1/submissions", async ({ request }) => {
+        captured.count += 1;
+        captured.body = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({ id: 1 }, { status: 201 });
+      });
+      return { captured, handler };
+    }
+
+    it("shows no size field for a drink without sizes", async () => {
+      const user = userEvent.setup();
+      serve(SIZED_DRINK_ROUND);
+      renderRound("1");
+      await waitForForm();
+
+      await pickEmployee(user, "An Nguyen");
+      await pickDrinkItem(user, "Cafe");
+
+      expect(screen.queryByLabelText(/drink size/i)).not.toBeInTheDocument();
+    });
+
+    it("shows a size select listing the item's sizes in order once a sized drink is picked", async () => {
+      const user = userEvent.setup();
+      serve(SIZED_DRINK_ROUND);
+      renderRound("1");
+      await waitForForm();
+
+      await pickEmployee(user, "An Nguyen");
+      await pickDrinkItem(user, "Tra Da");
+
+      const select = screen.getByLabelText(/drink size/i);
+      const labels = within(select)
+        .getAllByRole("option")
+        .map((o) => o.textContent);
+      expect(labels.filter((l) => ["S", "M", "L"].includes(l ?? ""))).toEqual(["S", "M", "L"]);
+    });
+
+    it("shows an inline error and does not advance or POST when no size is chosen", async () => {
+      const user = userEvent.setup();
+      const { captured, handler } = capturePost();
+      serve(SIZED_DRINK_ROUND, [handler]);
+      renderRound("1");
+      await waitForForm();
+
+      await pickEmployee(user, "An Nguyen");
+      await pickDrinkItem(user, "Tra Da");
+      await user.click(screen.getByRole("button", { name: /continue/i }));
+
+      expect(await screen.findByText(/select a drink size/i)).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Submit order" })).not.toBeInTheDocument();
+      expect(captured.count).toBe(0);
+    });
+
+    it("sends drinkSizeOptionId when a size is chosen", async () => {
+      const user = userEvent.setup();
+      const { captured, handler } = capturePost();
+      serve(SIZED_DRINK_ROUND, [handler]);
+      renderRound("1");
+      await waitForForm();
+
+      await pickEmployee(user, "An Nguyen");
+      await pickDrinkItem(user, "Tra Da");
+      await user.selectOptions(screen.getByLabelText(/drink size/i), "2");
+      await submitOrder(user);
+
+      await waitFor(() =>
+        expect(captured.body).toEqual({
+          employeeId: 1,
+          drinkRoundMenuItemId: 20,
+          drinkSizeOptionId: 2,
+        }),
+      );
+    });
+
+    it("resets the chosen size when a different drink is picked", async () => {
+      const user = userEvent.setup();
+      serve(SIZED_DRINK_ROUND);
+      renderRound("1");
+      await waitForForm();
+
+      await pickEmployee(user, "An Nguyen");
+      await pickDrinkItem(user, "Tra Da");
+      await user.selectOptions(screen.getByLabelText(/drink size/i), "2");
+      await pickDrinkItem(user, "Nuoc Loc");
+
+      expect(screen.getByLabelText(/drink size/i)).toHaveValue("");
+    });
+
+    it("drops the size hint from the drink note placeholder", async () => {
+      const user = userEvent.setup();
+      serve(SIZED_DRINK_ROUND);
+      renderRound("1");
+      await waitForForm();
+
+      await pickEmployee(user, "An Nguyen");
+
+      expect(screen.getByLabelText("Drink note", { exact: false })).toHaveAttribute(
+        "placeholder",
+        "Optional, e.g. less ice",
+      );
+    });
+
+    it("shows the existing and new size in the overwrite dialog and replays the size on confirm", async () => {
+      const user = userEvent.setup();
+      const { captured, handler } = capturePost();
+      let lookupRequested = false;
+      serve(SIZED_DRINK_ROUND, [
+        handler,
+        http.get("/api/rounds/1/submissions", ({ request }) => {
+          if (new URL(request.url).searchParams.get("employeeId") === "1") {
+            lookupRequested = true;
+            return HttpResponse.json([
+              {
+                id: 5,
+                employeeName: "An Nguyen",
+                foodName: null,
+                foodNote: null,
+                drinkName: "Tra Da",
+                drinkNote: null,
+                foodRoundMenuItemId: null,
+                drinkRoundMenuItemId: 20,
+                drinkSizeOptionId: 1,
+                drinkSize: "S",
+              },
+            ]);
+          }
+          return HttpResponse.json([]);
+        }),
+      ]);
+      renderRound("1");
+      await waitForForm();
+
+      await pickEmployee(user, "An Nguyen");
+      await pickDrinkItem(user, "Tra Da");
+      await user.selectOptions(screen.getByLabelText(/drink size/i), "3");
+      await waitFor(() => expect(lookupRequested).toBe(true));
+      await submitOrder(user);
+
+      const dialog = within(await screen.findByRole("alertdialog"));
+      expect(dialog.getByText(/Drink: Tra Da.*size S/)).toBeInTheDocument();
+      expect(dialog.getByText(/New:.*size L/i)).toBeInTheDocument();
+      await user.click(dialog.getByRole("button", { name: "Submit anyway" }));
+
+      await waitFor(() =>
+        expect(captured.body).toEqual({
+          employeeId: 1,
+          drinkRoundMenuItemId: 20,
+          drinkSizeOptionId: 3,
+        }),
+      );
+    });
+  });
 });
