@@ -1,4 +1,4 @@
-import { Pencil } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 import type { SubmitEvent } from "react";
 import {
@@ -142,11 +142,13 @@ function SizePresetRow({ preset }: { preset: SizePreset }) {
               <AlertDialogTrigger asChild>
                 <Button
                   type="button"
-                  variant="destructive"
-                  size="sm"
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="Delete"
+                  className="text-destructive hover:text-destructive"
                   disabled={deletePreset.isPending}
                 >
-                  Delete
+                  <Trash2 />
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
