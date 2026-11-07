@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { HttpResponse, http } from "msw";
 import { MemoryRouter } from "react-router";
@@ -324,5 +324,44 @@ describe("Restaurants", () => {
     });
     expect(capturedBody).not.toHaveProperty("note");
     expect(capturedBody).not.toHaveProperty("menuUrl");
+  });
+});
+
+describe("Restaurants size preset select", () => {
+  const presets = [{ id: 5, name: "Cups", options: [{ id: 1, label: "S", sortOrder: 0 }] }];
+
+  it("shows the size preset select only when type is drink, and sends the chosen preset", async () => {
+    const user = userEvent.setup();
+    let capturedBody: Record<string, unknown> | null = null;
+
+    server.use(
+      http.get("/api/restaurants", () => HttpResponse.json([])),
+      http.get("/api/size-presets", () => HttpResponse.json(presets)),
+      http.post("/api/restaurants", async ({ request }) => {
+        capturedBody = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({ id: 1, ...capturedBody }, { status: 201 });
+      }),
+    );
+
+    renderRestaurants();
+    await screen.findByText("No restaurants yet.");
+
+    expect(screen.queryByLabelText("Size preset")).not.toBeInTheDocument();
+
+    await user.selectOptions(
+      screen.getByLabelText("Type", { selector: "#restaurant-type" }),
+      "drink",
+    );
+    const select = await screen.findByLabelText("Size preset");
+    expect(within(select).getByRole("option", { name: "None" })).toBeInTheDocument();
+    await user.selectOptions(select, "Cups (S)");
+
+    await user.type(screen.getByLabelText("Name", { exact: false }), "Tra Da Corner");
+    await user.click(screen.getByRole("button", { name: "Add restaurant" }));
+
+    await waitFor(() => expect(capturedBody).not.toBeNull());
+    expect(capturedBody).toEqual(
+      expect.objectContaining({ name: "Tra Da Corner", type: "drink", sizePresetId: 5 }),
+    );
   });
 });
