@@ -260,6 +260,9 @@ function MenuItemRow({
   const [price, setPrice] = useState(item.price ?? "");
   const [priceError, setPriceError] = useState<string | null>(null);
 
+  const itemSizeLabels = sizeOptions
+    .filter((option) => item.sizeOptionIds.includes(option.id))
+    .map((option) => option.label);
   const sizesChanged =
     sizeIds.length !== item.sizeOptionIds.length ||
     sizeIds.some((id) => !item.sizeOptionIds.includes(id));
@@ -344,6 +347,11 @@ function MenuItemRow({
           {item.name}
           {item.price && (
             <span className="text-muted-foreground"> — {formatPrice(item.price)}</span>
+          )}
+          {itemSizeLabels.length > 0 && (
+            <span className="ml-2 text-xs font-medium text-muted-foreground">
+              {itemSizeLabels.join(" / ")}
+            </span>
           )}
         </span>
       )}
