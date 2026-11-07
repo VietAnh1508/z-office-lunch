@@ -1,7 +1,7 @@
 ---
 id: 061
 title: Admin UI: assign preset to a restaurant and tick sizes per menu item
-status: in_review
+status: done
 depends_on: [059, 060]
 parallelizable_with: []
 epic: drink-size-presets
