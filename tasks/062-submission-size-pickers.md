@@ -1,7 +1,7 @@
 ---
 id: 062
 title: Size picker on the public order form and admin submission edit dialog
-status: approved
+status: in_review
 depends_on: [061]
 parallelizable_with: []
 epic: drink-size-presets
@@ -32,19 +32,22 @@ Employees (and admin editing for them) can choose a drink size. The client enfor
 
 ## Implementation Log
 
-(Filled in by /implement-task.)
-
-- red commit: <sha> — `<test_command>` -> N failing
-- green commit: <sha> — `<test_command>` -> all passing
+- red commit: ea4f81b — `pnpm test -- Round.test.tsx RoundDetail.test.tsx` -> 9 failing (2 of the 11 new tests pass trivially: "no size field for items without sizes")
+- green commit: 4ebb739 — size picker on the public form, overwrite dialog and admin edit dialog; also fixes the red overwrite test (its handler was shadowed by `serve()`'s default) — `pnpm -r typecheck && pnpm --filter web build && pnpm test` -> all passing (559 tests)
+- e2e commit: test — new case in `round-lifecycle.spec.ts` (sized drink: Continue blocked, then submit with a size); `pnpm test:e2e e2e/round-lifecycle.spec.ts` -> 5 passed
+- Admin sizes: no new endpoint. `RoundDetail` takes the drink restaurant's `sizePresetId`, loads presets, and filters options by each menu item's `sizeOptionIds`.
 
 ## Plan Deviations
 
-(Filled in by /implement-task, honestly, before requesting review — write "None." if genuinely nothing applies, don't skip this section silently. Only list genuine deviations — if a step was carried out as the Plan described, it doesn't belong here, even if it's worth doing again.)
-
-- Where did the actual implementation differ from the Plan above, and why?
-- Any wrong assumption, dead end, or approach abandoned partway through?
-- Anything the user had to correct or redirect mid-task?
+- The public form is now a stepper with a tap-list picker, not a combobox. The size select sits on the drink step and the "required" check runs on Continue (plus a guard in `handleSubmit`), since the review step has no size field to show an error under.
+- "Editing an existing submission pre-fills it" was not done on the public form: it never pre-fills any field from an existing submission (it only warns and replaces). The overwrite dialog shows the old size and the new one instead.
+- The red overwrite-dialog test had a handler-order bug and was fixed in the green commit.
+- Did not touch the stale-step check in `round-lifecycle.spec.ts`: the food/drink steps already match the stepper.
 
 ## Review Notes
 
-(Output of the feature-dev:code-reviewer agent, appended by /implement-task.)
+Reviewer (feature-dev:code-reviewer): no findings at confidence >= 80. Checked: inline validation per project rules, size reset on drink change, `goNext`/`handleSubmit` guards, admin prefill and payload consistency. Note: it only grepped `OverwriteSubmissionDialog.tsx`, did not read it.
+
+Below threshold:
+- Admin dialog, presets not loaded (~40): if Save is clicked before `useSizePresets` resolves, `drinkSizes` is empty and the PATCH omits `drinkSizeOptionId`, which the backend may treat as a clear. Not fixed — narrow race, and 063 makes the size required server-side. Worth a look if it shows up.
+- Public `handleSubmit` size guard returns silently (~30): unreachable because `goNext` already blocks. Left as a safety net.
