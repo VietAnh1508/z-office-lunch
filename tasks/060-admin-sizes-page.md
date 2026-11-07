@@ -1,7 +1,7 @@
 ---
 id: 060
 title: Admin "Sizes" page to manage size presets
-status: approved
+status: in_review
 depends_on: [056, 059]
 parallelizable_with: []
 epic: drink-size-presets
@@ -35,17 +35,19 @@ Admin can create, rename, edit options of, and delete size presets from a new "S
 
 (Filled in by /implement-task.)
 
-- red commit: <sha> — `<test_command>` -> N failing
-- green commit: <sha> — `<test_command>` -> all passing
+- red commit: 49ceb1b — `pnpm test` -> Sizes.test.tsx fails to load (no `./Sizes`), 2 AdminLayout tests failing
+- green commit: 61b1c58 — `pnpm -r typecheck && pnpm --filter web build && pnpm test` -> all passing (35 files, 537 tests); e2e `admin-sizes` + `admin-nav` pass; `pnpm lint` only pre-existing warnings
 
 ## Plan Deviations
 
 (Filled in by /implement-task, honestly, before requesting review — write "None." if genuinely nothing applies, don't skip this section silently. Only list genuine deviations — if a step was carried out as the Plan described, it doesn't belong here, even if it's worth doing again.)
 
-- Where did the actual implementation differ from the Plan above, and why?
-- Any wrong assumption, dead end, or approach abandoned partway through?
-- Anything the user had to correct or redirect mid-task?
+- Acceptance criteria asked for move up/down reorder buttons, but the Plan said textarea-only and "one input path". Followed the Plan: order = line order, no reorder buttons.
+- Added a small change to `useRequiredField` (onChange typed for textarea too) so the Options textarea could use it.
+- Unchanged option labels keep their id on save; a renamed label is sent as remove + add (so item ticks/submission sizes for it are dropped).
 
 ## Review Notes
 
-(Output of the feature-dev:code-reviewer agent, appended by /implement-task.)
+No issues at confidence >= 80. Reviewer checked Sizes.tsx, useSizePresets.ts, useRequiredField.ts against form-validation and mutation-feedback rules; did not read tests or nav/route changes.
+
+Minor (~40 confidence): after a successful save the edit textarea keeps the raw typed text (e.g. "S, M" with commas); if the preset changes elsewhere before the next edit, stale text shows. Cancel resets it.
