@@ -1,4 +1,5 @@
 import { screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { HttpResponse, http } from "msw";
 import { MemoryRouter } from "react-router";
 import { describe, expect, it } from "vitest";
@@ -24,7 +25,35 @@ describe("BrowseRounds (public homepage)", () => {
     expect(await screen.findByText("Current office lunches")).toBeInTheDocument();
     expect(screen.getByText("Past office lunches")).toBeInTheDocument();
     expect(screen.getByText("No office lunch is open for orders right now.")).toBeInTheDocument();
+    await userEvent.click(screen.getByText("Past office lunches"));
     expect(screen.getByText("No past office lunches yet.")).toBeInTheDocument();
+  });
+
+  it("keeps past lunches collapsed by default and shows them as plain text, not links", async () => {
+    server.use(
+      http.get("/api/rounds/public", () =>
+        HttpResponse.json([
+          {
+            id: 2,
+            label: "Closed Round",
+            status: "closed",
+            deadline: "2000-01-01T00:00:00.000Z",
+            foodRestaurantName: "Com Tam",
+            drinkRestaurantName: null,
+          },
+        ]),
+      ),
+    );
+
+    renderBrowseRounds();
+
+    await screen.findByText("Current office lunches");
+    expect(screen.queryByText("Closed Round")).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByText("Past office lunches"));
+
+    expect(screen.getByText("Closed Round")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Closed Round" })).not.toBeInTheDocument();
   });
 
   it("groups rounds under their matching section title", async () => {
@@ -55,6 +84,7 @@ describe("BrowseRounds (public homepage)", () => {
 
     const openTitle = await screen.findByText("Current office lunches");
     const closedTitle = screen.getByText("Past office lunches");
+    await userEvent.click(closedTitle);
     const openCard = openTitle.closest('[data-slot="card"]') as HTMLElement;
     const closedCard = closedTitle.closest('[data-slot="card"]') as HTMLElement;
 

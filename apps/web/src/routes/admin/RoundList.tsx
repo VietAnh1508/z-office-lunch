@@ -40,8 +40,14 @@ export function RoundList() {
   const restaurantName = (id: number) =>
     restaurants?.find((restaurant) => restaurant.id === id)?.name ?? `#${id}`;
 
-  const filteredRounds =
-    rounds?.filter((round) => statusFilter === "all" || round.status === statusFilter) ?? [];
+  // Open rounds first, then latest deadline first.
+  const filteredRounds = (
+    rounds?.filter((round) => statusFilter === "all" || round.status === statusFilter) ?? []
+  ).sort(
+    (a, b) =>
+      Number(b.status === "open") - Number(a.status === "open") ||
+      Date.parse(b.deadline) - Date.parse(a.deadline),
+  );
 
   return (
     <Card>

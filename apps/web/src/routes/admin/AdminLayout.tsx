@@ -9,10 +9,10 @@ import { useRequiredField } from "@/hooks/useRequiredField";
 import { cn } from "@/lib/utils";
 
 const NAV_LINKS = [
+  { to: "/admin/sizes", label: "Sizes" },
   { to: "/admin/restaurants", label: "Restaurants" },
   { to: "/admin/employees", label: "Employees" },
   { to: "/admin/rounds", label: "Rounds" },
-  { to: "/admin/sizes", label: "Sizes" },
 ];
 
 function AdminPasswordGate({

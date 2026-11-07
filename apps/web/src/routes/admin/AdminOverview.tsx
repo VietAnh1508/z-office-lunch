@@ -8,6 +8,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 // whole page — see AdminLayout.test.tsx and e2e/admin-nav.spec.ts.
 const SECTIONS = [
   {
+    to: "/admin/sizes",
+    label: "Sizes",
+    description: "Define drink size presets, like S / M / L, for drink restaurants.",
+    icon: Ruler,
+  },
+  {
     to: "/admin/restaurants",
     label: "Restaurants",
     description: "Add restaurants and curate the menu items they offer.",
@@ -24,12 +30,6 @@ const SECTIONS = [
     label: "Rounds",
     description: "Start a round, pick its menu, then open it for orders.",
     icon: ClipboardList,
-  },
-  {
-    to: "/admin/sizes",
-    label: "Sizes",
-    description: "Define drink size presets, like S / M / L, for drink restaurants.",
-    icon: Ruler,
   },
 ];
 
