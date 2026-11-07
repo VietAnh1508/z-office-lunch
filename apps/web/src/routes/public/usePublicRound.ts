@@ -36,6 +36,7 @@ export type PublicRoundListItem = {
 };
 
 export const publicRoundKeys = {
+  all: ["public-rounds"] as const,
   detail: (roundId: number) => ["public-rounds", roundId] as const,
   list: () => ["public-rounds", "list"] as const,
 };

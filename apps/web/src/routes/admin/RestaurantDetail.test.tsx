@@ -27,7 +27,14 @@ describe("RestaurantDetail", () => {
       ),
       http.get("/api/restaurants/1/menu-items", () =>
         HttpResponse.json([
-          { id: 10, restaurantId: 1, name: "Pho Bo", price: "11000", active: true },
+          {
+            id: 10,
+            restaurantId: 1,
+            name: "Pho Bo",
+            price: "11000",
+            active: true,
+            sizeOptionIds: [],
+          },
         ]),
       ),
     );
@@ -56,6 +63,7 @@ describe("RestaurantDetail", () => {
       name: string;
       price: string | null;
       active: boolean;
+      sizeOptionIds: number[];
     }> = [];
 
     server.use(
@@ -73,6 +81,7 @@ describe("RestaurantDetail", () => {
           name: body.name,
           price: body.price ?? null,
           active: true,
+          sizeOptionIds: [],
         };
         items = [...items, created];
         return HttpResponse.json(created, { status: 201 });
@@ -198,7 +207,14 @@ describe("RestaurantDetail", () => {
 
   it("toggles a menu item's active state", async () => {
     const user = userEvent.setup();
-    let item = { id: 10, restaurantId: 1, name: "Pho Bo", price: null, active: true };
+    let item = {
+      id: 10,
+      restaurantId: 1,
+      name: "Pho Bo",
+      price: null,
+      active: true,
+      sizeOptionIds: [],
+    };
 
     server.use(
       http.get("/api/restaurants", () =>
@@ -232,7 +248,14 @@ describe("RestaurantDetail", () => {
 
   it("shows a fallback error toast when toggling a menu item's active state fails with a network error", async () => {
     const user = userEvent.setup();
-    const item = { id: 10, restaurantId: 1, name: "Pho Bo", price: null, active: true };
+    const item = {
+      id: 10,
+      restaurantId: 1,
+      name: "Pho Bo",
+      price: null,
+      active: true,
+      sizeOptionIds: [],
+    };
 
     server.use(
       http.get("/api/restaurants", () =>
@@ -255,7 +278,14 @@ describe("RestaurantDetail", () => {
 
   it("shows the API's error message as a toast when toggling a menu item's active state fails with a known error", async () => {
     const user = userEvent.setup();
-    const item = { id: 10, restaurantId: 1, name: "Pho Bo", price: null, active: true };
+    const item = {
+      id: 10,
+      restaurantId: 1,
+      name: "Pho Bo",
+      price: null,
+      active: true,
+      sizeOptionIds: [],
+    };
 
     server.use(
       http.get("/api/restaurants", () =>
@@ -645,7 +675,14 @@ describe("RestaurantDetail", () => {
 
     it("shows inputs pre-filled with the item's current name and price on edit click", async () => {
       const user = userEvent.setup();
-      const item = { id: 10, restaurantId: 1, name: "Pho Bo", price: "11000", active: true };
+      const item = {
+        id: 10,
+        restaurantId: 1,
+        name: "Pho Bo",
+        price: "11000",
+        active: true,
+        sizeOptionIds: [],
+      };
 
       server.use(
         restaurantHandler(),
@@ -663,7 +700,14 @@ describe("RestaurantDetail", () => {
 
     it("saves new name/price via PATCH, shows the update + success toast, and returns to display mode", async () => {
       const user = userEvent.setup();
-      let item = { id: 10, restaurantId: 1, name: "Pho Bo", price: "11000", active: true };
+      let item = {
+        id: 10,
+        restaurantId: 1,
+        name: "Pho Bo",
+        price: "11000",
+        active: true,
+        sizeOptionIds: [],
+      };
       let patchBody: Record<string, unknown> | null = null;
 
       server.use(
@@ -701,7 +745,14 @@ describe("RestaurantDetail", () => {
 
     it("shows an inline error and sends no request when the name is cleared", async () => {
       const user = userEvent.setup();
-      const item = { id: 10, restaurantId: 1, name: "Pho Bo", price: "11000", active: true };
+      const item = {
+        id: 10,
+        restaurantId: 1,
+        name: "Pho Bo",
+        price: "11000",
+        active: true,
+        sizeOptionIds: [],
+      };
       let patchCalled = false;
 
       server.use(
@@ -727,7 +778,14 @@ describe("RestaurantDetail", () => {
 
     it("shows an inline error and sends no request when the price is invalid", async () => {
       const user = userEvent.setup();
-      const item = { id: 10, restaurantId: 1, name: "Pho Bo", price: "11000", active: true };
+      const item = {
+        id: 10,
+        restaurantId: 1,
+        name: "Pho Bo",
+        price: "11000",
+        active: true,
+        sizeOptionIds: [],
+      };
       let patchCalled = false;
 
       server.use(
@@ -756,7 +814,14 @@ describe("RestaurantDetail", () => {
 
     it("cancels without a request and reverts to the original values", async () => {
       const user = userEvent.setup();
-      const item = { id: 10, restaurantId: 1, name: "Pho Bo", price: "11000", active: true };
+      const item = {
+        id: 10,
+        restaurantId: 1,
+        name: "Pho Bo",
+        price: "11000",
+        active: true,
+        sizeOptionIds: [],
+      };
       let patchCalled = false;
 
       server.use(
@@ -783,7 +848,14 @@ describe("RestaurantDetail", () => {
 
     it("shows an error toast and stays in edit mode when the save fails", async () => {
       const user = userEvent.setup();
-      const item = { id: 10, restaurantId: 1, name: "Pho Bo", price: "11000", active: true };
+      const item = {
+        id: 10,
+        restaurantId: 1,
+        name: "Pho Bo",
+        price: "11000",
+        active: true,
+        sizeOptionIds: [],
+      };
 
       server.use(
         restaurantHandler(),
@@ -808,7 +880,14 @@ describe("RestaurantDetail", () => {
 
     it("reverts to the just-saved value, not the original, when reopened and cancelled", async () => {
       const user = userEvent.setup();
-      let item = { id: 10, restaurantId: 1, name: "Pho Bo", price: "11000", active: true };
+      let item = {
+        id: 10,
+        restaurantId: 1,
+        name: "Pho Bo",
+        price: "11000",
+        active: true,
+        sizeOptionIds: [],
+      };
 
       server.use(
         restaurantHandler(),

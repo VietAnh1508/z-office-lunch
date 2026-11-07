@@ -1,7 +1,18 @@
 import { ArrowLeft, CircleCheck, CircleX, Pencil, Trash2, Upload } from "lucide-react";
 import { type ChangeEvent, type SubmitEvent, useRef, useState } from "react";
 import { Link, useParams } from "react-router";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,10 +23,13 @@ import { formatPrice } from "@/lib/format-price";
 import { BulkAddMenuItems } from "./BulkAddMenuItems";
 import { GenerateMenuFromImage } from "./GenerateMenuFromImage";
 import { RestaurantTypeBadge } from "./RestaurantTypeBadge";
+import { SizePresetSelect } from "./SizePresetSelect";
+import { type SizeOption, useSizePresets } from "./useSizePresets";
 import type { Restaurant } from "./useRestaurants";
 import {
   useDeleteRestaurantMenuImage,
   useRestaurants,
+  useSizeResetImpact,
   useUpdateRestaurant,
   useUploadRestaurantMenuImage,
 } from "./useRestaurants";
@@ -25,6 +39,7 @@ import {
   useMenuItems,
   useToggleMenuItemActive,
   useUpdateMenuItem,
+  useUpdateMenuItemSizes,
 } from "./useMenuItems";
 
 function RestaurantDetailsForm({ restaurant }: { restaurant: Restaurant }) {
@@ -36,16 +51,34 @@ function RestaurantDetailsForm({ restaurant }: { restaurant: Restaurant }) {
   const [note, setNote] = useState(restaurant.note ?? "");
   const [menuUrl, setMenuUrl] = useState(restaurant.menuUrl ?? "");
   const [menuImage, setMenuImage] = useState(restaurant.menuImage);
+  const [sizePresetId, setSizePresetId] = useState(restaurant.sizePresetId);
+  const [impactCount, setImpactCount] = useState<number | null>(null);
+  const sizeResetImpact = useSizeResetImpact(restaurant.id);
   const menuImageInputRef = useRef<HTMLInputElement>(null);
+  const presetChanged = restaurant.type === "drink" && sizePresetId !== restaurant.sizePresetId;
 
-  function handleSubmit(e: SubmitEvent<HTMLFormElement>) {
-    e.preventDefault();
-    if (!name.validate()) return;
+  function save() {
     updateRestaurant.mutate({
       name: name.value,
       contactInfo: contactInfo || null,
       note: note || null,
       menuUrl: menuUrl || null,
+      ...(presetChanged ? { sizePresetId } : {}),
+    });
+  }
+
+  function handleSubmit(e: SubmitEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!name.validate()) return;
+    if (!presetChanged) {
+      save();
+      return;
+    }
+    sizeResetImpact.mutate(sizePresetId, {
+      onSuccess: ({ affectedSubmissions }) => {
+        if (affectedSubmissions > 0) setImpactCount(affectedSubmissions);
+        else save();
+      },
     });
   }
 
@@ -78,6 +111,13 @@ function RestaurantDetailsForm({ restaurant }: { restaurant: Restaurant }) {
             <Input id="restaurant-detail-name" {...name.inputProps} />
             {name.error && <p className="text-sm text-destructive">{name.error}</p>}
           </div>
+          {restaurant.type === "drink" && (
+            <SizePresetSelect
+              id="restaurant-detail-size-preset"
+              value={sizePresetId}
+              onChange={setSizePresetId}
+            />
+          )}
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="restaurant-detail-contact-info">Contact info</Label>
             <Input
@@ -161,22 +201,68 @@ function RestaurantDetailsForm({ restaurant }: { restaurant: Restaurant }) {
               </div>
             </div>
           </div>
-          <Button type="submit" disabled={updateRestaurant.isPending} className="self-start">
+          <Button
+            type="submit"
+            disabled={updateRestaurant.isPending || sizeResetImpact.isPending}
+            className="self-start"
+          >
             Save
           </Button>
         </form>
       </CardContent>
+
+      <AlertDialog
+        open={impactCount !== null}
+        onOpenChange={(open) => {
+          if (!open) setImpactCount(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Change size preset?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {impactCount} {impactCount === 1 ? "order" : "orders"} in open rounds will lose{" "}
+              {impactCount === 1 ? "its" : "their"} size. Ask people to resubmit after this change.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setImpactCount(null);
+                save();
+              }}
+            >
+              Confirm
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }
 
-function MenuItemRow({ restaurantId, item }: { restaurantId: number; item: MenuItem }) {
+function MenuItemRow({
+  restaurantId,
+  item,
+  sizeOptions,
+}: {
+  restaurantId: number;
+  item: MenuItem;
+  sizeOptions: SizeOption[];
+}) {
   const [isEditing, setIsEditing] = useState(false);
   const toggleActive = useToggleMenuItemActive(restaurantId);
   const updateMenuItem = useUpdateMenuItem(restaurantId);
+  const updateSizes = useUpdateMenuItemSizes(restaurantId);
+  const [sizeIds, setSizeIds] = useState(item.sizeOptionIds);
   const name = useRequiredField("Name is required.", item.name);
   const [price, setPrice] = useState(item.price ?? "");
   const [priceError, setPriceError] = useState<string | null>(null);
+
+  const sizesChanged =
+    sizeIds.length !== item.sizeOptionIds.length ||
+    sizeIds.some((id) => !item.sizeOptionIds.includes(id));
 
   function validatePrice(): boolean {
     const trimmed = price.trim();
@@ -194,14 +280,30 @@ function MenuItemRow({ restaurantId, item }: { restaurantId: number; item: MenuI
     if (!isNameValid || !isPriceValid) return;
     updateMenuItem.mutate(
       { id: item.id, name: name.value, price: price.trim() || null },
-      { onSuccess: () => setIsEditing(false) },
+      {
+        onSuccess: () => {
+          if (!sizesChanged) {
+            setIsEditing(false);
+            return;
+          }
+          updateSizes.mutate(
+            { id: item.id, sizeOptionIds: sizeIds },
+            { onSuccess: () => setIsEditing(false) },
+          );
+        },
+      },
     );
+  }
+
+  function toggleSize(optionId: number, checked: boolean) {
+    setSizeIds((prev) => (checked ? [...prev, optionId] : prev.filter((id) => id !== optionId)));
   }
 
   function handleCancel() {
     name.reset();
     setPrice(item.price ?? "");
     setPriceError(null);
+    setSizeIds(item.sizeOptionIds);
     setIsEditing(false);
   }
 
@@ -222,6 +324,20 @@ function MenuItemRow({ restaurantId, item }: { restaurantId: number; item: MenuI
             aria-invalid={priceError !== null}
           />
           {priceError && <p className="text-sm text-destructive">{priceError}</p>}
+          {sizeOptions.length > 0 && (
+            <div className="flex flex-wrap items-center gap-3">
+              {sizeOptions.map((option) => (
+                <div key={option.id} className="flex items-center gap-1.5">
+                  <Checkbox
+                    id={`menu-item-${item.id}-size-${option.id}`}
+                    checked={sizeIds.includes(option.id)}
+                    onCheckedChange={(checked) => toggleSize(option.id, checked === true)}
+                  />
+                  <Label htmlFor={`menu-item-${item.id}-size-${option.id}`}>{option.label}</Label>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       ) : (
         <span className={!item.active ? "text-muted-foreground line-through" : undefined}>
@@ -239,7 +355,7 @@ function MenuItemRow({ restaurantId, item }: { restaurantId: number; item: MenuI
               variant="secondary"
               size="sm"
               onClick={handleSave}
-              disabled={updateMenuItem.isPending}
+              disabled={updateMenuItem.isPending || updateSizes.isPending}
             >
               Save
             </Button>
@@ -254,7 +370,10 @@ function MenuItemRow({ restaurantId, item }: { restaurantId: number; item: MenuI
               variant="ghost"
               size="icon-sm"
               aria-label="Edit menu item"
-              onClick={() => setIsEditing(true)}
+              onClick={() => {
+                setSizeIds(item.sizeOptionIds);
+                setIsEditing(true);
+              }}
             >
               <Pencil />
             </Button>
@@ -286,6 +405,10 @@ export function RestaurantDetail() {
 
   const { data: restaurants, isPending: restaurantPending } = useRestaurants();
   const restaurant = restaurants?.find((r) => r.id === restaurantId);
+  const { data: sizePresets } = useSizePresets({
+    enabled: restaurant?.sizePresetId != null,
+  });
+  const sizeOptions = sizePresets?.find((p) => p.id === restaurant?.sizePresetId)?.options ?? [];
 
   const { data: menuItems, isPending, isError } = useMenuItems(restaurantId);
   const createMenuItem = useCreateMenuItem(restaurantId);
@@ -400,7 +523,12 @@ export function RestaurantDetail() {
             ) : (
               <ul className="flex flex-col divide-y divide-border">
                 {menuItems.map((item) => (
-                  <MenuItemRow key={item.id} restaurantId={restaurantId} item={item} />
+                  <MenuItemRow
+                    key={item.id}
+                    restaurantId={restaurantId}
+                    item={item}
+                    sizeOptions={sizeOptions}
+                  />
                 ))}
               </ul>
             )}

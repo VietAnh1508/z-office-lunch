@@ -2,6 +2,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { toastApiError } from "@/lib/toast";
+import { publicRoundKeys } from "../public/usePublicRound";
+import { menuItemKeys } from "./useMenuItems";
 
 export type Restaurant = {
   id: number;
@@ -11,6 +13,7 @@ export type Restaurant = {
   note: string | null;
   menuUrl: string | null;
   menuImage: string | null;
+  sizePresetId: number | null;
 };
 
 type CreateRestaurantInput = {
@@ -19,6 +22,7 @@ type CreateRestaurantInput = {
   contactInfo?: string;
   note?: string;
   menuUrl?: string;
+  sizePresetId?: number;
 };
 
 type UpdateRestaurantInput = {
@@ -26,6 +30,8 @@ type UpdateRestaurantInput = {
   contactInfo: string | null;
   note: string | null;
   menuUrl: string | null;
+  // Omitted leaves the preset unchanged.
+  sizePresetId?: number | null;
 };
 
 export const restaurantKeys = {
@@ -61,9 +67,22 @@ export function useUpdateRestaurant(id: number) {
       api.patch<Restaurant>(`/restaurants/${id}`, input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: restaurantKeys.list() });
+      // A preset change rebuilds item sizes and clears submission sizes.
+      queryClient.invalidateQueries({ queryKey: menuItemKeys.all(id) });
+      queryClient.invalidateQueries({ queryKey: publicRoundKeys.all });
       toast.success("Restaurant updated");
     },
     onError: (error) => toastApiError(error, "Could not update restaurant."),
+  });
+}
+
+export function useSizeResetImpact(id: number) {
+  return useMutation({
+    mutationFn: (sizePresetId: number | null) =>
+      api.get<{ affectedSubmissions: number }>(
+        `/restaurants/${id}/size-reset-impact?sizePresetId=${sizePresetId ?? "null"}`,
+      ),
+    onError: (error) => toastApiError(error, "Could not check the impact of changing sizes."),
   });
 }
 
