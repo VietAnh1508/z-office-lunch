@@ -114,6 +114,7 @@ describe("AdminLayout", () => {
     expect(nav.getByRole("link", { name: "Restaurants" })).toBeInTheDocument();
     expect(nav.getByRole("link", { name: "Employees" })).toBeInTheDocument();
     expect(nav.getByRole("link", { name: "Rounds" })).toBeInTheDocument();
+    expect(nav.getByRole("link", { name: "Sizes" })).toBeInTheDocument();
   });
 
   it("navigates to each admin section via the nav links", async () => {
@@ -121,6 +122,7 @@ describe("AdminLayout", () => {
     server.use(
       http.get("/api/restaurants", () => HttpResponse.json([])),
       http.get("/api/employees", () => HttpResponse.json([])),
+      http.get("/api/size-presets", () => HttpResponse.json([])),
     );
 
     unlock();
@@ -135,6 +137,9 @@ describe("AdminLayout", () => {
 
     await user.click(nav.getByRole("link", { name: "Rounds" }));
     expect(screen.getByRole("heading", { name: "Rounds" })).toBeInTheDocument();
+
+    await user.click(nav.getByRole("link", { name: "Sizes" }));
+    expect(await screen.findByText("No size presets yet.")).toBeInTheDocument();
   });
 
   it("marks the active nav link with aria-current", async () => {

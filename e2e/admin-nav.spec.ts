@@ -18,6 +18,9 @@ test("clicking through the admin nav reaches each section", async ({ page }) => 
 
   await nav.getByRole("link", { name: "Rounds" }).click();
   await expect(page.getByRole("heading", { name: "Rounds" })).toBeVisible();
+
+  await nav.getByRole("link", { name: "Sizes" }).click();
+  await expect(page.getByRole("heading", { name: "Sizes" })).toBeVisible();
 });
 
 test("deep-linking to a nested admin route is served by the SPA fallback", async ({ page }) => {
