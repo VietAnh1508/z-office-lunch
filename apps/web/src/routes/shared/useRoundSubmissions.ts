@@ -12,6 +12,8 @@ export type RoundSubmission = {
   drinkNote: string | null;
   foodRoundMenuItemId: number | null;
   drinkRoundMenuItemId: number | null;
+  drinkSizeOptionId: number | null;
+  drinkSize: string | null;
 };
 
 type UpdateRoundSubmissionInput = {
@@ -20,6 +22,7 @@ type UpdateRoundSubmissionInput = {
   foodNote?: string;
   drinkRoundMenuItemId?: number;
   drinkNote?: string;
+  drinkSizeOptionId?: number;
 };
 
 export const roundSubmissionKeys = {

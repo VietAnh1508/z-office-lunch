@@ -22,7 +22,10 @@ type SubmissionInput = {
   foodNote?: string;
   drinkRoundMenuItemId?: number;
   drinkNote?: string;
+  drinkSizeOptionId?: number;
 };
+
+const DRINK_SIZE_REQUIRED_ERROR = "Please select a drink size.";
 
 export type Step = "who" | "food" | "drink" | "review";
 
@@ -32,6 +35,9 @@ const STEP_TITLES: Record<Step, string> = {
   drink: "Pick your drink",
   review: "Looks good?",
 };
+
+const selectClassName =
+  "h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20";
 
 export function SubmissionForm({
   roundId,
@@ -50,6 +56,8 @@ export function SubmissionForm({
   const [foodNote, setFoodNote] = useState("");
   const [drinkItemId, setDrinkItemId] = useState<number | null>(null);
   const [drinkNote, setDrinkNote] = useState("");
+  const [drinkSizeId, setDrinkSizeId] = useState<number | null>(null);
+  const [drinkSizeError, setDrinkSizeError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
 
@@ -78,6 +86,8 @@ export function SubmissionForm({
   const firstName = employee?.fullName.split(" ")[0] ?? null;
   const food = round.foodItems?.find((i) => i.id === foodItemId) ?? null;
   const drink = round.drinkItems?.find((i) => i.id === drinkItemId) ?? null;
+  const drinkSizes = drink?.sizes ?? [];
+  const drinkSize = drinkSizes.find((s) => s.id === drinkSizeId) ?? null;
 
   const canContinue =
     step === "who"
@@ -88,7 +98,17 @@ export function SubmissionForm({
           ? !drinkRequired || drinkItemId !== null
           : true;
 
+  function selectDrink(id: number) {
+    setDrinkItemId(id);
+    setDrinkSizeId(null);
+    setDrinkSizeError(null);
+  }
+
   function goNext() {
+    if (step === "drink" && drinkSizes.length > 0 && drinkSizeId === null) {
+      setDrinkSizeError(DRINK_SIZE_REQUIRED_ERROR);
+      return;
+    }
     setStepIndex((i) => Math.min(i + 1, steps.length - 1));
   }
   function goBack() {
@@ -102,6 +122,7 @@ export function SubmissionForm({
       foodNote: hasFood ? foodNote.trim() || undefined : undefined,
       drinkRoundMenuItemId: drinkItemId ?? undefined,
       drinkNote: drinkItemId !== null && drinkNote.trim() ? drinkNote.trim() : undefined,
+      drinkSizeOptionId: drinkSize?.id,
     };
   }
 
@@ -109,6 +130,7 @@ export function SubmissionForm({
     if (employeeId === null) return;
     if (hasFood && foodItemId === null) return;
     if (drinkRequired && drinkItemId === null) return;
+    if (drinkSizes.length > 0 && drinkSizeId === null) return;
 
     const existing = existingSubmissions?.[0] ?? null;
     if (existing) {
@@ -151,7 +173,7 @@ export function SubmissionForm({
       ? [
           {
             label: "Drink",
-            value: drink?.name ?? null,
+            value: drink ? `${drink.name}${drinkSize ? ` (${drinkSize.label})` : ""}` : null,
             note: drinkNote.trim() || undefined,
           },
         ]
@@ -275,8 +297,33 @@ export function SubmissionForm({
                   label: i.name,
                 }))}
                 value={drinkItemId}
-                onSelect={setDrinkItemId}
+                onSelect={selectDrink}
               />
+              {drinkSizes.length > 0 && (
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="submission-drink-size">
+                    Drink size <span className="text-destructive">*</span>
+                  </Label>
+                  <select
+                    id="submission-drink-size"
+                    className={selectClassName}
+                    value={drinkSizeId ?? ""}
+                    onChange={(e) => {
+                      setDrinkSizeId(e.target.value ? Number(e.target.value) : null);
+                      setDrinkSizeError(null);
+                    }}
+                    aria-invalid={drinkSizeError !== null}
+                  >
+                    <option value="">Select a size</option>
+                    {drinkSizes.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.label}
+                      </option>
+                    ))}
+                  </select>
+                  {drinkSizeError && <p className="text-sm text-destructive">{drinkSizeError}</p>}
+                </div>
+              )}
               <MenuLink restaurant={round.drinkRestaurant} />
               <RestaurantNote restaurant={round.drinkRestaurant} />
               <MenuImage restaurant={round.drinkRestaurant} className="lg:hidden" />
@@ -284,7 +331,7 @@ export function SubmissionForm({
                 <Label htmlFor="submission-drink-note">Drink note</Label>
                 <Input
                   id="submission-drink-note"
-                  placeholder="Optional, e.g. size M, less ice"
+                  placeholder="Optional, e.g. less ice"
                   value={drinkNote}
                   onChange={(e) => setDrinkNote(e.target.value)}
                   disabled={!drinkItemId}
@@ -329,6 +376,7 @@ export function SubmissionForm({
         open={existingSubmission !== null}
         existing={existingSubmission}
         hasFood={hasFood}
+        incomingDrink={drink ? { name: drink.name, size: drinkSize?.label ?? null } : null}
         pending={createSubmission.isPending}
         onCancel={handleCancelOverwrite}
         onConfirm={handleConfirmOverwrite}

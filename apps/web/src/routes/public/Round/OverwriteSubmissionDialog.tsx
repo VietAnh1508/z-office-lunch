@@ -14,6 +14,7 @@ export function OverwriteSubmissionDialog({
   open,
   existing,
   hasFood,
+  incomingDrink,
   pending,
   onCancel,
   onConfirm,
@@ -21,6 +22,7 @@ export function OverwriteSubmissionDialog({
   open: boolean;
   existing: RoundSubmission | null;
   hasFood: boolean;
+  incomingDrink: { name: string; size: string | null } | null;
   pending: boolean;
   onCancel: () => void;
   onConfirm: () => void;
@@ -41,7 +43,14 @@ export function OverwriteSubmissionDialog({
               {existing?.drinkName && (
                 <span>
                   Drink: {existing.drinkName}
+                  {existing.drinkSize ? `, size ${existing.drinkSize}` : ""}
                   {existing.drinkNote ? ` (${existing.drinkNote})` : ""}
+                </span>
+              )}
+              {incomingDrink && (
+                <span>
+                  New: {incomingDrink.name}
+                  {incomingDrink.size ? `, size ${incomingDrink.size}` : ""}
                 </span>
               )}
               <span className="mt-1 font-medium text-foreground">

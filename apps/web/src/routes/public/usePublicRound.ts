@@ -6,6 +6,8 @@ export type PublicRoundItem = {
   // — task 009's submission form posts this id straight through.
   id: number;
   name: string;
+  // Only present on drink items; empty when the item has no sizes.
+  sizes?: { id: number; label: string }[];
 };
 
 export type PublicRoundRestaurant = {

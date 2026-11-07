@@ -281,3 +281,65 @@ test("employee submits a drink-only round and admin sees it in the submissions v
   await page.getByRole("button", { name: "Close" }).click();
   await expect(page.getByText("Round closed")).toBeVisible();
 });
+
+test("employee must pick a drink size for a sized drink, and admin sees the round open", async ({
+  page,
+}) => {
+  const stamp = Date.now();
+  const presetName = `Order cups ${stamp}`;
+  const drinkRestaurantName = `Sized Drink Restaurant ${stamp}`;
+  const roundLabel = `Sized Drink Round ${stamp}`;
+  const employeeName = `Sized Drink Employee ${stamp}`;
+
+  await unlockAdmin(page);
+  await page.goto("/admin/sizes");
+  await page.getByLabel("Preset name", { exact: false }).fill(presetName);
+  await page.getByLabel("Options", { exact: false }).fill("S\nM\nL");
+  await page.getByRole("button", { name: "Add preset" }).click();
+  await expect(page.getByText("Size preset added")).toBeVisible();
+
+  // The new item picks up all of the preset's sizes automatically.
+  await page.goto("/admin/restaurants");
+  await page.locator("#restaurant-name").fill(drinkRestaurantName);
+  await page.locator("#restaurant-type").selectOption("drink");
+  await page.getByLabel("Size preset").selectOption({ label: `${presetName} (S / M / L)` });
+  await page.getByRole("button", { name: "Add restaurant" }).click();
+  await page.getByRole("link", { name: drinkRestaurantName }).click();
+  await page.locator("#menu-item-name").fill("Milk Tea");
+  await page.getByRole("button", { name: "Add menu item", exact: true }).click();
+  await expect(page.getByText("Menu item added")).toBeVisible();
+
+  await page.goto("/admin/employees");
+  await page.getByLabel("Full name", { exact: false }).fill(employeeName);
+  await page.getByRole("button", { name: "Add employee" }).click();
+  await expect(page.getByText("Employee added")).toBeVisible();
+
+  await page.goto("/admin/rounds");
+  await page.getByLabel("Label", { exact: false }).fill(roundLabel);
+  await page.locator("#round-drink-restaurant").selectOption({ label: drinkRestaurantName });
+  await page.getByLabel("Deadline", { exact: false }).fill("2030-01-01T12:00");
+  await page.getByRole("button", { name: "Add round" }).click();
+  await page.getByRole("link", { name: roundLabel }).click();
+  const roundId = page.url().substring(page.url().lastIndexOf("/") + 1);
+  await page.getByRole("button", { name: "Open" }).click();
+  await expect(page.getByText("Round opened")).toBeVisible();
+
+  await page.goto(`/r/${roundId}`);
+  await page.getByRole("textbox", { name: "Your name" }).fill(employeeName);
+  await page.getByRole("option", { name: employeeName }).click();
+  await page.getByRole("option", { name: "Milk Tea" }).click();
+
+  // No size yet: Continue is blocked with an inline error.
+  await page.getByRole("button", { name: "Continue" }).click();
+  await expect(page.getByText("Please select a drink size.")).toBeVisible();
+
+  await page.getByLabel("Drink size", { exact: false }).selectOption({ label: "M" });
+  await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByRole("button", { name: "Submit order" }).click();
+  await expect(page.getByText("Thanks! Your order has been recorded.")).toBeVisible();
+
+  // Close so other specs can open their own round.
+  await page.goto(`/admin/rounds/${roundId}`);
+  await page.getByRole("button", { name: "Close" }).click();
+  await expect(page.getByText("Round closed")).toBeVisible();
+});
