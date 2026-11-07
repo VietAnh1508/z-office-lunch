@@ -1028,8 +1028,9 @@ describe("Round (public view)", () => {
       const user = userEvent.setup();
       const { captured, handler } = capturePost();
       let lookupRequested = false;
-      serve(SIZED_DRINK_ROUND, [
-        handler,
+      serve(SIZED_DRINK_ROUND, [handler]);
+      // Registered after serve() so it takes priority over its empty default.
+      server.use(
         http.get("/api/rounds/1/submissions", ({ request }) => {
           if (new URL(request.url).searchParams.get("employeeId") === "1") {
             lookupRequested = true;
@@ -1050,7 +1051,7 @@ describe("Round (public view)", () => {
           }
           return HttpResponse.json([]);
         }),
-      ]);
+      );
       renderRound("1");
       await waitForForm();
 

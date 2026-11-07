@@ -15,6 +15,7 @@ type CreateSubmissionInput = {
   foodNote?: string;
   drinkRoundMenuItemId?: number;
   drinkNote?: string;
+  drinkSizeOptionId?: number;
 };
 
 type Submission = {
@@ -25,6 +26,7 @@ type Submission = {
   foodNote: string | null;
   drinkRoundMenuItemId: number | null;
   drinkNote: string | null;
+  drinkSizeOptionId: number | null;
 };
 
 export function useActiveEmployees() {

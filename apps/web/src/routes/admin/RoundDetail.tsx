@@ -39,6 +39,7 @@ import { SubmissionsTable } from "./SubmissionsTable";
 import type { MenuItem } from "./useMenuItems";
 import { useMenuItems } from "./useMenuItems";
 import type { Restaurant } from "./useRestaurants";
+import { type SizeOption, useSizePresets } from "./useSizePresets";
 import { useRestaurants } from "./useRestaurants";
 import {
   useAddRoundMenuItem,
@@ -53,7 +54,9 @@ import { useRoundSubmissions, useUpdateRoundSubmission } from "../shared/useRoun
 const selectClassName =
   "h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20";
 
-type SubmissionOption = { id: number; name: string };
+type SubmissionOption = { id: number; name: string; sizes?: { id: number; label: string }[] };
+
+const DRINK_SIZE_REQUIRED_ERROR = "Please select a drink size.";
 
 function SubmissionEditDialog({
   round,
@@ -75,6 +78,10 @@ function SubmissionEditDialog({
   const [drinkItemError, setDrinkItemError] = useState<string | null>(null);
   const [drinkItemId, setDrinkItemId] = useState("");
   const [drinkNote, setDrinkNote] = useState("");
+  const [drinkSizeId, setDrinkSizeId] = useState("");
+  const [drinkSizeError, setDrinkSizeError] = useState<string | null>(null);
+
+  const drinkSizes = drinkOptions.find((o) => String(o.id) === drinkItemId)?.sizes ?? [];
 
   // Reset fields from the submission's *current* values every time the
   // dialog opens (not just on mount) -- otherwise reopening after a save
@@ -91,6 +98,10 @@ function SubmissionEditDialog({
         submission.drinkRoundMenuItemId != null ? String(submission.drinkRoundMenuItemId) : "",
       );
       setDrinkNote(submission.drinkNote ?? "");
+      setDrinkSizeId(
+        submission.drinkSizeOptionId != null ? String(submission.drinkSizeOptionId) : "",
+      );
+      setDrinkSizeError(null);
     }
     setOpen(nextOpen);
   }
@@ -106,7 +117,9 @@ function SubmissionEditDialog({
     const drinkValid = hasFood || !hasDrink || drinkItemId !== "";
     setFoodItemError(foodValid ? null : "Please select a food item.");
     setDrinkItemError(drinkValid ? null : "Please select a drink item.");
-    if (!foodValid || !drinkValid) return;
+    const sizeValid = drinkSizes.length === 0 || drinkSizeId !== "";
+    setDrinkSizeError(sizeValid ? null : DRINK_SIZE_REQUIRED_ERROR);
+    if (!foodValid || !drinkValid || !sizeValid) return;
 
     updateSubmission.mutate(
       {
@@ -115,6 +128,7 @@ function SubmissionEditDialog({
         foodNote: foodNote.trim() || undefined,
         drinkRoundMenuItemId: drinkItemId ? Number(drinkItemId) : undefined,
         drinkNote: drinkItemId && drinkNote.trim() ? drinkNote.trim() : undefined,
+        drinkSizeOptionId: drinkSizes.length > 0 ? Number(drinkSizeId) : undefined,
       },
       { onSuccess: () => setOpen(false) },
     );
@@ -185,6 +199,8 @@ function SubmissionEditDialog({
                   onChange={(e) => {
                     setDrinkItemId(e.target.value);
                     setDrinkItemError(null);
+                    setDrinkSizeId("");
+                    setDrinkSizeError(null);
                   }}
                   aria-invalid={drinkItemError !== null}
                 >
@@ -197,6 +213,31 @@ function SubmissionEditDialog({
                 </select>
                 {drinkItemError && <p className="text-sm text-destructive">{drinkItemError}</p>}
               </div>
+              {drinkSizes.length > 0 && (
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="edit-submission-drink-size">
+                    Drink size <span className="text-destructive">*</span>
+                  </Label>
+                  <select
+                    id="edit-submission-drink-size"
+                    className={selectClassName}
+                    value={drinkSizeId}
+                    onChange={(e) => {
+                      setDrinkSizeId(e.target.value);
+                      setDrinkSizeError(null);
+                    }}
+                    aria-invalid={drinkSizeError !== null}
+                  >
+                    <option value="">Select a size</option>
+                    {drinkSizes.map((size) => (
+                      <option key={size.id} value={size.id}>
+                        {size.label}
+                      </option>
+                    ))}
+                  </select>
+                  {drinkSizeError && <p className="text-sm text-destructive">{drinkSizeError}</p>}
+                </div>
+              )}
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="edit-submission-drink-note">Drink note</Label>
                 <Input
@@ -387,6 +428,9 @@ export function RoundDetail() {
   const { data: allFoodItems } = useMenuItems(round?.foodRestaurantId ?? 0, false);
   const { data: allDrinkItems } = useMenuItems(round?.drinkRestaurantId ?? 0, false);
   const updateSubmission = useUpdateRoundSubmission(roundId);
+  const drinkPresetId =
+    restaurants?.find((r) => r.id === round?.drinkRestaurantId)?.sizePresetId ?? null;
+  const { data: sizePresets } = useSizePresets({ enabled: drinkPresetId !== null });
 
   if (roundPending) {
     return <p className="p-6 text-sm text-muted-foreground">Loading round…</p>;
@@ -403,14 +447,22 @@ export function RoundDetail() {
 
   // The round's own curated items, not the full restaurant menu -- an edit
   // can only pick from what the round was actually built from.
-  function curatedOptions(items: MenuItem[] | undefined): SubmissionOption[] {
+  function curatedOptions(
+    items: MenuItem[] | undefined,
+    presetOptions?: SizeOption[],
+  ): SubmissionOption[] {
     return (items ?? []).flatMap((item) => {
       const curatedItem = curatedByMenuItemId.get(item.id);
-      return curatedItem ? [{ id: curatedItem.id, name: item.name }] : [];
+      if (!curatedItem) return [];
+      const sizes = (presetOptions ?? []).filter((o) => item.sizeOptionIds?.includes(o.id));
+      return [{ id: curatedItem.id, name: item.name, sizes }];
     });
   }
   const foodOptions = curatedOptions(allFoodItems);
-  const drinkOptions = curatedOptions(allDrinkItems);
+  const drinkOptions = curatedOptions(
+    allDrinkItems,
+    sizePresets?.find((p) => p.id === drinkPresetId)?.options,
+  );
 
   function toggleItem(menuItemId: number, checked: boolean) {
     if (checked) {
