@@ -53,7 +53,7 @@ Use judgment on the boundary: if the fix touches the data model, spans multiple 
 `/implement-task` does the following as normal per-task operation, with no confirmation needed for any of it:
 
 - creating and checking out the feature branch off `main`
-- three commits per task: one failing-test commit (`test:` prefix), one passing-implementation commit (`feat:`/`fix:` prefix), and one bookkeeping commit (`chore:` prefix) that records the task's status/review-notes updates
+- commits following the TDD phases, each atomic: one failing-test commit (`test:` prefix), then one or more green-phase commits (`feat:`/`fix:`/`refactor:` prefix — the implementation plus any follow-ups from code review or human PR feedback), and one bookkeeping commit (`chore:` prefix) that records the task's status/review-notes updates
 - pushing that branch to `origin`
 - opening the PR to `main` via `gh pr create`
 

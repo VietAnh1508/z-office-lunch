@@ -1,5 +1,5 @@
 ---
-description: Implement one approved task on a fresh feature branch via TDD (red commit, then green commit), review with feature-dev's code-reviewer agent, open a PR to main, then stop
+description: Implement one approved task on a fresh feature branch via TDD phases (red commit, then one or more atomic green commits), review with feature-dev's code-reviewer agent, open a PR to main, then stop
 argument-hint: [task id, optional]
 ---
 
@@ -7,38 +7,32 @@ argument-hint: [task id, optional]
 
 Target task id: $ARGUMENTS
 
-Implement exactly **one** task, TDD-style, on its own feature branch, then stop. Never proceed to a second task in the same invocation.
+Implement exactly **one** task, TDD-style, on its own feature branch, then stop. Never proceed to a second task in the same invocation. Every git/PR operation below is pre-authorized by `CLAUDE.md` — no confirmation needed.
 
 ## Steps
 
-1. **Guard.** Run `pnpm tasks:status` (`scripts/task-status.mjs`) on `main` and check its "Continue:" section for any task `in_progress` or `in_review` (it computes this from frontmatter, not scanned by eye — this only catches leftovers, e.g. a merged PR whose task was never flipped to `done`). Also run `git branch -a --list 'task/*'` and `gh pr list --state open` to check for an existing task branch/PR — since in-flight status now lives on that branch, this is the real signal. If any task is in flight by either check, stop immediately and report which one — it must be reviewed, merged (or closed), and flipped to `done` before a new task can start.
+1. **Guard.** Stop and report if any task is already in flight: a non-`done` task in `pnpm tasks:status`, an open `task/*` branch, or an open PR. It must be merged (or closed) and flipped to `done` first.
 
-2. **Pick the target.** If a task id was given in `$ARGUMENTS`, use that task file. Otherwise use `pnpm tasks:status`'s "Ready to start" list and pick the lowest-id entry. If none qualify, stop and report why (e.g. nothing approved, or all approved tasks are blocked on dependencies — `pnpm tasks:status`'s "Blocked" section says on what).
+2. **Pick the target.** Use the task id in `$ARGUMENTS`, otherwise the lowest-id entry in `pnpm tasks:status`'s "Ready to start". If none qualify, stop and say why.
 
-3. **Branch.** Make sure `main` is checked out and up to date (`git checkout main`, `git pull` if a remote is configured). If a `task/<id>-*` branch already exists (re-running after review feedback), check that out instead. Otherwise create one off `main`: `git checkout -b task/<id>-<slug>`, where `<slug>` comes from the task filename (e.g. `tasks/002-test-db-harness.md` -> `task/002-test-db-harness`). Read the task file fully. Set `status: in_progress` in its frontmatter (uncommitted for now — it lands in the bookkeeping commit in step 8).
+3. **Branch.** Work on `task/<id>-<slug>` (slug from the task filename), created off an up-to-date `main`, or checked out if it already exists (re-run after review feedback). Read the task file fully and set `status: in_progress` (committed later in step 10).
 
-4. **Red.** Write the failing test(s) called for by the task's Acceptance Criteria — unit tests always; add an e2e spec too if the task is user-facing and the project has e2e tooling. Run the task's `test_command` and confirm the failure is the *expected* one (the assertion you just wrote failing), not a config/syntax error. If it's the wrong kind of failure, fix the test setup before committing.
+4. **Red.** Write failing tests for the Acceptance Criteria (unit always; e2e too if the task is user-facing). Run the task's `test_command` and confirm it fails on the new assertions, not on a config/compile error. Add only the minimum scaffolding (declarations, stubs, schema + migration) needed to get there — never the behavior under test.
 
-5. **Commit red.** Stage only the test/fixture files and commit with message prefix `test:` and a trailer:
-   ```
-   TDD-Red: <test_command> -> N failing
-   ```
-   This commit is pre-authorized by `CLAUDE.md` — don't ask for confirmation to make it.
+5. **Commit red.** Prefix `test:`, with trailer `TDD-Red: <test_command> -> N failing`. Mention any scaffolding in the body.
 
-6. **Green.** Implement the minimum code needed to satisfy the failing test(s). Iterate until `test_command` (and e2e, if applicable) passes fully.
+6. **Green.** Implement the minimum to make `test_command` (and e2e) pass.
 
-7. **Commit green.** Stage the implementation and commit with message prefix `feat:` or `fix:` and a trailer:
-   ```
-   TDD-Green: <test_command> -> all passing (red: <red-sha>)
-   ```
-   Also pre-authorized — no confirmation needed.
+7. **Commit green.** Prefix `feat:`/`fix:`, with trailer `TDD-Green: <test_command> -> all passing (red: <red-sha>)`. Green is a phase: split into several commits when the work splits naturally.
 
-8. **Lint.** Run `pnpm lint`. Fix any findings in files this task touches before moving on — pre-existing warnings in files the task doesn't otherwise change are not this task's concern.
+8. **Lint.** Run `pnpm lint` and fix findings in files this task touches, as a separate commit if non-trivial.
 
-9. **Update the task file, then review.** Fill in the Implementation Log with both commit shas and the `test_command` output summary. Also fill in Plan Deviations, honestly: where the actual implementation differed from the Plan section, any wrong assumption or approach you abandoned partway through, and anything the user had to correct or redirect during this task — this is the raw material a later `/retrospective` pass reads, so don't write around a real deviation just because the task still ended up green. Write "None." only if genuinely nothing applies. Only list genuine deviations — a step carried out as the Plan described doesn't belong here, even if it's worth calling out for other reasons. Set `status: in_review`. Run `git diff <red-sha> <green-sha>` yourself and capture the output — the `feature-dev:code-reviewer` agent's tool grant has no `Bash`, so it cannot run `git diff` itself despite its own instructions assuming `git diff` access; without this the agent falls back to reading whole files and can't tell task-authored changes from pre-existing code. Launch a `feature-dev:code-reviewer` agent (the same subagent `/feature-dev` uses in its Phase 6 — do NOT use the `/code-review` slash command, which is GitHub-PR-only, posts to a PR that doesn't exist yet at this point in the flow, and is far more token-heavy than needed here) with that diff text pasted directly into its prompt. Append its findings verbatim to the task file's Review Notes section.
+9. **Review, then fix.** Capture `git diff main...HEAD` and paste it into a `feature-dev:code-reviewer` prompt (the agent can't run git). Fix the findings worth fixing, each as its own `fix:`/`refactor:`/`feat:` commit with tests still passing. Behavior changes need a test first. The same applies to human PR feedback on a re-run.
 
-10. **Commit task record.** Stage the task file (now `status: in_review` with the filled-in Implementation Log and Review Notes) and commit with message prefix `chore:`, e.g. `chore: record task 002 review`. Also pre-authorized.
+   **Atomic commits.** Each commit does one logical thing and leaves tests passing (except red, which fails by design). Don't bundle unrelated changes or split one change across several. Never amend or rewrite earlier commits.
 
-11. **Push & open PR.** Push the branch (`git push -u origin task/<id>-<slug>`) and open a PR to `main` (`gh pr create --base main --head task/<id>-<slug> --title ... --body ...`), summarizing the task and including the review findings in the PR body. Pushing and opening this PR are pre-authorized per-task operations — no confirmation needed for either.
+10. **Record.** In the task file, fill in the Implementation Log (red sha, each green-phase sha with what it did, `test_command` result), Plan Deviations (honestly — `/retrospective` reads this), and Review Notes (reviewer findings verbatim, plus what you did about each). Set `status: in_review` and commit as `chore:`.
 
-12. **Stop.** Report the PR URL and the review findings to the user. Do not start another task, even if more are `approved` and unblocked — that's a separate `/implement-task` invocation. Merging the PR and flipping the task's `status:` to `done` on `main` is the user's action (per `CLAUDE.md`'s loop), not this command's.
+11. **Push & open PR.** Push the branch and open a PR to `main` summarizing the task and review findings.
+
+12. **Stop.** Report the PR URL and review findings. Merging and flipping to `done` is the user's step.
