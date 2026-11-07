@@ -47,3 +47,14 @@ test("admin can create a drink restaurant and see its type label", async ({ page
   const row = page.getByText(restaurantName).locator("..");
   await expect(row.getByText("drink", { exact: true })).toBeVisible();
 });
+
+test("size preset select shows only for drink restaurants on the create form", async ({ page }) => {
+  await unlockAdmin(page);
+  await page.goto("/admin/restaurants");
+
+  await expect(page.getByLabel("Size preset")).toHaveCount(0);
+  await page.locator("#restaurant-type").selectOption("drink");
+  await expect(page.getByLabel("Size preset")).toBeVisible();
+  await page.locator("#restaurant-type").selectOption("food");
+  await expect(page.getByLabel("Size preset")).toHaveCount(0);
+});

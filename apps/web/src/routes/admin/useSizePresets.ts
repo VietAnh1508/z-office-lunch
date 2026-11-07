@@ -32,8 +32,9 @@ export const sizePresetKeys = {
   list: () => [...sizePresetKeys.all, "list"] as const,
 };
 
-export function useSizePresets() {
+export function useSizePresets({ enabled = true }: { enabled?: boolean } = {}) {
   return useQuery({
+    enabled,
     queryKey: sizePresetKeys.list(),
     queryFn: () => api.get<SizePreset[]>("/size-presets"),
   });

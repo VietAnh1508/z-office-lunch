@@ -9,6 +9,7 @@ export type MenuItem = {
   name: string;
   price: string | null;
   active: boolean;
+  sizeOptionIds: number[];
 };
 
 type CreateMenuItemInput = {
@@ -99,5 +100,22 @@ export function useUpdateMenuItem(restaurantId: number) {
       toast.success("Menu item updated");
     },
     onError: (error) => toastApiError(error, "Could not update menu item."),
+  });
+}
+
+export function useUpdateMenuItemSizes(restaurantId: number) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: { id: number; sizeOptionIds: number[] }) =>
+      api.put<{ id: number; sizeOptionIds: number[] }>(
+        `/restaurants/${restaurantId}/menu-items/${input.id}/sizes`,
+        { sizeOptionIds: input.sizeOptionIds },
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: menuItemKeys.all(restaurantId) });
+      toast.success("Menu item sizes updated");
+    },
+    onError: (error) => toastApiError(error, "Could not update menu item sizes."),
   });
 }

@@ -7,6 +7,7 @@ import { useRequiredField } from "@/hooks/useRequiredField";
 import { type SubmitEvent, useState } from "react";
 import { Link } from "react-router";
 import { RestaurantTypeBadge } from "./RestaurantTypeBadge";
+import { SizePresetSelect } from "./SizePresetSelect";
 import { useCreateRestaurant, useRestaurants, type Restaurant } from "./useRestaurants";
 
 type TypeFilter = "all" | Restaurant["type"];
@@ -26,6 +27,7 @@ export function Restaurants() {
   const [contactInfo, setContactInfo] = useState("");
   const [note, setNote] = useState("");
   const [menuUrl, setMenuUrl] = useState("");
+  const [sizePresetId, setSizePresetId] = useState<number | null>(null);
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
 
   const filteredRestaurants =
@@ -42,6 +44,7 @@ export function Restaurants() {
         contactInfo: contactInfo || undefined,
         note: note || undefined,
         menuUrl: menuUrl || undefined,
+        sizePresetId: type === "drink" ? (sizePresetId ?? undefined) : undefined,
       },
       {
         onSuccess: () => {
@@ -50,6 +53,7 @@ export function Restaurants() {
           setContactInfo("");
           setNote("");
           setMenuUrl("");
+          setSizePresetId(null);
         },
       },
     );
@@ -84,6 +88,13 @@ export function Restaurants() {
                   <option value="drink">Drink</option>
                 </select>
               </div>
+              {type === "drink" && (
+                <SizePresetSelect
+                  id="restaurant-size-preset"
+                  value={sizePresetId}
+                  onChange={setSizePresetId}
+                />
+              )}
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="restaurant-contact-info">Contact info</Label>
                 <Input

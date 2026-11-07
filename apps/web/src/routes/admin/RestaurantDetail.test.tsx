@@ -27,7 +27,14 @@ describe("RestaurantDetail", () => {
       ),
       http.get("/api/restaurants/1/menu-items", () =>
         HttpResponse.json([
-          { id: 10, restaurantId: 1, name: "Pho Bo", price: "11000", active: true },
+          {
+            id: 10,
+            restaurantId: 1,
+            name: "Pho Bo",
+            price: "11000",
+            active: true,
+            sizeOptionIds: [],
+          },
         ]),
       ),
     );
@@ -56,6 +63,7 @@ describe("RestaurantDetail", () => {
       name: string;
       price: string | null;
       active: boolean;
+      sizeOptionIds: number[];
     }> = [];
 
     server.use(
@@ -73,6 +81,7 @@ describe("RestaurantDetail", () => {
           name: body.name,
           price: body.price ?? null,
           active: true,
+          sizeOptionIds: [],
         };
         items = [...items, created];
         return HttpResponse.json(created, { status: 201 });
@@ -198,7 +207,14 @@ describe("RestaurantDetail", () => {
 
   it("toggles a menu item's active state", async () => {
     const user = userEvent.setup();
-    let item = { id: 10, restaurantId: 1, name: "Pho Bo", price: null, active: true };
+    let item = {
+      id: 10,
+      restaurantId: 1,
+      name: "Pho Bo",
+      price: null,
+      active: true,
+      sizeOptionIds: [],
+    };
 
     server.use(
       http.get("/api/restaurants", () =>
@@ -232,7 +248,14 @@ describe("RestaurantDetail", () => {
 
   it("shows a fallback error toast when toggling a menu item's active state fails with a network error", async () => {
     const user = userEvent.setup();
-    const item = { id: 10, restaurantId: 1, name: "Pho Bo", price: null, active: true };
+    const item = {
+      id: 10,
+      restaurantId: 1,
+      name: "Pho Bo",
+      price: null,
+      active: true,
+      sizeOptionIds: [],
+    };
 
     server.use(
       http.get("/api/restaurants", () =>
@@ -255,7 +278,14 @@ describe("RestaurantDetail", () => {
 
   it("shows the API's error message as a toast when toggling a menu item's active state fails with a known error", async () => {
     const user = userEvent.setup();
-    const item = { id: 10, restaurantId: 1, name: "Pho Bo", price: null, active: true };
+    const item = {
+      id: 10,
+      restaurantId: 1,
+      name: "Pho Bo",
+      price: null,
+      active: true,
+      sizeOptionIds: [],
+    };
 
     server.use(
       http.get("/api/restaurants", () =>
@@ -645,7 +675,14 @@ describe("RestaurantDetail", () => {
 
     it("shows inputs pre-filled with the item's current name and price on edit click", async () => {
       const user = userEvent.setup();
-      const item = { id: 10, restaurantId: 1, name: "Pho Bo", price: "11000", active: true };
+      const item = {
+        id: 10,
+        restaurantId: 1,
+        name: "Pho Bo",
+        price: "11000",
+        active: true,
+        sizeOptionIds: [],
+      };
 
       server.use(
         restaurantHandler(),
@@ -663,7 +700,14 @@ describe("RestaurantDetail", () => {
 
     it("saves new name/price via PATCH, shows the update + success toast, and returns to display mode", async () => {
       const user = userEvent.setup();
-      let item = { id: 10, restaurantId: 1, name: "Pho Bo", price: "11000", active: true };
+      let item = {
+        id: 10,
+        restaurantId: 1,
+        name: "Pho Bo",
+        price: "11000",
+        active: true,
+        sizeOptionIds: [],
+      };
       let patchBody: Record<string, unknown> | null = null;
 
       server.use(
@@ -701,7 +745,14 @@ describe("RestaurantDetail", () => {
 
     it("shows an inline error and sends no request when the name is cleared", async () => {
       const user = userEvent.setup();
-      const item = { id: 10, restaurantId: 1, name: "Pho Bo", price: "11000", active: true };
+      const item = {
+        id: 10,
+        restaurantId: 1,
+        name: "Pho Bo",
+        price: "11000",
+        active: true,
+        sizeOptionIds: [],
+      };
       let patchCalled = false;
 
       server.use(
@@ -727,7 +778,14 @@ describe("RestaurantDetail", () => {
 
     it("shows an inline error and sends no request when the price is invalid", async () => {
       const user = userEvent.setup();
-      const item = { id: 10, restaurantId: 1, name: "Pho Bo", price: "11000", active: true };
+      const item = {
+        id: 10,
+        restaurantId: 1,
+        name: "Pho Bo",
+        price: "11000",
+        active: true,
+        sizeOptionIds: [],
+      };
       let patchCalled = false;
 
       server.use(
@@ -756,7 +814,14 @@ describe("RestaurantDetail", () => {
 
     it("cancels without a request and reverts to the original values", async () => {
       const user = userEvent.setup();
-      const item = { id: 10, restaurantId: 1, name: "Pho Bo", price: "11000", active: true };
+      const item = {
+        id: 10,
+        restaurantId: 1,
+        name: "Pho Bo",
+        price: "11000",
+        active: true,
+        sizeOptionIds: [],
+      };
       let patchCalled = false;
 
       server.use(
@@ -783,7 +848,14 @@ describe("RestaurantDetail", () => {
 
     it("shows an error toast and stays in edit mode when the save fails", async () => {
       const user = userEvent.setup();
-      const item = { id: 10, restaurantId: 1, name: "Pho Bo", price: "11000", active: true };
+      const item = {
+        id: 10,
+        restaurantId: 1,
+        name: "Pho Bo",
+        price: "11000",
+        active: true,
+        sizeOptionIds: [],
+      };
 
       server.use(
         restaurantHandler(),
@@ -808,7 +880,14 @@ describe("RestaurantDetail", () => {
 
     it("reverts to the just-saved value, not the original, when reopened and cancelled", async () => {
       const user = userEvent.setup();
-      let item = { id: 10, restaurantId: 1, name: "Pho Bo", price: "11000", active: true };
+      let item = {
+        id: 10,
+        restaurantId: 1,
+        name: "Pho Bo",
+        price: "11000",
+        active: true,
+        sizeOptionIds: [],
+      };
 
       server.use(
         restaurantHandler(),
@@ -839,5 +918,222 @@ describe("RestaurantDetail", () => {
       expect(screen.getByText("Pho Ga", { exact: false })).toBeInTheDocument();
       expect(screen.queryByText("Something Else")).not.toBeInTheDocument();
     });
+  });
+});
+
+describe("RestaurantDetail size presets", () => {
+  const presets = [
+    {
+      id: 5,
+      name: "Cups",
+      options: [
+        { id: 1, label: "S", sortOrder: 0 },
+        { id: 2, label: "M", sortOrder: 1 },
+        { id: 3, label: "L", sortOrder: 2 },
+      ],
+    },
+  ];
+  const drink = (sizePresetId: number | null) => ({
+    id: 1,
+    name: "Tra Da",
+    type: "drink",
+    contactInfo: null,
+    note: null,
+    menuUrl: null,
+    menuImage: null,
+    sizePresetId,
+  });
+
+  function setup(opts: { restaurant: object; affected?: number }) {
+    const calls = {
+      patch: null as Record<string, unknown> | null,
+      impactUrl: null as string | null,
+    };
+    server.use(
+      http.get("/api/restaurants", () => HttpResponse.json([opts.restaurant])),
+      http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
+      http.get("/api/size-presets", () => HttpResponse.json(presets)),
+      http.get("/api/restaurants/1/size-reset-impact", ({ request }) => {
+        calls.impactUrl = request.url;
+        return HttpResponse.json({ affectedSubmissions: opts.affected ?? 0 });
+      }),
+      http.patch("/api/restaurants/1", async ({ request }) => {
+        calls.patch = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json(opts.restaurant);
+      }),
+    );
+    return calls;
+  }
+
+  it("hides the size preset select for a food restaurant", async () => {
+    setup({ restaurant: { ...drink(null), type: "food" } });
+    renderDetail("1");
+    await screen.findByRole("heading", { name: "Tra Da" });
+    expect(screen.queryByLabelText("Size preset")).not.toBeInTheDocument();
+  });
+
+  it("lists None plus presets labelled with their options for a drink restaurant", async () => {
+    setup({ restaurant: drink(null) });
+    renderDetail("1");
+    const select = await screen.findByLabelText("Size preset");
+    expect(within(select).getByRole("option", { name: "None" })).toBeInTheDocument();
+    expect(
+      await within(select).findByRole("option", { name: "Cups (S / M / L)" }),
+    ).toBeInTheDocument();
+  });
+
+  it("saves without a dialog when no submissions are affected", async () => {
+    const user = userEvent.setup();
+    const calls = setup({ restaurant: drink(null), affected: 0 });
+    renderDetail("1");
+    const select = await screen.findByLabelText("Size preset");
+    await within(select).findByRole("option", { name: "Cups (S / M / L)" });
+    await user.selectOptions(select, "Cups (S / M / L)");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(calls.patch).not.toBeNull());
+    expect(calls.patch).toEqual(expect.objectContaining({ sizePresetId: 5 }));
+    expect(calls.impactUrl).toContain("sizePresetId=5");
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+  });
+
+  it("asks for confirmation when orders would lose their size, and saves on confirm", async () => {
+    const user = userEvent.setup();
+    const calls = setup({ restaurant: drink(null), affected: 3 });
+    renderDetail("1");
+    const select = await screen.findByLabelText("Size preset");
+    await within(select).findByRole("option", { name: "Cups (S / M / L)" });
+    await user.selectOptions(select, "Cups (S / M / L)");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    const dialog = await screen.findByRole("alertdialog");
+    expect(within(dialog).getByText("3", { exact: false })).toBeInTheDocument();
+    expect(calls.patch).toBeNull();
+    await user.click(within(dialog).getByRole("button", { name: "Confirm" }));
+
+    await waitFor(() => expect(calls.patch).not.toBeNull());
+    expect(calls.patch).toEqual(expect.objectContaining({ sizePresetId: 5 }));
+  });
+
+  it("aborts the save when the dialog is cancelled", async () => {
+    const user = userEvent.setup();
+    const calls = setup({ restaurant: drink(null), affected: 2 });
+    renderDetail("1");
+    const select = await screen.findByLabelText("Size preset");
+    await within(select).findByRole("option", { name: "Cups (S / M / L)" });
+    await user.selectOptions(select, "Cups (S / M / L)");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    const dialog = await screen.findByRole("alertdialog");
+    await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
+
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument());
+    expect(calls.patch).toBeNull();
+  });
+
+  it("does not send sizePresetId when the preset is unchanged", async () => {
+    const user = userEvent.setup();
+    const calls = setup({ restaurant: drink(5) });
+    renderDetail("1");
+    await screen.findByLabelText("Size preset");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(calls.patch).not.toBeNull());
+    expect(calls.patch).not.toHaveProperty("sizePresetId");
+    expect(calls.impactUrl).toBeNull();
+  });
+
+  it("edits per-item sizes with checkboxes and saves them via PUT with name/price", async () => {
+    const user = userEvent.setup();
+    let putBody: Record<string, unknown> | null = null;
+    const item = {
+      id: 10,
+      restaurantId: 1,
+      name: "Milk Tea",
+      price: "30000",
+      active: true,
+      sizeOptionIds: [1, 2, 3],
+    };
+    setup({ restaurant: drink(5) });
+    server.use(
+      http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([item])),
+      http.patch("/api/restaurants/1/menu-items/10/details", () => HttpResponse.json(item)),
+      http.put("/api/restaurants/1/menu-items/10/sizes", async ({ request }) => {
+        putBody = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({ id: 10, sizeOptionIds: [1, 2] });
+      }),
+    );
+    renderDetail("1");
+
+    await screen.findByText("Milk Tea");
+    await user.click(screen.getByRole("button", { name: "Edit menu item" }));
+    const row = within(screen.getByLabelText("Menu item name").closest("li")!);
+    expect(await row.findByRole("checkbox", { name: "S" })).toBeChecked();
+    await user.click(row.getByRole("checkbox", { name: "L" }));
+    await user.click(row.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(putBody).not.toBeNull());
+    expect(putBody).toEqual({ sizeOptionIds: [1, 2] });
+  });
+});
+
+describe("RestaurantDetail item size summary", () => {
+  it("shows each item's available sizes next to its name, in preset order", async () => {
+    server.use(
+      http.get("/api/restaurants", () =>
+        HttpResponse.json([
+          {
+            id: 1,
+            name: "Tra Da",
+            type: "drink",
+            contactInfo: null,
+            note: null,
+            menuUrl: null,
+            menuImage: null,
+            sizePresetId: 5,
+          },
+        ]),
+      ),
+      http.get("/api/size-presets", () =>
+        HttpResponse.json([
+          {
+            id: 5,
+            name: "Cups",
+            options: [
+              { id: 1, label: "S", sortOrder: 0 },
+              { id: 2, label: "M", sortOrder: 1 },
+              { id: 3, label: "L", sortOrder: 2 },
+            ],
+          },
+        ]),
+      ),
+      http.get("/api/restaurants/1/menu-items", () =>
+        HttpResponse.json([
+          {
+            id: 10,
+            restaurantId: 1,
+            name: "Milk Tea",
+            price: null,
+            active: true,
+            sizeOptionIds: [3, 1],
+          },
+          {
+            id: 11,
+            restaurantId: 1,
+            name: "Water",
+            price: null,
+            active: true,
+            sizeOptionIds: [],
+          },
+        ]),
+      ),
+    );
+
+    renderDetail("1");
+
+    const milkTea = (await screen.findByText("Milk Tea")).closest("li")!;
+    expect(await within(milkTea).findByText("S / L")).toBeInTheDocument();
+    const water = screen.getByText("Water").closest("li")!;
+    expect(within(water).queryByText(/\//)).not.toBeInTheDocument();
   });
 });
