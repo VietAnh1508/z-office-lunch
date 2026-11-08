@@ -1,6 +1,7 @@
 ---
 paths:
   - "apps/web/src/**/*.tsx"
+  - "apps/web/src/**/*.ts"
 ---
 
 # Mutation success/error feedback

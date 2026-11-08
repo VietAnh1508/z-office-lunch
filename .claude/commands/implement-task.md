@@ -11,7 +11,7 @@ Implement exactly **one** task, TDD-style, on its own feature branch, then stop.
 
 ## Steps
 
-1. **Guard.** Stop and report if any task is already in flight: a non-`done` task in `pnpm tasks:status`, an open `task/*` branch, or an open PR. It must be merged (or closed) and flipped to `done` first.
+1. **Guard.** Stop and report if a task is already in flight: one `in_progress` or `in_review` (shown under "Continue:" in `pnpm tasks:status`), an open `task/*` branch, or an open PR. It must be merged (or closed) and flipped to `done` first. `approved` tasks are not in flight.
 
 2. **Pick the target.** Use the task id in `$ARGUMENTS`, otherwise the lowest-id entry in `pnpm tasks:status`'s "Ready to start". If none qualify, stop and say why.
 

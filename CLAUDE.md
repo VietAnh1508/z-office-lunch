@@ -2,7 +2,7 @@
 
 ## What this is
 
-An internal tool for running office lunch orders (see `project-idea.md` for the original idea). This repo doubles as a playground for a small AI-driven development workflow: idea → plan → approval → TDD implementation → per-task human review → repeat.
+An internal tool for running office lunch orders (see `docs/project-idea.md` for the original idea). This repo doubles as a playground for a small AI-driven development workflow: idea → plan → approval → TDD implementation → per-task human review → repeat.
 
 App architecture (tech stack, data model, directory layout) is decided — see `docs/architecture.md`. The scaffold described there (task `001`) is built; see the App section below for run/test commands.
 
@@ -61,21 +61,20 @@ Anything outside that (amending, force-pushing, merging the PR itself, touching 
 
 ## App
 
-See `docs/architecture.md` for the full rationale, and root `package.json` `scripts` for the full command list.
+See `docs/architecture.md` for the stack and data model, and root `package.json` `scripts` for the full command list.
 
-`pnpm dev` (`scripts/dev.sh`) is the one command for local dev: starts colima if no container runtime is reachable, brings up Postgres (`docker compose up -d --wait`), creates `apps/api/.env` from the example if missing, builds the SPA, then runs `wrangler dev` on `http://localhost:8787`. Safe to run from a fully cold machine. This serves the SPA as a static build (`apps/web/dist`, per `apps/api/wrangler.jsonc`'s `assets.directory`) — there's no watch/rebuild, so it's the right setup for e2e-accurate testing but the wrong one for iterating on frontend code.
+**Running locally — use the scripts, don't set things up by hand.** `pnpm dev` and `pnpm dev:hot` handle the container runtime, Postgres, migrations and `.env` files themselves (`scripts/dev-setup.sh`), so they're safe from a cold machine. Both run until killed: start them in the background, and stop them with `pnpm dev:stop`.
 
-For frontend iteration, use `pnpm dev:hot` (`scripts/dev-hot.sh`) instead: same cold-machine-safe prereq setup as `pnpm dev` (shared via `scripts/dev-setup.sh`), but skips the build and runs `wrangler dev` (`:8787`) and `vite` (`:5173`, real HMR) concurrently via `concurrently`. Browse the Vite port, not `8787` — `apps/web/vite.config.ts`'s `server.proxy` already forwards `/api` to `localhost:8787`, so API calls still work with no build step in between. (`dev:web`/`dev:api` also exist as the two underlying commands if you want them in separate terminals instead of one `concurrently`-managed process.)
+- `pnpm dev` — SPA built once, served by wrangler on `:8787`. Use for e2e-accurate checks; there's no rebuild on change.
+- `pnpm dev:hot` — wrangler (`:8787`) plus vite (`:5173`, HMR). Use for frontend iteration, and browse `:5173`.
 
-Non-obvious bits the scripts themselves don't tell you:
+Gotchas the scripts don't tell you:
 
-- Before running `dev:api`, `dev:web`, `test`, or `test:e2e` directly (not via `pnpm dev`/`dev:hot`): make sure Postgres is up (`pnpm db:up`) and `apps/api/.env` exists (copy from `.env.example`).
-- To run a subset of tests, pass a path to the root `pnpm test` command, e.g. `pnpm test -- apps/api/src/routes/rounds.test.ts`. Don't use `pnpm --filter <pkg> test` — it silently no-ops.
-- If `wrangler dev` fails to start, check `apps/api/.env` exists first — that's expected, not a bug.
-- Ignore the `REPLACE_ME`/`replace-me` placeholders in `apps/api/wrangler.jsonc` (Hyperdrive id, R2 bucket) — local dev doesn't need them filled in.
-- Formatting is automatic: a pre-commit hook (husky + lint-staged) runs Prettier on staged files. Don't run Prettier by hand or reformat files yourself. Task files in `tasks/` are excluded.
-- `pnpm dev`/`dev:hot` and `pnpm test:e2e` can run at the same time in separate terminals — they use different ports (`:8787` vs `:8788`) and different databases.
-- Workers AI (`env.AI`, used by "Generate menu from image") has no local emulation: every `wrangler dev` invocation establishes a real remote connection to the Cloudflare account at startup, and manually clicking that button calls the real API. `pnpm test`/`pnpm test:e2e` stay network-free via a fake `AI` binding double — this only affects manual local testing, not the automated test suites. See `docs/architecture.md`'s task 038 entry.
+- Tests: run `pnpm db:up` first (Postgres must be up). To run a subset, use `pnpm test -- <path>`, not `pnpm --filter <pkg> test` (it silently no-ops).
+- `pnpm test:e2e` can run alongside `pnpm dev`/`dev:hot` (e2e uses `:8788` and its own database).
+- Ignore the `REPLACE_ME` placeholders in `apps/api/wrangler.jsonc`. Local dev doesn't need them.
+- Formatting is automatic (husky + lint-staged runs Prettier on staged files). Don't run Prettier by hand. `tasks/` is excluded.
+- Workers AI (`env.AI`, "Generate menu from image") has no local emulation. `wrangler dev` connects to the real Cloudflare account at startup, and clicking that button calls the real API. Automated tests use a fake `AI` binding. See `docs/architecture.md`, task 038.
 
 ## Fresh-session bootstrap
 

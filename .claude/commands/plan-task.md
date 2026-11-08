@@ -15,9 +15,11 @@ Turn this idea into one or more small, sequentially-executed task files under `t
 
 2. **Explore.** Launch 1-3 `feature-dev:code-explorer` agents in parallel to understand relevant existing code, patterns, and integration points for this idea. Use 1 agent for a small, well-scoped idea; use up to 3 with different focuses (similar features, architecture, testing/extension points) when the scope is broader or uncertain.
 
-3. **Clarify.** Identify anything underspecified — edge cases, scope boundaries, integration details. Ask the user directly (via `AskUserQuestion` or plain questions) and wait for answers before designing. Don't skip this even for small ideas; if the user says "whatever you think is best," give a recommendation and get explicit confirmation.
+3. **Clarify.** Identify anything underspecified — edge cases, scope boundaries, integration details. Ask the user directly (via `AskUserQuestion` or plain questions) and wait for answers before designing. Ask even for small ideas, because unstated assumptions are what plans most often get wrong; if the user says "whatever you think is best," give a recommendation and get explicit confirmation.
 
 4. **Design.** Launch `feature-dev:code-architect` agent(s) for the implementation approach. One agent is enough when the approach is obvious; use 2-3 in parallel with different trade-off focuses (minimal change, clean architecture, pragmatic balance) only when the approach is genuinely ambiguous.
+
+   Before breaking the approach into tasks, call the `advisor` tool if it's available, to check the approach and the proposed task split. A wrong split is expensive because every later task builds on it.
 
 5. **Break into tasks.** Split the approved approach into small, independently reviewable tasks. Each task should be TDD-able on its own (a meaningful unit of behavior, not a scaffolding/config step — those are handled outside this loop). Chain dependencies with `depends_on`. Tasks are always executed strictly one at a time regardless of any `parallelizable_with` note — that field is informational only.
 
