@@ -15,6 +15,8 @@ export function SubmissionsTable({
   renderActions?: (submission: RoundSubmission) => ReactNode;
 }) {
   const columns = submissionColumns({ hasFood, hasDrink });
+  // Every cell gets right padding except the very last one in the row.
+  const padding = (index: number) => (index === columns.length - 1 && !renderActions ? "" : "pr-4");
   const { data: employees } = useEmployees();
   const totalActiveEmployees = employees?.filter((employee) => employee.active).length;
   const submittedCount = submissions?.length ?? 0;
@@ -41,15 +43,8 @@ export function SubmissionsTable({
             <tr className="border-b text-left text-muted-foreground">
               <th className="py-1.5 pr-4 font-medium">No.</th>
               {columns.map((column, index) => (
-                <th
-                  key={column}
-                  className={
-                    index === columns.length - 1 && !renderActions
-                      ? "py-1.5 font-medium"
-                      : "py-1.5 pr-4 font-medium"
-                  }
-                >
-                  {column}
+                <th key={column.header} className={`py-1.5 font-medium ${padding(index)}`}>
+                  {column.header}
                 </th>
               ))}
               {renderActions && <th className="py-1.5 font-medium" />}
@@ -59,15 +54,15 @@ export function SubmissionsTable({
             {submissions.map((submission, index) => (
               <tr key={submission.id}>
                 <td className="py-1.5 pr-4 text-muted-foreground">{index + 1}</td>
-                <td className="py-1.5 pr-4">{submission.employeeName}</td>
-                {hasFood && <td className="py-1.5 pr-4">{submission.foodName}</td>}
-                {hasFood && <td className="py-1.5 pr-4">{submission.foodNote}</td>}
-                {hasDrink && <td className="py-1.5 pr-4">{submission.drinkName}</td>}
-                {hasDrink && (
-                  <td className={renderActions ? "py-1.5 pr-4" : "py-1.5"}>
-                    {submission.drinkNote}
+                {columns.map((column, columnIndex) => (
+                  <td key={column.header} className={`py-1.5 ${padding(columnIndex)}`}>
+                    {column.missing?.(submission) ? (
+                      <span className="text-destructive">{column.header} missing</span>
+                    ) : (
+                      column.value(submission)
+                    )}
                   </td>
-                )}
+                ))}
                 {renderActions && <td className="py-1.5">{renderActions(submission)}</td>}
               </tr>
             ))}

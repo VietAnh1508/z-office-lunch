@@ -92,12 +92,43 @@ describe("submission drink size", () => {
       );
     });
 
-    it("absent or null size is stored as null (not required yet)", async () => {
+    it("requires a size on POST when the drink item has sizes", async () => {
       const s = await setup();
+      for (const body of [{}, { drinkSizeOptionId: null }, { drinkSizeOptionId: "" }]) {
+        const res = await send("POST", `/api/rounds/${s.round.id}/submissions`, {
+          employeeId: s.employee.id,
+          drinkRoundMenuItemId: s.rmi.id,
+          ...body,
+        });
+        expect(res.status).toBe(400);
+        expect(await res.json()).toEqual({ error: ERROR_MESSAGES.drinkSizeRequired });
+      }
+    });
+
+    it("requires a size on admin PATCH when the drink item has sizes", async () => {
+      const s = await setup();
+      const sub = await seedSubmission(db, {
+        roundId: s.round.id,
+        employeeId: s.employee.id,
+        foodRoundMenuItemId: null,
+        drinkRoundMenuItemId: s.rmi.id,
+        drinkSizeOptionId: s.options[0]!.id,
+      });
+      const res = await send("PATCH", `/api/rounds/${s.round.id}/submissions/${sub!.id}`, {
+        drinkRoundMenuItemId: s.rmi.id,
+      });
+      expect(res.status).toBe(400);
+      expect(await res.json()).toEqual({ error: ERROR_MESSAGES.drinkSizeRequired });
+      expect(await sizeOf(sub!.id)).toBe(s.options[0]!.id);
+    });
+
+    it("does not require a size when the drink item has no sizes", async () => {
+      const s = await setup();
+      const bare = await seedMenuItem(db, { restaurantId: s.drink.id, name: "Water" });
+      const bareRmi = await seedRoundMenuItem(db, { roundId: s.round.id, menuItemId: bare!.id });
       const res = await send("POST", `/api/rounds/${s.round.id}/submissions`, {
         employeeId: s.employee.id,
-        drinkRoundMenuItemId: s.rmi.id,
-        drinkSizeOptionId: null,
+        drinkRoundMenuItemId: bareRmi!.id,
       });
       expect(res.status).toBe(201);
       expect(
@@ -464,6 +495,44 @@ describe("submission drink size", () => {
       }[];
       expect(rows[0]).toMatchObject({ drinkSizeOptionId: s.options[2]!.id, drinkSize: "L" });
       expect(rows[1]).toMatchObject({ drinkSizeOptionId: null, drinkSize: null });
+    });
+
+    it("submissions list rows say whether the drink item has sizes", async () => {
+      const s = await setup();
+      const food = await seedRestaurant(db, { name: "Pho", type: "food" });
+      const foodItem = await seedMenuItem(db, { restaurantId: food!.id });
+      const foodRmi = await seedRoundMenuItem(db, {
+        roundId: s.round.id,
+        menuItemId: foodItem!.id,
+      });
+      const bare = await seedMenuItem(db, { restaurantId: s.drink.id, name: "Water" });
+      const bareRmi = await seedRoundMenuItem(db, { roundId: s.round.id, menuItemId: bare!.id });
+      const [e2, e3] = [
+        await seedEmployee(db, { fullName: "Bob" }),
+        await seedEmployee(db, { fullName: "Cid" }),
+      ];
+      // Sized item with its size cleared (e.g. after a preset reset).
+      await seedSubmission(db, {
+        roundId: s.round.id,
+        employeeId: s.employee.id,
+        foodRoundMenuItemId: null,
+        drinkRoundMenuItemId: s.rmi.id,
+      });
+      await seedSubmission(db, {
+        roundId: s.round.id,
+        employeeId: e2!.id,
+        foodRoundMenuItemId: null,
+        drinkRoundMenuItemId: bareRmi!.id,
+      });
+      await seedSubmission(db, {
+        roundId: s.round.id,
+        employeeId: e3!.id,
+        foodRoundMenuItemId: foodRmi!.id,
+        drinkRoundMenuItemId: null,
+      });
+      const res = await send("GET", `/api/rounds/${s.round.id}/submissions`);
+      const rows = (await res.json()) as { drinkItemHasSizes: boolean }[];
+      expect(rows.map((r) => r.drinkItemHasSizes)).toEqual([true, false, false]);
     });
   });
 });

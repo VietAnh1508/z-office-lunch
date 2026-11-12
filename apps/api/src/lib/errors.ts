@@ -54,6 +54,7 @@ export const ERROR_MESSAGES = {
   sizePresetIdInvalid: "sizePresetId must be a valid size preset id",
   sizePresetFoodRestaurant: "only a drink restaurant can have a size preset",
   drinkSizeOptionInvalid: "drinkSizeOptionId must be a valid size option id",
+  drinkSizeRequired: "drinkSizeOptionId is required for the chosen drink item",
   drinkSizeNotAvailable: "drinkSizeOptionId is not available for the chosen drink item",
   sizePresetInUse: "size preset is in use by a restaurant",
 } as const;

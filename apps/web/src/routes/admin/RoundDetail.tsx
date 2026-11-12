@@ -507,14 +507,13 @@ export function RoundDetail() {
 
   function handleExportCsv() {
     if (!submissions || submissions.length === 0) return;
-    const rows = submissions.map((s) => [
-      s.employeeName,
-      ...(hasFood ? [s.foodName, s.foodNote] : []),
-      ...(hasDrink ? [s.drinkName, s.drinkNote] : []),
-    ]);
+    const columns = submissionColumns({ hasFood, hasDrink });
     downloadCsv(
       `round-${roundId}-submissions.csv`,
-      toCsv(submissionColumns({ hasFood, hasDrink }), rows),
+      toCsv(
+        columns.map((column) => column.header),
+        submissions.map((s) => columns.map((column) => column.value(s))),
+      ),
     );
   }
 

@@ -757,6 +757,7 @@ describe("RoundDetail", () => {
       expect(screen.getByRole("columnheader", { name: "Food" })).toBeInTheDocument();
       expect(screen.queryByRole("columnheader", { name: "Drink" })).not.toBeInTheDocument();
       expect(screen.queryByRole("columnheader", { name: "Drink note" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("columnheader", { name: "Size" })).not.toBeInTheDocument();
 
       await user.click(screen.getByRole("button", { name: "Export CSV" }));
       const [, csv] = vi.mocked(downloadCsv).mock.calls.at(-1)!;
@@ -832,7 +833,7 @@ describe("RoundDetail", () => {
       await user.click(screen.getByRole("button", { name: "Export CSV" }));
       const [, csv] = vi.mocked(downloadCsv).mock.calls.at(-1)!;
       const header = csv.replace("\ufeff", "").split("\r\n")[0];
-      expect(header).toBe(["Employee", "Drink", "Drink note"].join("\t"));
+      expect(header).toBe(["Employee", "Drink", "Size", "Drink note"].join("\t"));
     });
 
     it("hides the food fields in the edit dialog, requires a drink, and omits foodRoundMenuItemId", async () => {
@@ -1216,7 +1217,14 @@ describe("RoundDetail", () => {
       const calls = vi.mocked(downloadCsv).mock.calls;
       const [, csv] = calls[calls.length - 1]!;
       const header = csv.replace(/^﻿/, "").split("\r\n")[0];
-      expect(header?.split("\t")).toEqual(["Employee", "Food", "Food note", "Drink", "Drink note"]);
+      expect(header?.split("\t")).toEqual([
+        "Employee",
+        "Food",
+        "Food note",
+        "Drink",
+        "Size",
+        "Drink note",
+      ]);
     });
   });
 
@@ -1339,6 +1347,113 @@ describe("RoundDetail", () => {
       const dialog = within(await screen.findByRole("dialog"));
       await dialog.findByLabelText("Drink item", { exact: false });
       expect(dialog.queryByLabelText("Drink size", { exact: false })).not.toBeInTheDocument();
+    });
+  });
+  describe("Size column", () => {
+    const SUBMISSIONS = [
+      {
+        id: 1,
+        employeeName: "An Nguyen",
+        foodName: "Pho Bo",
+        foodNote: null,
+        drinkName: "Milk tea",
+        drinkNote: "Less ice",
+        foodRoundMenuItemId: 10,
+        drinkRoundMenuItemId: 20,
+        drinkSizeOptionId: 2,
+        drinkSize: "M",
+        drinkItemHasSizes: true,
+      },
+      {
+        id: 2,
+        employeeName: "Binh Tran",
+        foodName: "Bun Cha",
+        foodNote: null,
+        drinkName: "Water",
+        drinkNote: null,
+        foodRoundMenuItemId: 11,
+        drinkRoundMenuItemId: 21,
+        drinkSizeOptionId: null,
+        drinkSize: null,
+        drinkItemHasSizes: false,
+      },
+      {
+        id: 3,
+        employeeName: "Cuong Le",
+        foodName: "Pho Ga",
+        foodNote: null,
+        drinkName: "Milk tea",
+        drinkNote: null,
+        foodRoundMenuItemId: 12,
+        drinkRoundMenuItemId: 20,
+        drinkSizeOptionId: null,
+        drinkSize: null,
+        drinkItemHasSizes: true,
+      },
+    ];
+
+    function useSizedHandlers() {
+      server.use(
+        http.get("/api/rounds/1", () => HttpResponse.json(draftRound({ drinkRestaurantId: 2 }))),
+        http.get("/api/restaurants", () => HttpResponse.json(RESTAURANTS)),
+        http.get("/api/employees", () => HttpResponse.json([])),
+        http.get("/api/rounds/1/submissions", () => HttpResponse.json(SUBMISSIONS)),
+        http.get("/api/rounds/1/menu-items", () => HttpResponse.json([])),
+        http.get("/api/restaurants/1/menu-items", () => HttpResponse.json([])),
+        http.get("/api/restaurants/2/menu-items", () => HttpResponse.json([])),
+      );
+    }
+
+    function cellsOf(name: string) {
+      const row = screen.getByRole("cell", { name }).closest("tr")!;
+      return within(row)
+        .getAllByRole("cell")
+        .map((cell) => cell.textContent);
+    }
+
+    it("shows a Size column right after Drink, blank for items without sizes, and a marker when a size is missing", async () => {
+      useSizedHandlers();
+      renderDetail("1");
+      await screen.findByText("An Nguyen");
+
+      const headers = screen.getAllByRole("columnheader").map((h) => h.textContent);
+      expect(headers.slice(0, 7)).toEqual([
+        "No.",
+        "Employee",
+        "Food",
+        "Food note",
+        "Drink",
+        "Size",
+        "Drink note",
+      ]);
+      expect(cellsOf("An Nguyen").slice(0, 7)).toEqual([
+        "1",
+        "An Nguyen",
+        "Pho Bo",
+        "",
+        "Milk tea",
+        "M",
+        "Less ice",
+      ]);
+      expect(cellsOf("Binh Tran")[5]).toBe("");
+      expect(cellsOf("Cuong Le")[5]).toBe("Size missing");
+    });
+
+    it("exports the Size column in the CSV, blank when there is none", async () => {
+      const user = userEvent.setup();
+      useSizedHandlers();
+      renderDetail("1");
+
+      await user.click(await screen.findByRole("button", { name: "Export CSV" }));
+
+      const [, csv] = vi.mocked(downloadCsv).mock.calls.at(-1)!;
+      const lines = csv.replace(/^\ufeff/, "").split("\r\n");
+      expect(lines.map((line) => line.split("\t"))).toEqual([
+        ["Employee", "Food", "Food note", "Drink", "Size", "Drink note"],
+        ["An Nguyen", "Pho Bo", "", "Milk tea", "M", "Less ice"],
+        ["Binh Tran", "Bun Cha", "", "Water", "", ""],
+        ["Cuong Le", "Pho Ga", "", "Milk tea", "", ""],
+      ]);
     });
   });
 });

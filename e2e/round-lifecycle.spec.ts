@@ -338,8 +338,14 @@ test("employee must pick a drink size for a sized drink, and admin sees the roun
   await page.getByRole("button", { name: "Submit order" }).click();
   await expect(page.getByText("Thanks! Your order has been recorded.")).toBeVisible();
 
-  // Close so other specs can open their own round.
+  // Admin sees the chosen size in its own column.
   await page.goto(`/admin/rounds/${roundId}`);
+  await expect(page.getByRole("columnheader", { name: "Size", exact: true })).toBeVisible();
+  const row = page.getByRole("row").filter({ hasText: employeeName });
+  await expect(row.getByRole("cell", { name: "Milk Tea", exact: true })).toBeVisible();
+  await expect(row.getByRole("cell", { name: "M", exact: true })).toBeVisible();
+
+  // Close so other specs can open their own round.
   await page.getByRole("button", { name: "Close" }).click();
   await expect(page.getByText("Round closed")).toBeVisible();
 });

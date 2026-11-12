@@ -796,19 +796,17 @@ async function parseSubmissionFields(
     if (drinkItem.restaurantId !== round.drinkRestaurantId) {
       return fail(ERROR_MESSAGES.drinkRoundMenuItemInvalid);
     }
-    if (drinkSizeOptionId !== null) {
-      const [available] = await db
-        .select({ id: menuItemSizes.id })
-        .from(menuItemSizes)
-        .where(
-          and(
-            eq(menuItemSizes.menuItemId, drinkItem.menuItemId),
-            eq(menuItemSizes.sizeOptionId, drinkSizeOptionId),
-          ),
-        );
-      if (!available) {
-        return fail(ERROR_MESSAGES.drinkSizeNotAvailable);
+    const itemSizes = await db
+      .select({ sizeOptionId: menuItemSizes.sizeOptionId })
+      .from(menuItemSizes)
+      .where(eq(menuItemSizes.menuItemId, drinkItem.menuItemId));
+    if (drinkSizeOptionId === null) {
+      // An item with any sizes must be ordered in one; an item with none never asks.
+      if (itemSizes.length > 0) {
+        return fail(ERROR_MESSAGES.drinkSizeRequired);
       }
+    } else if (!itemSizes.some((size) => size.sizeOptionId === drinkSizeOptionId)) {
+      return fail(ERROR_MESSAGES.drinkSizeNotAvailable);
     }
   }
 
@@ -992,6 +990,9 @@ roundsRoute.get("/:id/submissions", async (c) => {
         drinkRoundMenuItemId: submissions.drinkRoundMenuItemId,
         drinkSizeOptionId: submissions.drinkSizeOptionId,
         drinkSize: drinkSizeOptionAlias.label,
+        // Lets the admin table flag a sized item whose size was cleared
+        // (preset reset / un-ticked size) as "Size missing".
+        drinkItemHasSizes: sql<boolean>`exists (select 1 from ${menuItemSizes} where ${menuItemSizes.menuItemId} = ${drinkMenuItemAlias.id})`,
       })
       .from(submissions)
       .innerJoin(employees, eq(submissions.employeeId, employees.id))
