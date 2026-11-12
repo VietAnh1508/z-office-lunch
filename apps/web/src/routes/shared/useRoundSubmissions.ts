@@ -14,6 +14,7 @@ export type RoundSubmission = {
   drinkRoundMenuItemId: number | null;
   drinkSizeOptionId: number | null;
   drinkSize: string | null;
+  drinkItemHasSizes: boolean;
 };
 
 type UpdateRoundSubmissionInput = {
