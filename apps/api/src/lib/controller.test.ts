@@ -1,11 +1,11 @@
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Bindings } from "../bindings";
 import { testEnv, unreachableEnv } from "../test/env";
 import { respond, withDb } from "./controller";
 import { fail, ok } from "./result";
 
-function appWith(handler: Parameters<Hono<{ Bindings: Bindings }>["get"]>[1]) {
+function appWith(handler: (c: Context<{ Bindings: Bindings }>) => Response | Promise<Response>) {
   const app = new Hono<{ Bindings: Bindings }>();
   app.get("/x", handler);
   return app;
@@ -51,7 +51,7 @@ describe("withDb", () => {
     expect(res.status).toBe(500);
     expect(await res.json()).toEqual({ error: "internal error" });
     expect(end).toHaveBeenCalledTimes(1);
-    expect(JSON.parse(log.mock.calls[0][0])).toEqual({
+    expect(JSON.parse(String(log.mock.calls[0]?.[0]))).toEqual({
       message: "failed to do x",
       error: "Error: boom",
     });

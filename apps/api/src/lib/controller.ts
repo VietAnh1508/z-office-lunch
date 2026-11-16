@@ -1,23 +1,40 @@
 import type { Context } from "hono";
+import type { ContentfulStatusCode } from "hono/utils/http-status";
 import type { Bindings } from "../bindings";
 import type { Db } from "./db-types";
+import { ERROR_MESSAGES } from "./errors";
+import { getDb } from "./get-db";
 import type { Result } from "./result";
 
 type Ctx = Context<{ Bindings: Bindings }>;
 
-// Stubs: behavior arrives in the green commit.
+// Owns the DB lifecycle for a handler: open, run, log + structured 500 on throw,
+// and always await end() (never waitUntil — see .claude/rules/api-error-handling.md).
 export async function withDb(
-  _c: Ctx,
-  _label: string,
-  _fn: (db: Db) => Promise<Response>,
+  c: Ctx,
+  label: string,
+  fn: (db: Db) => Promise<Response>,
 ): Promise<Response> {
-  throw new Error("not implemented");
+  const db = getDb(c);
+  try {
+    return await fn(db);
+  } catch (e) {
+    console.error(JSON.stringify({ message: `failed to ${label}`, error: String(e) }));
+    return c.json({ error: ERROR_MESSAGES.internal }, 500);
+  } finally {
+    await db.$client.end();
+  }
 }
 
+// Maps a Result to a JSON response: failure -> { error } + its status, success -> payload.
 export function respond<T extends object>(
-  _c: Ctx,
-  _result: Result<T, number>,
-  _okStatus?: number,
+  c: Ctx,
+  result: Result<T, number>,
+  okStatus: ContentfulStatusCode = 200,
 ): Response {
-  throw new Error("not implemented");
+  if (!result.ok) {
+    return c.json({ error: result.error }, result.status as ContentfulStatusCode);
+  }
+  const { ok: _ok, ...data } = result;
+  return c.json(data, okStatus);
 }

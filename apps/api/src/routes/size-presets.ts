@@ -3,11 +3,10 @@ import { restaurants, sizeOptions, sizePresets } from "db";
 import { Hono } from "hono";
 import type { Bindings } from "../bindings";
 import { ERROR_MESSAGES } from "../lib/errors";
+import type { Db } from "../lib/db-types";
 import { getDb } from "../lib/get-db";
 import { addOptionToRestaurants } from "../lib/menu-item-sizes";
 import { fail, ok, type Result } from "../lib/result";
-
-type Db = ReturnType<typeof getDb>;
 
 type OptionInput = { id?: number; label: string };
 

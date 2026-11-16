@@ -13,6 +13,7 @@ import {
 import { Hono } from "hono";
 import type { Bindings } from "../bindings";
 import { ERROR_MESSAGES } from "../lib/errors";
+import type { Tx } from "../lib/db-types";
 import { getDb } from "../lib/get-db";
 import { fail, ok, type Result } from "../lib/result";
 
@@ -25,8 +26,6 @@ const drinkRoundMenuItemAlias = alias(roundMenuItems, "drink_round_menu_item");
 const foodMenuItemAlias = alias(menuItems, "food_menu_item");
 const drinkMenuItemAlias = alias(menuItems, "drink_menu_item");
 const drinkSizeOptionAlias = alias(sizeOptions, "drink_size_option");
-
-type Tx = Parameters<Parameters<ReturnType<typeof getDb>["transaction"]>[0]>[0];
 
 // Auto-curates a restaurant's currently active menu items into a round. Fires
 // at round create and at a restaurant change on a draft round's PATCH -- not
