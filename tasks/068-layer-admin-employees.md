@@ -1,7 +1,7 @@
 ---
 id: 068
 title: Layer the admin and employees modules
-status: approved
+status: in_review
 depends_on: [067]
 parallelizable_with: []
 epic: layered-api-refactor
@@ -35,6 +35,24 @@ Test-move protocol (see `.claude/rules/api-layers.md`): red commit relocates the
 
 ## Implementation Log
 
+- Red `4508e1f`: relocated old HTTP tests into `modules/*/controller.test.ts`, added service/repository tests, throwing stubs. `pnpm test -- apps/api/src/modules/admin apps/api/src/modules/employees` -> 20 failing (only the new service/repository tests).
+- Green `35c202f`: moved code into admin `{controller,service}` and employees `{controller,service,repository}`, deleted `routes/admin.ts` / `routes/employees.ts`, re-pointed `index.ts`. Full `pnpm test` 598 passing, typecheck and lint clean.
+- Test `4ed98a8`: two extra controller tests from review (rename check order, unparseable body). 600 passing.
+- Old `it` accounting: `routes/admin.test.ts` 5/5 moved to `modules/admin/controller.test.ts`. `routes/employees.test.ts` 13/13 moved to `modules/employees/controller.test.ts` (8 top-level + 5 in `PATCH /:id/name`), assertions unchanged, only the request plumbing swapped for the 067 helpers. Admin malformed-JSON test keeps a raw `app.request` because the helpers always JSON-encode.
+- New tests: non-integer id 404 (GET/PATCH), structured 500 on all five employee routes, rename check order, unparseable rename body; admin service (5 cases); employees service (6) and repository (5).
+
 ## Plan Deviations
 
+- `listEmployees` returns a plain array, not a `Result`: listing has no rule that can fail, and `respond` only maps objects.
+- Admin controller returns `c.json({ ok: true })` directly, since `respond` strips `ok`.
+- Red commit deleted the old `routes/*.test.ts` files (moved, not copied), so the protocol's "relocate" holds.
+
 ## Review Notes
+
+Reviewer (`feature-dev:code-reviewer`) had no shell, so it could not diff against the originals; it reviewed the new files only. I checked its points against the old code:
+
+- Admin `null` JSON body throws on `body.password`: same as the original (`body.password`), so no change. Left as is, out of scope for a pure refactor.
+- Employees check order (id 404, name 400, then DB): matches the original.
+- find-then-update in toggle/rename: matches the original. The extra "update returned no row -> 404" branch is a race-only path, not tested.
+- `parseId` (`Number.isInteger`) and `orderBy(fullName)`: same as the original.
+- Gaps: no test for rename check order or unparseable rename body -> fixed in `4ed98a8`. No admin `null`-body test -> skipped (would pin a crash).
