@@ -1,7 +1,7 @@
 ---
 id: 067
 title: Shared groundwork for the layered API (types, controller helper, test helpers)
-status: in_progress
+status: in_review
 depends_on: []
 parallelizable_with: []
 epic: layered-api-refactor
@@ -43,6 +43,18 @@ Files: `apps/api/src/lib/{db-types,controller}.ts` (+ tests), `apps/api/src/test
 
 ## Implementation Log
 
+- Red: `bad87ab` - controller tests against stubs (7 failing); also the test helpers (`test/{db,request,assertions}.ts`) with their own passing `test/helpers.test.ts`, and `lib/db-types.ts`.
+- Green: `f61c182` - `withDb`/`respond` implemented, local `Db`/`Tx` aliases in `menu-item-sizes.ts`, `rounds.ts`, `size-presets.ts` replaced by `lib/db-types`.
+- Docs: `7f2749e` - `.claude/rules/api-layers.md`.
+- `pnpm test -- apps/api/src` -> 37 files, 576 tests passing; `tsc --noEmit -p apps/api` clean; `pnpm lint` no errors.
+
 ## Plan Deviations
 
+- Test helpers went into the red commit (not green) because they are test scaffolding; the red failures come only from the controller stubs.
+- The red and green commits lack the `Co-Authored-By` trailer (the attribution reminder arrived mid-session); not amended, per the no-rewrite rule.
+- `postgres` on :5432 was held by another project's container, so the repo's container was recreated after the user stopped it. Not a repo change.
+- `respond`'s `okStatus` is typed `ContentfulStatusCode` rather than `number`.
+
 ## Review Notes
+
+`feature-dev:code-reviewer`: no issues at confidence >= 80. Points checked and judged fine: `respond` stripping `ok` and the status cast; `getDb` outside the `try` (matches `api-error-handling.md`); `request` with undefined body; `useTestDb` hook registration. Low-confidence note: `useTestDb` in several files against one shared DB could race if files run in parallel (same as the existing per-file setup). No changes made.
