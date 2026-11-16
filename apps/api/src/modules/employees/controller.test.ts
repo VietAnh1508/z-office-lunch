@@ -3,7 +3,8 @@ import { seedEmployee } from "db/testing";
 import { describe, expect, it } from "vitest";
 import { expectStructured500 } from "../../test/assertions";
 import { useTestDb } from "../../test/db";
-import { unreachableEnv } from "../../test/env";
+import { testEnv, unreachableEnv } from "../../test/env";
+import app from "../../index";
 import { get, patch, post } from "../../test/request";
 
 type Employee = typeof employees.$inferSelect;
@@ -160,6 +161,25 @@ describe("employees routes", () => {
       const res = await patch("/api/employees/not-a-number/name", { fullName: "Jane Smith" });
 
       expect(res.status).toBe(404);
+    });
+
+    it("checks the id before the name: bad id with a missing name is 404, not 400", async () => {
+      const res = await patch("/api/employees/abc/name", {});
+
+      expect(res.status).toBe(404);
+    });
+
+    it("an unparseable JSON body returns 400 fullNameRequired", async () => {
+      const employee = await seedEmployee(db, { fullName: "Jane Doe" });
+
+      const res = await app.request(
+        `/api/employees/${employee!.id}/name`,
+        { method: "PATCH", headers: { "Content-Type": "application/json" }, body: "not json" },
+        testEnv,
+      );
+
+      expect(res.status).toBe(400);
+      expect(await res.json()).toEqual({ error: "fullName is required" });
     });
   });
 });
