@@ -1,32 +1,43 @@
 import type { DbOrTx } from "../../lib/db-types";
-import type { Result } from "../../lib/result";
+import { ERROR_MESSAGES } from "../../lib/errors";
+import { fail, ok, type Result } from "../../lib/result";
+import * as repo from "./repository";
 import type { Employee } from "./repository";
 
 type EmployeeResult = Result<Employee, 404>;
 
-export async function createEmployee(_db: DbOrTx, _fullName: string): Promise<EmployeeResult> {
-  throw new Error("not implemented");
+const notFound = () => fail(ERROR_MESSAGES.employeeNotFound, 404);
+
+export async function createEmployee(db: DbOrTx, fullName: string): Promise<EmployeeResult> {
+  return ok(await repo.insert(db, fullName));
 }
 
 export async function listEmployees(
-  _db: DbOrTx,
-  _opts: { activeOnly: boolean },
+  db: DbOrTx,
+  opts: { activeOnly: boolean },
 ): Promise<Employee[]> {
-  throw new Error("not implemented");
+  return repo.list(db, opts);
 }
 
-export async function getEmployee(_db: DbOrTx, _id: number): Promise<EmployeeResult> {
-  throw new Error("not implemented");
+export async function getEmployee(db: DbOrTx, id: number): Promise<EmployeeResult> {
+  const row = await repo.findById(db, id);
+  return row ? ok(row) : notFound();
 }
 
-export async function toggleActive(_db: DbOrTx, _id: number): Promise<EmployeeResult> {
-  throw new Error("not implemented");
+export async function toggleActive(db: DbOrTx, id: number): Promise<EmployeeResult> {
+  const existing = await repo.findById(db, id);
+  if (!existing) return notFound();
+  const row = await repo.setActive(db, id, !existing.active);
+  return row ? ok(row) : notFound();
 }
 
 export async function renameEmployee(
-  _db: DbOrTx,
-  _id: number,
-  _fullName: string,
+  db: DbOrTx,
+  id: number,
+  fullName: string,
 ): Promise<EmployeeResult> {
-  throw new Error("not implemented");
+  const existing = await repo.findById(db, id);
+  if (!existing) return notFound();
+  const row = await repo.setName(db, id, fullName);
+  return row ? ok(row) : notFound();
 }

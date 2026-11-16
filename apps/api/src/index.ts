@@ -1,8 +1,8 @@
 import { Hono } from "hono";
 import { Client } from "pg";
 import type { Bindings } from "./bindings";
-import { adminRoute } from "./routes/admin";
-import { employeesRoute } from "./routes/employees";
+import { adminRoute } from "./modules/admin/controller";
+import { employeesRoute } from "./modules/employees/controller";
 import { menuItemsRoute } from "./routes/menu-items";
 import { restaurantsRoute } from "./routes/restaurants";
 import { roundsRoute } from "./routes/rounds";
