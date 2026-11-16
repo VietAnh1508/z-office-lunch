@@ -8,11 +8,7 @@ import {
   submissions,
 } from "db";
 import { and, eq, inArray, isNotNull, ne, notInArray, sql } from "drizzle-orm";
-import type { getDb } from "./get-db";
-
-type Db = ReturnType<typeof getDb>;
-type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
-type DbOrTx = Db | Tx;
+import type { Db, DbOrTx, Tx } from "./db-types";
 
 // Rebuilds every menu item's available sizes for a restaurant from scratch:
 // wipes them, then (if there's a preset) ticks every option for every item,
