@@ -52,7 +52,6 @@ test("admin curates a round's menu items and opens then closes it", async ({ pag
   // (task 025) — no manual click needed to check it.
   await page.getByRole("button", { name: "Food items", exact: true }).click();
   await expect(page.getByLabel("Pho Bo")).toBeChecked();
-  await page.keyboard.press("Escape");
 
   // The per-item checkbox still supports manual opt-out/opt-in against an
   // already-curated item.
@@ -62,6 +61,7 @@ test("admin curates a round's menu items and opens then closes it", async ({ pag
   await page.getByLabel("Pho Bo").click();
   await expect(page.getByText("Menu item added to round")).toBeVisible();
   await expect(page.getByLabel("Pho Bo")).toBeChecked();
+  await page.keyboard.press("Escape");
 
   await page.getByRole("button", { name: "Open" }).click();
   await expect(page.getByText("Round opened")).toBeVisible();
