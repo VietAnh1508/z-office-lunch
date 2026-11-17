@@ -1,7 +1,7 @@
 ---
 id: 076
 title: Round detail — menu items in dialogs, submissions table fills the viewport
-status: in_review
+status: done
 depends_on: []           # ids that must be status: done before this can start
 parallelizable_with: []  # informational only; no command consumes this today — execution is always sequential
 epic:                    # optional slug -> tasks/epics/<slug>.md; blank for a standalone task
