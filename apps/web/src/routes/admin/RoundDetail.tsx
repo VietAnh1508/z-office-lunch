@@ -1,5 +1,5 @@
-import { ArrowLeft, ChevronDown, Pencil, Share } from "lucide-react";
-import { type SubmitEvent, useState } from "react";
+import { ArrowLeft, Pencil, Share } from "lucide-react";
+import { type ReactNode, type SubmitEvent, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import {
   AlertDialog,
@@ -14,7 +14,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   Dialog,
   DialogContent,
@@ -30,7 +29,6 @@ import { useRequiredField } from "@/hooks/useRequiredField";
 import { toCsv } from "@/lib/csv";
 import { downloadCsv } from "@/lib/download";
 import { copyRoundShareLink } from "@/lib/share-link";
-import { cn } from "@/lib/utils";
 import { RoundRestaurantFields } from "./RoundRestaurantFields";
 import { RESTAURANT_REQUIRED_ERROR, hasRestaurant } from "./roundRestaurantValidation";
 import { RoundStatusBadge } from "./RoundStatusBadge";
@@ -380,21 +378,29 @@ function EditRoundForm({
   );
 }
 
-function CollapseToggle({ open, label }: { open: boolean; label: string }) {
+function MenuItemsDialog({
+  label,
+  title,
+  children,
+}: {
+  label: string;
+  title: string;
+  children: ReactNode;
+}) {
   return (
-    <CollapsibleTrigger asChild>
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon-sm"
-        aria-label={open ? `Collapse ${label}` : `Expand ${label}`}
-      >
-        <ChevronDown
-          className={cn("transition-transform", !open && "-rotate-90")}
-          aria-hidden="true"
-        />
-      </Button>
-    </CollapsibleTrigger>
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button type="button" variant="outline">
+          {label}
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+        </DialogHeader>
+        <div className="max-h-[60svh] overflow-auto">{children}</div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -402,8 +408,6 @@ export function RoundDetail() {
   const { id } = useParams<{ id: string }>();
   const roundId = Number(id);
   const navigate = useNavigate();
-  const [foodItemsOpen, setFoodItemsOpen] = useState(false);
-  const [drinkItemsOpen, setDrinkItemsOpen] = useState(false);
 
   const { data: round, isPending: roundPending } = useRound(roundId);
   const { data: restaurants } = useRestaurants();
@@ -638,37 +642,22 @@ export function RoundDetail() {
         <EditRoundForm key={round.id} round={round} restaurants={restaurants} />
       )}
 
-      <div className="grid gap-6 sm:grid-cols-2">
+      <div className="flex flex-wrap gap-2">
         {round.foodRestaurantId != null && (
-          <Card className={round.drinkRestaurantId == null ? "sm:col-span-2" : undefined}>
-            <Collapsible open={foodItemsOpen} onOpenChange={setFoodItemsOpen}>
-              <CardHeader>
-                <CardTitle>Food items — {restaurantName(round.foodRestaurantId)}</CardTitle>
-                <CardAction>
-                  <CollapseToggle open={foodItemsOpen} label="food items" />
-                </CardAction>
-              </CardHeader>
-              <CollapsibleContent>
-                <CardContent>{renderMenuItemList(foodItems, foodPending)}</CardContent>
-              </CollapsibleContent>
-            </Collapsible>
-          </Card>
+          <MenuItemsDialog
+            label="Food items"
+            title={`Food items — ${restaurantName(round.foodRestaurantId)}`}
+          >
+            {renderMenuItemList(foodItems, foodPending)}
+          </MenuItemsDialog>
         )}
-
         {round.drinkRestaurantId != null && (
-          <Card className={round.foodRestaurantId == null ? "sm:col-span-2" : undefined}>
-            <Collapsible open={drinkItemsOpen} onOpenChange={setDrinkItemsOpen}>
-              <CardHeader>
-                <CardTitle>Drink items — {restaurantName(round.drinkRestaurantId)}</CardTitle>
-                <CardAction>
-                  <CollapseToggle open={drinkItemsOpen} label="drink items" />
-                </CardAction>
-              </CardHeader>
-              <CollapsibleContent>
-                <CardContent>{renderMenuItemList(drinkItems, drinkPending)}</CardContent>
-              </CollapsibleContent>
-            </Collapsible>
-          </Card>
+          <MenuItemsDialog
+            label="Drink items"
+            title={`Drink items — ${restaurantName(round.drinkRestaurantId)}`}
+          >
+            {renderMenuItemList(drinkItems, drinkPending)}
+          </MenuItemsDialog>
         )}
       </div>
 
