@@ -39,11 +39,15 @@ function renderDetail(id: string) {
   );
 }
 
-// Food/drink item lists are collapsed by default -- expand a section before
-// asserting on or interacting with its contents.
+// Food/drink item lists live in a dialog -- open it before asserting on or
+// interacting with its contents.
 async function expandSection(label: "food items" | "drink items") {
   const user = userEvent.setup();
-  await user.click(await screen.findByRole("button", { name: `Expand ${label}` }));
+  const name = label === "food items" ? "Food items" : "Drink items";
+  await user.click(await screen.findByRole("button", { name }));
+  expect(
+    await screen.findByRole("dialog", { name: new RegExp(`^${name} — `) }),
+  ).toBeInTheDocument();
 }
 
 describe("RoundDetail", () => {
@@ -403,7 +407,6 @@ describe("RoundDetail", () => {
 
     renderDetail("1");
 
-    expect(await screen.findByText("Drink items", { exact: false })).toBeInTheDocument();
     await expandSection("drink items");
     expect(await screen.findByText("Tra Da")).toBeInTheDocument();
   });
@@ -810,8 +813,8 @@ describe("RoundDetail", () => {
 
       renderDetail("1");
 
-      expect(await screen.findByRole("button", { name: "Expand drink items" })).toBeInTheDocument();
-      expect(screen.queryByRole("button", { name: "Expand food items" })).not.toBeInTheDocument();
+      expect(await screen.findByRole("button", { name: "Drink items" })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Food items" })).not.toBeInTheDocument();
       expect(screen.queryByText(/Food items/)).not.toBeInTheDocument();
       expect(queriedZero).toBe(false);
     });

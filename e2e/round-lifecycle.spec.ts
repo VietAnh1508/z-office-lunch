@@ -50,8 +50,9 @@ test("admin curates a round's menu items and opens then closes it", async ({ pag
 
   // The food restaurant's active menu item is auto-curated on round create
   // (task 025) — no manual click needed to check it.
-  await page.getByRole("button", { name: "Expand food items" }).click();
+  await page.getByRole("button", { name: "Food items", exact: true }).click();
   await expect(page.getByLabel("Pho Bo")).toBeChecked();
+  await page.keyboard.press("Escape");
 
   // The per-item checkbox still supports manual opt-out/opt-in against an
   // already-curated item.
@@ -102,8 +103,9 @@ test("employee-facing public round link reflects open then closed state", async 
   const roundId = roundUrl.substring(roundUrl.lastIndexOf("/") + 1);
 
   // Auto-curated on round create (task 025) — already checked, no manual click.
-  await page.getByRole("button", { name: "Expand food items" }).click();
+  await page.getByRole("button", { name: "Food items", exact: true }).click();
   await expect(page.getByLabel("Pho Bo")).toBeChecked();
+  await page.keyboard.press("Escape");
 
   await page.getByRole("button", { name: "Open" }).click();
   await expect(page.getByText("Round opened")).toBeVisible();
@@ -183,10 +185,12 @@ test("employee submits food and drink picks, then a second submission overwrites
 
   // Both restaurants' active menu items are auto-curated on round create
   // (task 025) — already checked, no manual clicks needed.
-  await page.getByRole("button", { name: "Expand food items" }).click();
-  await page.getByRole("button", { name: "Expand drink items" }).click();
+  await page.getByRole("button", { name: "Food items", exact: true }).click();
   await expect(page.getByLabel("Pho Bo")).toBeChecked();
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: "Drink items", exact: true }).click();
   await expect(page.getByLabel("Tra Da")).toBeChecked();
+  await page.keyboard.press("Escape");
 
   await page.getByRole("button", { name: "Open" }).click();
   await expect(page.getByText("Round opened")).toBeVisible();
