@@ -1,7 +1,7 @@
 ---
 id: 068
 title: Layer the admin and employees modules
-status: in_review
+status: done
 depends_on: [067]
 parallelizable_with: []
 epic: layered-api-refactor

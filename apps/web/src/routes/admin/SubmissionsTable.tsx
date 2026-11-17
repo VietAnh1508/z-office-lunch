@@ -37,7 +37,7 @@ export function SubmissionsTable({
   return (
     <div className="flex flex-col gap-2">
       {countLabel && <p className="text-sm text-muted-foreground">{countLabel}</p>}
-      <div className="max-h-96 overflow-auto">
+      <div className="max-h-[calc(100svh-14rem)] overflow-auto">
         <table className="w-full text-sm">
           <thead className="sticky top-0 bg-card">
             <tr className="border-b text-left text-muted-foreground">
