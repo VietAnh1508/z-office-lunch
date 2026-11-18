@@ -8,12 +8,26 @@ import {
   submissions,
 } from "db";
 import { and, eq, inArray, isNotNull, ne, notInArray, sql } from "drizzle-orm";
-import type { Db, DbOrTx, Tx } from "./db-types";
+import type { DbOrTx, Tx } from "../../lib/db-types";
+
+// Ticks every option of a preset for each of the given items.
+// Inserts are guarded because Drizzle throws on an empty `.values([])`.
+async function tickAllOptions(tx: Tx, itemIds: number[], presetId: number) {
+  const options = await tx
+    .select({ id: sizeOptions.id })
+    .from(sizeOptions)
+    .where(eq(sizeOptions.presetId, presetId));
+  const rows = itemIds.flatMap((menuItemId) =>
+    options.map((o) => ({ menuItemId, sizeOptionId: o.id })),
+  );
+  if (rows.length > 0) {
+    await tx.insert(menuItemSizes).values(rows);
+  }
+}
 
 // Rebuilds every menu item's available sizes for a restaurant from scratch:
 // wipes them, then (if there's a preset) ticks every option for every item,
 // active and inactive. Callers run it inside a transaction.
-// Inserts are guarded because Drizzle throws on an empty `.values([])`.
 export async function rebuildMenuItemSizes(tx: Tx, restaurantId: number, presetId: number | null) {
   const items = await tx
     .select({ id: menuItems.id })
@@ -27,16 +41,7 @@ export async function rebuildMenuItemSizes(tx: Tx, restaurantId: number, presetI
   if (presetId === null) {
     return;
   }
-  const options = await tx
-    .select({ id: sizeOptions.id })
-    .from(sizeOptions)
-    .where(eq(sizeOptions.presetId, presetId));
-  const rows = itemIds.flatMap((menuItemId) =>
-    options.map((o) => ({ menuItemId, sizeOptionId: o.id })),
-  );
-  if (rows.length > 0) {
-    await tx.insert(menuItemSizes).values(rows);
-  }
+  await tickAllOptions(tx, itemIds, presetId);
 }
 
 // Ticks every option of a preset for the given items (new items start with all sizes).
@@ -44,16 +49,7 @@ export async function fillSizesForItems(tx: Tx, itemIds: number[], presetId: num
   if (presetId === null || itemIds.length === 0) {
     return;
   }
-  const options = await tx
-    .select({ id: sizeOptions.id })
-    .from(sizeOptions)
-    .where(eq(sizeOptions.presetId, presetId));
-  const rows = itemIds.flatMap((menuItemId) =>
-    options.map((o) => ({ menuItemId, sizeOptionId: o.id })),
-  );
-  if (rows.length > 0) {
-    await tx.insert(menuItemSizes).values(rows);
-  }
+  await tickAllOptions(tx, itemIds, presetId);
 }
 
 // Ticks one newly added preset option for every item of every restaurant using the preset.

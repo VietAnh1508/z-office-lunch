@@ -2,8 +2,8 @@ import { eq } from "drizzle-orm";
 import { createDb, sizeOptions, sizePresets } from "db";
 import { TEST_DATABASE_URL, seedSizePreset, truncateAll } from "db/testing";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import app from "../index";
-import { testEnv, unreachableEnv } from "../test/env";
+import app from "../../index";
+import { testEnv, unreachableEnv } from "../../test/env";
 
 type Preset = {
   id: number;
