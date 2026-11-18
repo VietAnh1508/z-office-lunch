@@ -1,7 +1,7 @@
 ---
 id: 069
 title: Layer the menu-item-sizes and size-presets modules
-status: in_progress
+status: in_review
 depends_on: [068]
 parallelizable_with: []
 epic: layered-api-refactor
@@ -35,6 +35,22 @@ Test-move protocol (see `.claude/rules/api-layers.md`): red commit relocates the
 
 ## Implementation Log
 
+- Red: `2a15361` — relocated `size-presets.test.ts` (19 `it`) and `size-presets-sync.test.ts` (3 `it`) word for word (import paths only) to `modules/size-presets/controller.test.ts` and `controller-sync.test.ts`; added `modules/size-presets/{repository,service}.test.ts` and `modules/menu-item-sizes/repository.test.ts`; throwing stubs for the new repositories/service. `pnpm test -- apps/api/src/modules/menu-item-sizes apps/api/src/modules/size-presets` -> 34 failing, 22 passing (the relocated ones).
+- Green: `61cd808` — moved `lib/menu-item-sizes.ts` to `modules/menu-item-sizes/repository.ts` (duplicated options-to-rows logic merged into `tickAllOptions`), split `routes/size-presets.ts` into controller/service/repository, updated imports in `routes/restaurants.ts`, `routes/menu-items.ts`, `index.ts`; deleted the old files.
+- Result: full `pnpm test` -> 43 files, 634 tests passing. `pnpm lint` clean for touched files.
+- Old `it` accounting: all 22 size-presets/sync tests moved. The 12 `it` in `routes/menu-item-sizes.test.ts` were kept in place (see Plan Deviations).
+
 ## Plan Deviations
 
+- `routes/menu-item-sizes.test.ts` was not moved. Its 12 tests exercise the menu-items HTTP routes (auto-fill on create, `sizeOptionIds`, `PUT .../sizes`), which have no controller in `modules/menu-item-sizes/` and move with the menu-items task. The repository now has its own tests in `modules/menu-item-sizes/repository.test.ts`.
+- No shared trim helper: `parseName`/`parseLabel` (size-presets), `parseName` (menu-items) and `parseFullName` (employees) fail with different messages (`nameRequired`, `sizeOptionsRequired`, `fullNameRequired`), so they stay separate. Inside size-presets the two identical functions were merged into one local `trimmed`.
+- `status: in_progress` was committed together with the red commit rather than separately.
+- Local env: an unrelated Postgres container held port 5432, so tests could not reach this project's DB until the user stopped it.
+- Request validation for POST now runs inside `withDb` (in the service), so an unreachable DB with an invalid body returns 500 where it used to return 400. Not covered by any test.
+
 ## Review Notes
+
+`feature-dev:code-reviewer`: no high-confidence regressions, bugs or layer-rule violations. PATCH check order, POST/DELETE order, transaction order and response bodies match the old route. Two low-confidence notes (below 50):
+
+- PATCH reads `body.name` inside `withDb`, so a literal `null` JSON body now gives the structured 500 instead of Hono's default one; POST still reads `body.options` outside `withDb`. Left as is (arguably better).
+- POST validation now runs inside `withDb`, so an invalid body with an unreachable DB returns 500 instead of 400. Left as is; noted in Plan Deviations.
