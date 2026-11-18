@@ -3,10 +3,10 @@ import { Client } from "pg";
 import type { Bindings } from "./bindings";
 import { adminRoute } from "./modules/admin/controller";
 import { employeesRoute } from "./modules/employees/controller";
+import { sizePresetsRoute } from "./modules/size-presets/controller";
 import { menuItemsRoute } from "./routes/menu-items";
 import { restaurantsRoute } from "./routes/restaurants";
 import { roundsRoute } from "./routes/rounds";
-import { sizePresetsRoute } from "./routes/size-presets";
 
 const app = new Hono<{ Bindings: Bindings }>();
 

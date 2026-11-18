@@ -4,7 +4,7 @@ import { Hono } from "hono";
 import type { Bindings } from "../bindings";
 import { ERROR_MESSAGES } from "../lib/errors";
 import { getDb } from "../lib/get-db";
-import { clearRemovedItemSizes, fillSizesForItems } from "../lib/menu-item-sizes";
+import { clearRemovedItemSizes, fillSizesForItems } from "../modules/menu-item-sizes/repository";
 import { fail, ok, type Result } from "../lib/result";
 
 function parseName(raw: unknown): string {

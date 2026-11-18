@@ -9,7 +9,7 @@ import {
   clearRestaurantDrinkSizes,
   countRestaurantDrinkSizes,
   rebuildMenuItemSizes,
-} from "../lib/menu-item-sizes";
+} from "../modules/menu-item-sizes/repository";
 
 export const restaurantsRoute = new Hono<{ Bindings: Bindings }>();
 
