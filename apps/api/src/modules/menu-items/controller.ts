@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import type { Bindings } from "../../bindings";
-import { parseId, respond, trimmed, withDb } from "../../lib/controller";
+import { respond, withDb } from "../../lib/controller";
+import { parseId, trimmed } from "../../lib/utils";
 import { ERROR_MESSAGES } from "../../lib/errors";
 import { fail, ok, type Result } from "../../lib/result";
 import {

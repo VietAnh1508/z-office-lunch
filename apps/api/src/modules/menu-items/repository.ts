@@ -1,5 +1,5 @@
-import { and, asc, eq, inArray } from "drizzle-orm";
-import { menuItemSizes, menuItems, restaurants, sizeOptions } from "db";
+import { and, eq } from "drizzle-orm";
+import { menuItems, restaurants } from "db";
 import type { DbOrTx, Tx } from "../../lib/db-types";
 
 export type MenuItemRow = typeof menuItems.$inferSelect;
@@ -47,29 +47,6 @@ export async function listByRestaurant(
     ? and(eq(menuItems.restaurantId, restaurantId), eq(menuItems.active, true))
     : eq(menuItems.restaurantId, restaurantId);
   return db.select().from(menuItems).where(conditions).orderBy(menuItems.name);
-}
-
-export async function listSizesForItems(
-  db: DbOrTx,
-  itemIds: number[],
-): Promise<{ menuItemId: number; sizeOptionId: number }[]> {
-  if (itemIds.length === 0) {
-    return [];
-  }
-  return db
-    .select({
-      menuItemId: menuItemSizes.menuItemId,
-      sizeOptionId: menuItemSizes.sizeOptionId,
-    })
-    .from(menuItemSizes)
-    .innerJoin(sizeOptions, eq(sizeOptions.id, menuItemSizes.sizeOptionId))
-    .where(inArray(menuItemSizes.menuItemId, itemIds))
-    .orderBy(asc(sizeOptions.sortOrder), asc(sizeOptions.id));
-}
-
-export async function listItemSizeIds(db: DbOrTx, itemId: number): Promise<number[]> {
-  const rows = await listSizesForItems(db, [itemId]);
-  return rows.map((r) => r.sizeOptionId);
 }
 
 export async function insertOne(

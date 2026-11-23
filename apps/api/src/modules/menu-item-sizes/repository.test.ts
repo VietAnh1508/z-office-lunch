@@ -18,6 +18,8 @@ import {
   clearRestaurantDrinkSizes,
   countRestaurantDrinkSizes,
   fillSizesForItems,
+  listItemSizeIds,
+  listSizesForItems,
   rebuildMenuItemSizes,
   replaceItemSizes,
 } from "./repository";
@@ -177,6 +179,23 @@ describe("menu-item-sizes repository", () => {
       expect(await pickedOf(a.sub.id)).toBeNull();
       expect(await pickedOf(b.sub.id)).toBe(b.sizeId);
     });
+  });
+
+  it("listSizesForItems and listItemSizeIds order by sortOrder, id and handle empty input", async () => {
+    expect(await listSizesForItems(db, [])).toEqual([]);
+
+    const { preset, options } = await seedSizePreset(db);
+    const r = await seedRestaurant(db, { type: "drink", sizePresetId: preset.id });
+    const item = await seedMenuItem(db, { restaurantId: r!.id });
+    for (const opt of [options[2]!, options[0]!]) {
+      await seedMenuItemSize(db, { menuItemId: item!.id, sizeOptionId: opt.id });
+    }
+
+    expect(await listSizesForItems(db, [item!.id])).toEqual([
+      { menuItemId: item!.id, sizeOptionId: options[0]!.id },
+      { menuItemId: item!.id, sizeOptionId: options[2]!.id },
+    ]);
+    expect(await listItemSizeIds(db, item!.id)).toEqual([options[0]!.id, options[2]!.id]);
   });
 
   it("replaceItemSizes replaces all size rows for the item", async () => {

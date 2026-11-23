@@ -1,4 +1,4 @@
-import { trimmed } from "../../lib/controller";
+import { trimmed } from "../../lib/utils";
 import type { Db } from "../../lib/db-types";
 import { ERROR_MESSAGES } from "../../lib/errors";
 import { fail, ok, type Result } from "../../lib/result";

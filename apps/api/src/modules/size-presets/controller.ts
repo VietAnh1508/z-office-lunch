@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import type { Bindings } from "../../bindings";
-import { parseId, respond, withDb } from "../../lib/controller";
+import { respond, withDb } from "../../lib/controller";
+import { parseId } from "../../lib/utils";
 import { ERROR_MESSAGES } from "../../lib/errors";
 import { fail } from "../../lib/result";
 import { createPreset, deletePreset, listPresets, updatePreset } from "./service";

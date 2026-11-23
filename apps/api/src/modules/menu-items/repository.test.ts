@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { menuItems } from "db";
-import { seedMenuItem, seedMenuItemSize, seedRestaurant, seedSizePreset } from "db/testing";
+import { seedMenuItem, seedRestaurant, seedSizePreset } from "db/testing";
 import { describe, expect, it } from "vitest";
 import { useTestDb } from "../../test/db";
 import {
@@ -11,8 +11,6 @@ import {
   insertMany,
   insertOne,
   listByRestaurant,
-  listItemSizeIds,
-  listSizesForItems,
   setActive,
   updateDetails,
 } from "./repository";
@@ -65,23 +63,6 @@ describe("menu-items repository", () => {
 
     const active = await listByRestaurant(db, r!.id, true);
     expect(active.map((i) => i.name)).toEqual(["Mango", "Zebra"]);
-  });
-
-  it("listSizesForItems and listItemSizeIds order by sortOrder, id and handle empty input", async () => {
-    expect(await listSizesForItems(db, [])).toEqual([]);
-
-    const { preset, options } = await seedSizePreset(db);
-    const r = await seedRestaurant(db, { type: "drink", sizePresetId: preset.id });
-    const item = await seedMenuItem(db, { restaurantId: r!.id });
-    for (const opt of [options[2]!, options[0]!]) {
-      await seedMenuItemSize(db, { menuItemId: item!.id, sizeOptionId: opt.id });
-    }
-
-    expect(await listSizesForItems(db, [item!.id])).toEqual([
-      { menuItemId: item!.id, sizeOptionId: options[0]!.id },
-      { menuItemId: item!.id, sizeOptionId: options[2]!.id },
-    ]);
-    expect(await listItemSizeIds(db, item!.id)).toEqual([options[0]!.id, options[2]!.id]);
   });
 
   it("insertOne and insertMany create active rows", async () => {

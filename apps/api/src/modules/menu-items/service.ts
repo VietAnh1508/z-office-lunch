@@ -4,6 +4,8 @@ import { fail, ok, type Result } from "../../lib/result";
 import {
   clearRemovedItemSizes,
   fillSizesForItems,
+  listItemSizeIds,
+  listSizesForItems,
   replaceItemSizes,
 } from "../menu-item-sizes/repository";
 import { listPresetOptionIds } from "../size-presets/repository";
@@ -21,7 +23,7 @@ export async function listMenuItems(
   activeOnly: boolean,
 ): Promise<MenuItemWithSizes[]> {
   const rows = await repo.listByRestaurant(db, restaurantId, activeOnly);
-  const sizeRows = await repo.listSizesForItems(
+  const sizeRows = await listSizesForItems(
     db,
     rows.map((r) => r.id),
   );
@@ -95,7 +97,7 @@ export async function updateMenuItemSizes(
     await clearRemovedItemSizes(tx, restaurantId, itemId, requested);
   });
 
-  const sizeOptionIds = await repo.listItemSizeIds(db, itemId);
+  const sizeOptionIds = await listItemSizeIds(db, itemId);
   return ok({ id: itemId, sizeOptionIds });
 }
 

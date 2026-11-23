@@ -2,7 +2,7 @@ import { Hono, type Context } from "hono";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Bindings } from "../bindings";
 import { testEnv, unreachableEnv } from "../test/env";
-import { parseId, respond, trimmed, withDb } from "./controller";
+import { respond, withDb } from "./controller";
 import { fail, ok } from "./result";
 
 function appWith(handler: (c: Context<{ Bindings: Bindings }>) => Response | Promise<Response>) {
@@ -86,23 +86,5 @@ describe("respond", () => {
   it("uses the given okStatus", async () => {
     const app = appWith((c) => respond(c, ok({ id: 1 }), 201));
     expect((await app.request("/x", {}, testEnv)).status).toBe(201);
-  });
-});
-
-describe("parseId", () => {
-  it("returns integer ids and null for non-integers", () => {
-    expect(parseId("42")).toBe(42);
-    expect(parseId("0")).toBe(0);
-    expect(parseId("1.5")).toBeNull();
-    expect(parseId("abc")).toBeNull();
-  });
-});
-
-describe("trimmed", () => {
-  it("trims strings and returns empty string for non-strings", () => {
-    expect(trimmed("  hello  ")).toBe("hello");
-    expect(trimmed(undefined)).toBe("");
-    expect(trimmed(null)).toBe("");
-    expect(trimmed(123)).toBe("");
   });
 });
