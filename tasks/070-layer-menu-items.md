@@ -1,7 +1,7 @@
 ---
 id: 070
 title: Layer the menu-items module
-status: in_review
+status: done
 depends_on: [069]
 parallelizable_with: []
 epic: layered-api-refactor
