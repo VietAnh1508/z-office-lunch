@@ -88,11 +88,11 @@ describe("menu-items repository", () => {
 
   it("listPresetOptionIds returns all option ids for a preset", async () => {
     const { preset, options } = await seedSizePreset(db);
-    const { preset: other } = await seedSizePreset(db, { name: "Other" });
+    const { options: otherOptions } = await seedSizePreset(db, { name: "Other" });
 
     const ids = await listPresetOptionIds(db, preset.id);
     expect(ids.sort((a, b) => a - b)).toEqual(options.map((o) => o.id).sort((a, b) => a - b));
-    expect(ids.every((id) => other.id !== id)).toBe(true);
+    expect(otherOptions.every((o) => !ids.includes(o.id))).toBe(true);
   });
 
   it("insertOne and insertMany create active rows", async () => {

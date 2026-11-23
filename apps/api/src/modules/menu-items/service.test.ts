@@ -136,6 +136,7 @@ describe("menu-items service", () => {
       const sub = await seedSubmission(db, {
         roundId: round!.id,
         employeeId: emp!.id,
+        foodRoundMenuItemId: null,
         drinkRoundMenuItemId: rmi!.id,
         drinkSizeOptionId: options[0]!.id,
       });

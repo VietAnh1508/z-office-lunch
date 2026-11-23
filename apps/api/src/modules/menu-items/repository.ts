@@ -1,101 +1,148 @@
-import type { menuItems, restaurants } from "db";
+import { and, asc, eq, inArray } from "drizzle-orm";
+import { menuItemSizes, menuItems, restaurants, sizeOptions } from "db";
 import type { DbOrTx, Tx } from "../../lib/db-types";
 
 export type MenuItemRow = typeof menuItems.$inferSelect;
 export type RestaurantRow = typeof restaurants.$inferSelect;
 
-const notImplemented = (): never => {
-  throw new Error("not implemented");
-};
-
 export async function findRestaurantById(
-  _db: DbOrTx,
-  _restaurantId: number,
+  db: DbOrTx,
+  restaurantId: number,
 ): Promise<RestaurantRow | null> {
-  return notImplemented();
+  const [row] = await db.select().from(restaurants).where(eq(restaurants.id, restaurantId));
+  return row ?? null;
 }
 
 export async function findByIdInRestaurant(
-  _db: DbOrTx,
-  _restaurantId: number,
-  _itemId: number,
+  db: DbOrTx,
+  restaurantId: number,
+  itemId: number,
 ): Promise<MenuItemRow | null> {
-  return notImplemented();
+  const [row] = await db
+    .select()
+    .from(menuItems)
+    .where(and(eq(menuItems.id, itemId), eq(menuItems.restaurantId, restaurantId)));
+  return row ?? null;
 }
 
 export async function findWithPreset(
-  _db: DbOrTx,
-  _restaurantId: number,
-  _itemId: number,
+  db: DbOrTx,
+  restaurantId: number,
+  itemId: number,
 ): Promise<{ id: number; presetId: number | null } | null> {
-  return notImplemented();
+  const [row] = await db
+    .select({ id: menuItems.id, presetId: restaurants.sizePresetId })
+    .from(menuItems)
+    .innerJoin(restaurants, eq(restaurants.id, menuItems.restaurantId))
+    .where(and(eq(menuItems.id, itemId), eq(menuItems.restaurantId, restaurantId)));
+  return row ?? null;
 }
 
 export async function listByRestaurant(
-  _db: DbOrTx,
-  _restaurantId: number,
-  _activeOnly: boolean,
+  db: DbOrTx,
+  restaurantId: number,
+  activeOnly: boolean,
 ): Promise<MenuItemRow[]> {
-  return notImplemented();
+  const conditions = activeOnly
+    ? and(eq(menuItems.restaurantId, restaurantId), eq(menuItems.active, true))
+    : eq(menuItems.restaurantId, restaurantId);
+  return db.select().from(menuItems).where(conditions).orderBy(menuItems.name);
 }
 
 export async function listSizesForItems(
-  _db: DbOrTx,
-  _itemIds: number[],
+  db: DbOrTx,
+  itemIds: number[],
 ): Promise<{ menuItemId: number; sizeOptionId: number }[]> {
-  return notImplemented();
+  if (itemIds.length === 0) {
+    return [];
+  }
+  return db
+    .select({
+      menuItemId: menuItemSizes.menuItemId,
+      sizeOptionId: menuItemSizes.sizeOptionId,
+    })
+    .from(menuItemSizes)
+    .innerJoin(sizeOptions, eq(sizeOptions.id, menuItemSizes.sizeOptionId))
+    .where(inArray(menuItemSizes.menuItemId, itemIds))
+    .orderBy(asc(sizeOptions.sortOrder), asc(sizeOptions.id));
 }
 
-export async function listItemSizeIds(_db: DbOrTx, _itemId: number): Promise<number[]> {
-  return notImplemented();
+export async function listItemSizeIds(db: DbOrTx, itemId: number): Promise<number[]> {
+  const rows = await listSizesForItems(db, [itemId]);
+  return rows.map((r) => r.sizeOptionId);
 }
 
-export async function listPresetOptionIds(_db: DbOrTx, _presetId: number): Promise<number[]> {
-  return notImplemented();
+export async function listPresetOptionIds(db: DbOrTx, presetId: number): Promise<number[]> {
+  const rows = await db
+    .select({ id: sizeOptions.id })
+    .from(sizeOptions)
+    .where(eq(sizeOptions.presetId, presetId));
+  return rows.map((r) => r.id);
 }
 
 export async function insertOne(
-  _tx: Tx,
-  _restaurantId: number,
-  _name: string,
-  _price: string | null,
+  tx: Tx,
+  restaurantId: number,
+  name: string,
+  price: string | null,
 ): Promise<MenuItemRow> {
-  return notImplemented();
+  const [created] = await tx.insert(menuItems).values({ restaurantId, name, price }).returning();
+  return created!;
 }
 
 export async function insertMany(
-  _tx: Tx,
-  _restaurantId: number,
-  _items: { name: string; price: string | null }[],
+  tx: Tx,
+  restaurantId: number,
+  items: { name: string; price: string | null }[],
 ): Promise<MenuItemRow[]> {
-  return notImplemented();
+  if (items.length === 0) {
+    return [];
+  }
+  return tx
+    .insert(menuItems)
+    .values(items.map((item) => ({ restaurantId, name: item.name, price: item.price })))
+    .returning();
 }
 
-export async function deactivateActiveForRestaurant(_tx: Tx, _restaurantId: number): Promise<void> {
-  return notImplemented();
+export async function deactivateActiveForRestaurant(tx: Tx, restaurantId: number): Promise<void> {
+  await tx
+    .update(menuItems)
+    .set({ active: false })
+    .where(and(eq(menuItems.restaurantId, restaurantId), eq(menuItems.active, true)));
 }
 
-export async function setActive(
-  _db: DbOrTx,
-  _itemId: number,
-  _active: boolean,
-): Promise<MenuItemRow> {
-  return notImplemented();
+export async function setActive(db: DbOrTx, itemId: number, active: boolean): Promise<MenuItemRow> {
+  const [row] = await db
+    .update(menuItems)
+    .set({ active })
+    .where(eq(menuItems.id, itemId))
+    .returning();
+  return row!;
 }
 
 export async function updateDetails(
-  _db: DbOrTx,
-  _itemId: number,
-  _name: string,
-  _price: string | null,
+  db: DbOrTx,
+  itemId: number,
+  name: string,
+  price: string | null,
 ): Promise<MenuItemRow> {
-  return notImplemented();
+  const [row] = await db
+    .update(menuItems)
+    .set({ name, price })
+    .where(eq(menuItems.id, itemId))
+    .returning();
+  return row!;
 }
 
 export async function replaceItemSizes(
-  _tx: Tx,
-  _itemId: number,
-  _sizeOptionIds: number[],
+  tx: Tx,
+  itemId: number,
+  sizeOptionIds: number[],
 ): Promise<void> {
-  return notImplemented();
+  await tx.delete(menuItemSizes).where(eq(menuItemSizes.menuItemId, itemId));
+  if (sizeOptionIds.length > 0) {
+    await tx
+      .insert(menuItemSizes)
+      .values(sizeOptionIds.map((sizeOptionId) => ({ menuItemId: itemId, sizeOptionId })));
+  }
 }
