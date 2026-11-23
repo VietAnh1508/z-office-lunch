@@ -1,7 +1,11 @@
 import type { Db } from "../../lib/db-types";
 import { ERROR_MESSAGES } from "../../lib/errors";
 import { fail, ok, type Result } from "../../lib/result";
-import { clearRemovedItemSizes, fillSizesForItems } from "../menu-item-sizes/repository";
+import {
+  clearRemovedItemSizes,
+  fillSizesForItems,
+  replaceItemSizes,
+} from "../menu-item-sizes/repository";
 import { listPresetOptionIds } from "../size-presets/repository";
 import * as repo from "./repository";
 import type { MenuItemRow } from "./repository";
@@ -87,7 +91,7 @@ export async function updateMenuItemSizes(
   }
 
   await db.transaction(async (tx) => {
-    await repo.replaceItemSizes(tx, itemId, requested);
+    await replaceItemSizes(tx, itemId, requested);
     await clearRemovedItemSizes(tx, restaurantId, itemId, requested);
   });
 

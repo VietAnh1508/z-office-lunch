@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { menuItemSizes, menuItems } from "db";
+import { menuItems } from "db";
 import { seedMenuItem, seedMenuItemSize, seedRestaurant, seedSizePreset } from "db/testing";
 import { describe, expect, it } from "vitest";
 import { useTestDb } from "../../test/db";
@@ -13,7 +13,6 @@ import {
   listByRestaurant,
   listItemSizeIds,
   listSizesForItems,
-  replaceItemSizes,
   setActive,
   updateDetails,
 } from "./repository";
@@ -134,26 +133,5 @@ describe("menu-items repository", () => {
 
     const updated = await updateDetails(db, item!.id, "New", null);
     expect(updated).toMatchObject({ id: item!.id, name: "New", price: null, active: false });
-  });
-
-  it("replaceItemSizes replaces all size rows for the item", async () => {
-    const { preset, options } = await seedSizePreset(db);
-    const r = await seedRestaurant(db, { type: "drink", sizePresetId: preset.id });
-    const item = await seedMenuItem(db, { restaurantId: r!.id });
-    await seedMenuItemSize(db, { menuItemId: item!.id, sizeOptionId: options[0]!.id });
-
-    await db.transaction((tx) => replaceItemSizes(tx, item!.id, [options[1]!.id, options[2]!.id]));
-    const rows = await db
-      .select()
-      .from(menuItemSizes)
-      .where(eq(menuItemSizes.menuItemId, item!.id));
-    expect(rows.map((row) => row.sizeOptionId).sort((a, b) => a - b)).toEqual(
-      [options[1]!.id, options[2]!.id].sort((a, b) => a - b),
-    );
-
-    await db.transaction((tx) => replaceItemSizes(tx, item!.id, []));
-    expect(
-      await db.select().from(menuItemSizes).where(eq(menuItemSizes.menuItemId, item!.id)),
-    ).toHaveLength(0);
   });
 });

@@ -121,3 +121,12 @@ export async function clearRemovedItemSizes(
         : where,
     );
 }
+
+export async function replaceItemSizes(tx: Tx, itemId: number, sizeOptionIds: number[]) {
+  await tx.delete(menuItemSizes).where(eq(menuItemSizes.menuItemId, itemId));
+  if (sizeOptionIds.length > 0) {
+    await tx
+      .insert(menuItemSizes)
+      .values(sizeOptionIds.map((sizeOptionId) => ({ menuItemId: itemId, sizeOptionId })));
+  }
+}

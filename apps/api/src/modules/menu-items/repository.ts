@@ -125,16 +125,3 @@ export async function updateDetails(
     .returning();
   return row!;
 }
-
-export async function replaceItemSizes(
-  tx: Tx,
-  itemId: number,
-  sizeOptionIds: number[],
-): Promise<void> {
-  await tx.delete(menuItemSizes).where(eq(menuItemSizes.menuItemId, itemId));
-  if (sizeOptionIds.length > 0) {
-    await tx
-      .insert(menuItemSizes)
-      .values(sizeOptionIds.map((sizeOptionId) => ({ menuItemId: itemId, sizeOptionId })));
-  }
-}
