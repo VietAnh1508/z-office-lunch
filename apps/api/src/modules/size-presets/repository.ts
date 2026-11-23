@@ -124,6 +124,10 @@ export async function listPresetOptionIds(db: DbOrTx, presetId: number): Promise
   return rows.map((r) => r.id);
 }
 
-export async function exists(_db: DbOrTx, _id: number): Promise<boolean> {
-  throw new Error("not implemented");
+export async function exists(db: DbOrTx, id: number): Promise<boolean> {
+  const [row] = await db
+    .select({ id: sizePresets.id })
+    .from(sizePresets)
+    .where(eq(sizePresets.id, id));
+  return row !== undefined;
 }

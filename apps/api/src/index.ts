@@ -5,7 +5,7 @@ import { adminRoute } from "./modules/admin/controller";
 import { employeesRoute } from "./modules/employees/controller";
 import { sizePresetsRoute } from "./modules/size-presets/controller";
 import { menuItemsRoute } from "./modules/menu-items/controller";
-import { restaurantsRoute } from "./routes/restaurants";
+import { restaurantsRoute } from "./modules/restaurants/controller";
 import { roundsRoute } from "./routes/rounds";
 
 const app = new Hono<{ Bindings: Bindings }>();
