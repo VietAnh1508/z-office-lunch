@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import type { Bindings } from "../../bindings";
-import { respond, withDb } from "../../lib/controller";
+import { parseId, respond, trimmed, withDb } from "../../lib/controller";
 import { ERROR_MESSAGES } from "../../lib/errors";
 import { fail } from "../../lib/result";
 import {
@@ -14,14 +14,7 @@ import {
 export const employeesRoute = new Hono<{ Bindings: Bindings }>();
 
 function parseFullName(body: unknown): string {
-  const raw = (body as Record<string, unknown>)?.fullName;
-  return typeof raw === "string" ? raw.trim() : "";
-}
-
-// A non-integer id can never match a row, so it is a 404 rather than a 400.
-function parseId(raw: string): number | null {
-  const id = Number(raw);
-  return Number.isInteger(id) ? id : null;
+  return trimmed((body as Record<string, unknown>)?.fullName);
 }
 
 const notFound = () => fail(ERROR_MESSAGES.employeeNotFound, 404);

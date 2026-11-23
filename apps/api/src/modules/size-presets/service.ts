@@ -1,3 +1,4 @@
+import { trimmed } from "../../lib/controller";
 import type { Db } from "../../lib/db-types";
 import { ERROR_MESSAGES } from "../../lib/errors";
 import { fail, ok, type Result } from "../../lib/result";
@@ -9,10 +10,6 @@ type OptionInput = { id?: number; label: string };
 type PresetResult = Result<Preset, number>;
 
 const notFound = () => fail(ERROR_MESSAGES.sizePresetNotFound, 404);
-
-function trimmed(raw: unknown): string {
-  return typeof raw === "string" ? raw.trim() : "";
-}
 
 // `entries` is shaped as { id?, label } — the controller maps plain strings into this for POST.
 function validatePreset(

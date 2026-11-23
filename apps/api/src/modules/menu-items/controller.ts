@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import type { Bindings } from "../../bindings";
-import { respond, withDb } from "../../lib/controller";
+import { parseId, respond, trimmed, withDb } from "../../lib/controller";
 import { ERROR_MESSAGES } from "../../lib/errors";
 import { fail, ok, type Result } from "../../lib/result";
 import {
@@ -11,16 +11,6 @@ import {
   updateMenuItemDetails,
   updateMenuItemSizes,
 } from "./service";
-
-// A non-integer id can never match a row, so it is a 404 rather than a 400.
-function parseId(raw: string): number | null {
-  const id = Number(raw);
-  return Number.isInteger(id) ? id : null;
-}
-
-function parseName(raw: unknown): string {
-  return typeof raw === "string" ? raw.trim() : "";
-}
 
 function parsePrice(raw: unknown): Result<{ price: string | null }> {
   if (raw === undefined || raw === null || raw === "") {
@@ -65,7 +55,7 @@ function parseBulkBody(
 
   const items: { name: string; price: string | null }[] = [];
   for (const item of body.items) {
-    const name = parseName(item?.name);
+    const name = trimmed(item?.name);
     if (!name) {
       return fail(ERROR_MESSAGES.nameRequired);
     }
@@ -86,7 +76,7 @@ export const menuItemsRoute = new Hono<{ Bindings: Bindings }>();
 menuItemsRoute.post("/:id/menu-items", async (c) => {
   const rawId = c.req.param("id");
   const body = await c.req.json().catch(() => ({}));
-  const name = parseName(body.name);
+  const name = trimmed(body.name);
   const parsedPrice = parsePrice(body.price);
 
   if (!name) {
@@ -137,7 +127,7 @@ menuItemsRoute.patch("/:id/menu-items/:itemId/details", async (c) => {
   }
 
   const body = await c.req.json().catch(() => ({}));
-  const name = parseName(body.name);
+  const name = trimmed(body.name);
   const parsedPrice = parsePrice(body.price);
 
   if (!name) {
