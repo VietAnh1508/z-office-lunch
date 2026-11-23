@@ -7,7 +7,7 @@ argument-hint: <what to change>
 
 Requested change: $ARGUMENTS
 
-This is the ad-hoc "quick fix" flow from `CLAUDE.md` — for a small change that isn't fixing broken behavior. Use `/fix-bug` instead if this is actually a bug.
+This is the ad-hoc "quick fix" flow from `AGENTS.md` — for a small change that isn't fixing broken behavior. Use `/fix-bug` instead if this is actually a bug.
 
 ## Steps
 

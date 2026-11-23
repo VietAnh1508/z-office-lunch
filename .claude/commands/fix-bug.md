@@ -7,7 +7,7 @@ argument-hint: <bug description>
 
 Bug report: $ARGUMENTS
 
-This is the ad-hoc "quick fix" flow from `CLAUDE.md` — for an actual bug (wrong behavior), not a cosmetic or non-behavioral change. Use `/quick-change` for that instead.
+This is the ad-hoc "quick fix" flow from `AGENTS.md` — for an actual bug (wrong behavior), not a cosmetic or non-behavioral change. Use `/quick-change` for that instead.
 
 ## Steps
 

@@ -4,7 +4,7 @@
 
 Production only — one Cloudflare account, one Worker, one Neon project, one R2 bucket. No
 staging environment: this is a solo-maintainer internal tool with one task/one PR in flight at
-a time (see `CLAUDE.md`'s loop), so a hosted staging tier didn't earn its setup cost. A Neon
+a time (see `AGENTS.md`'s loop), so a hosted staging tier didn't earn its setup cost. A Neon
 branch is the cheap way to add one later if that changes.
 
 The Worker serves both `/api/*` and the built SPA (Workers `assets` binding) from a single

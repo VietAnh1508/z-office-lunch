@@ -7,7 +7,7 @@ argument-hint: [task id, optional]
 
 Target task id: $ARGUMENTS
 
-Implement exactly **one** task, TDD-style, on its own feature branch, then stop. Never proceed to a second task in the same invocation. Every git/PR operation below is pre-authorized by `CLAUDE.md` — no confirmation needed.
+Implement exactly **one** task, TDD-style, on its own feature branch, then stop. Never proceed to a second task in the same invocation. Every git/PR operation below is pre-authorized by `AGENTS.md` — no confirmation needed.
 
 ## Steps
 

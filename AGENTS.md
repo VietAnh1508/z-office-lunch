@@ -11,7 +11,7 @@ We're building the AI workflow harness (this file, the commands, the task templa
 ## Documentation principles
 
 - **Progressive disclosure.** If something is obvious from reading the code, don't write it down — it'll drift, and the code is always the source of truth. Write down what the code can't tell you on its own: why a decision was made, a constraint that isn't visible locally, a convention that spans files.
-- **Keep this file minimal; link out for the rest.** `CLAUDE.md` should only hold what nearly every task needs (the loop, bootstrap order, pre-authorizations). Area-specific detail — database conventions, frontend/React conventions, deployment — belongs in its own doc, or a nested `CLAUDE.md` inside the relevant directory, linked from here rather than inlined. A database task shouldn't have to read React conventions to get oriented.
+- **Keep this file minimal; link out for the rest.** `AGENTS.md` should only hold what nearly every task needs (the loop, bootstrap order, pre-authorizations). Area-specific detail — database conventions, frontend/React conventions, deployment — belongs in its own doc, or a nested `AGENTS.md` inside the relevant directory, linked from here rather than inlined. A database task shouldn't have to read React conventions to get oriented.
 - **Optimize for "can a new session or a new human reconstruct state and act."** Anyone opening this repo cold should be able to tell what's done vs. in flight (`tasks/` frontmatter), how to run the app locally, how to connect to the database, how to deploy. As those exist, give each its own doc (e.g. `docs/running-locally.md`, `docs/deployment.md`) and index it here — don't fold the details into this file.
 
 ## Where things live
@@ -20,10 +20,8 @@ We're building the AI workflow harness (this file, the commands, the task templa
 - `tasks/epics/` — one file per multi-task `/plan-task` output, holding only the "why these tasks are one thing" narrative and a static list of member task ids (see a task's `epic:` frontmatter field). Never holds a status or progress list — that stays solely in each task's own frontmatter, same rule as above. Most tasks are standalone and have no epic.
 - `docs/architecture.md` — app data model and stack rationale, once decided. Written once, updated only when the architecture actually changes, not per task.
 - `docs/deployment.md` — live URL, provisioned cloud resources (Cloudflare Worker/Hyperdrive/R2, Neon), how to redeploy and run migrations against production.
-- `.claude/commands/plan-task.md`, `.claude/commands/implement-task.md` — the two custom commands that drive the loop below.
-- `.claude/commands/fix-bug.md`, `.claude/commands/quick-change.md` — the ad-hoc, no-task-file commands for the Quick fixes flow (see below).
-- `.claude/commands/retrospective.md` — run periodically (not part of the per-task loop) to scan `done` tasks' Implementation Log, Plan Deviations, and Review Notes for environment/tooling gaps, workflow drift, and recurring patterns across tasks; reports findings and proposes fixes, doesn't apply them unasked.
-- `.claude/rules/` — path-scoped conventions (frontmatter `paths` glob) that surface only when working in a matching subtree, e.g. `api-error-handling.md` for `apps/api/**/*.ts`. Prefer this over a nested `CLAUDE.md` for a single, narrow convention; use a nested `CLAUDE.md` once an area needs broader context.
+- `.claude/commands/` and `.agents/skills/` — the workflow definitions that drive the loop below (`plan-task`, `implement-task`), the ad-hoc Quick fixes (`fix-bug`, `quick-change`), and `retrospective` (run periodically to scan `done` tasks' Implementation Log, Plan Deviations, and Review Notes for environment/tooling gaps, workflow drift, and recurring patterns across tasks; reports findings and proposes fixes, doesn't apply them unasked). `.claude/commands/` is for Claude Code; `.agents/skills/` is the cross-agent standard for Antigravity, Codex, OpenCode, Cursor, etc.
+- `.claude/rules/` and subtree `AGENTS.md` (`apps/api/AGENTS.md`, `apps/web/AGENTS.md`) — path-scoped conventions (`paths` frontmatter for Claude Code in `.claude/rules/`, directory-scoped `AGENTS.md` pointers for other agents) that surface only when working in a matching subtree. Prefer `.claude/rules/` + a subtree pointer for a single, narrow convention; use a full nested `AGENTS.md` once an area needs broader context.
 
 ## The loop
 
@@ -39,12 +37,12 @@ Execution is strictly sequential — one task at a time — by design, so there'
 For small stuff that doesn't warrant a task — a one-line bug fix, a UI label/copy change, a typo, a small config tweak — skip `/plan-task` and `/implement-task` entirely. Use `/fix-bug <description>` for an actual bug, or `/quick-change <description>` for a small non-bug change; describing it in plain chat works too, but the commands make the mode explicit. Either way:
 
 1. You describe the problem, no task file gets written.
-2. Claude still goes through the loop, just lighter-weight and on whatever branch is currently checked out (usually `main`) — no new branch, no PR:
+2. The agent still goes through the loop, just lighter-weight and on whatever branch is currently checked out (usually `main`) — no new branch, no PR:
    - **Explore** the relevant code to understand what's actually there.
    - **Find the root cause** — don't patch a symptom before knowing why it happens.
    - **Implement** with TDD for bug fixes specifically: write a test that reproduces the wrong behavior and confirm it fails, then fix the code.
    - **Test** — rerun that test (and the surrounding suite where relevant) to confirm it now passes and nothing else broke.
-3. Claude does **not** commit. It leaves the diff in the working tree — test included — for you to review with `git diff`, and you commit it yourself (or ask Claude to, explicitly) once you're happy with it.
+3. The agent does **not** commit. It leaves the diff in the working tree — test included — for you to review with `git diff`, and you commit it yourself (or ask the agent to, explicitly) once you're happy with it.
 
 Use judgment on the boundary: if the fix touches the data model, spans multiple files/areas, or needs the kind of design decision `/plan-task` exists to capture, it's not a quick fix — write a task for it instead.
 
