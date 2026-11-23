@@ -10,12 +10,13 @@ import {
   seedSizePreset,
   seedSubmission,
 } from "db/testing";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { Db } from "../../lib/db-types";
 import { ERROR_MESSAGES } from "../../lib/errors";
 import { useTestDb } from "../../test/db";
 import { createFakeAiBinding } from "../../test/fake-ai-binding";
 import { createFakeMenuImagesBucket } from "../../test/fake-menu-images-bucket";
+import { findById } from "./repository";
 import {
   createRestaurant,
   deleteMenuImage,
@@ -263,11 +264,31 @@ describe("restaurants service", () => {
       expect(secondKey).not.toBe(firstKey);
       expect(bucket.objects.has(firstKey)).toBe(false);
       expect(bucket.objects.has(secondKey)).toBe(true);
+
+      const failingOldDeleteBucket = {
+        ...bucket,
+        async delete() {
+          throw new Error("r2 delete old failed");
+        },
+      };
+      const third = await uploadMenuImage(
+        db,
+        failingOldDeleteBucket as unknown as R2Bucket,
+        r!.id,
+        makeFile([3]),
+      );
+      expect(third.ok).toBe(true);
+      if (third.ok) {
+        expect(third.menuImage).not.toBe(secondKey);
+        expect(bucket.objects.has(third.menuImage!)).toBe(true);
+      }
     });
 
     it("uploadMenuImage performs a compensating R2 delete when the DB update throws", async () => {
       const r = await seedRestaurant(db);
       const bucket = createFakeMenuImagesBucket();
+      const putSpy = vi.spyOn(bucket, "put");
+      const deleteSpy = vi.spyOn(bucket, "delete");
       const failingUpdateDb = Object.create(db) as Db;
       failingUpdateDb.update = (() => {
         throw new Error("db update failed");
@@ -276,6 +297,8 @@ describe("restaurants service", () => {
       await expect(
         uploadMenuImage(failingUpdateDb, bucket as unknown as R2Bucket, r!.id, makeFile()),
       ).rejects.toThrow("db update failed");
+      expect(putSpy).toHaveBeenCalledTimes(1);
+      expect(deleteSpy).toHaveBeenCalledWith(putSpy.mock.calls[0]?.[0]);
       expect(bucket.objects.size).toBe(0);
     });
 
@@ -306,14 +329,17 @@ describe("restaurants service", () => {
       const uploaded = await uploadMenuImage(db, bucket as unknown as R2Bucket, r!.id, makeFile());
       expect(uploaded.ok).toBe(true);
 
+      let dbImageDuringR2Delete: string | null | undefined = "not-checked";
       const failingDeleteBucket = {
         ...bucket,
         async delete() {
+          dbImageDuringR2Delete = (await findById(db, r!.id))?.menuImage;
           throw new Error("r2 delete failed");
         },
       };
 
       const deleted = await deleteMenuImage(db, failingDeleteBucket as unknown as R2Bucket, r!.id);
+      expect(dbImageDuringR2Delete).toBeNull();
       expect(deleted).toMatchObject({ ok: true, id: r!.id, menuImage: null });
     });
   });

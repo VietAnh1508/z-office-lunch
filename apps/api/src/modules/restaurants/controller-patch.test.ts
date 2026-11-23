@@ -37,15 +37,15 @@ async function sizeRows(restaurantId: number) {
   return rows.sort((a, b) => a.menuItemId - b.menuItemId || a.sizeOptionId - b.sizeOptionId);
 }
 
+beforeEach(async () => {
+  await truncateAll(db);
+});
+
+afterAll(async () => {
+  await db.$client.end();
+});
+
 describe("PATCH /api/restaurants/:id", () => {
-  beforeEach(async () => {
-    await truncateAll(db);
-  });
-
-  afterAll(async () => {
-    await db.$client.end();
-  });
-
   async function createRestaurant(overrides: Record<string, unknown> = {}) {
     const res = await app.request(
       "/api/restaurants",
@@ -286,32 +286,24 @@ describe("PATCH /api/restaurants/:id", () => {
       expect(await res.json()).toEqual({ error: "size preset not found" });
     });
   });
+});
 
-  describe("DELETE /api/size-presets/:id", () => {
-    it("409 sizePresetInUse while a restaurant references it", async () => {
-      const { preset } = await seedSizePreset(db);
-      await seedRestaurant(db, { type: "drink", sizePresetId: preset.id });
+describe("DELETE /api/size-presets/:id", () => {
+  it("409 sizePresetInUse while a restaurant references it", async () => {
+    const { preset } = await seedSizePreset(db);
+    await seedRestaurant(db, { type: "drink", sizePresetId: preset.id });
 
-      const res = await app.request(
-        `/api/size-presets/${preset.id}`,
-        { method: "DELETE" },
-        testEnv,
-      );
-      expect(res.status).toBe(409);
-      expect(await res.json()).toEqual({ error: "size preset is in use by a restaurant" });
-    });
+    const res = await app.request(`/api/size-presets/${preset.id}`, { method: "DELETE" }, testEnv);
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({ error: "size preset is in use by a restaurant" });
+  });
 
-    it("deletes once no restaurant references it", async () => {
-      const { preset } = await seedSizePreset(db);
-      const r = await seedRestaurant(db, { type: "drink", sizePresetId: preset.id });
-      await patch(r!.id, { name: "Tea", sizePresetId: null });
+  it("deletes once no restaurant references it", async () => {
+    const { preset } = await seedSizePreset(db);
+    const r = await seedRestaurant(db, { type: "drink", sizePresetId: preset.id });
+    await patch(r!.id, { name: "Tea", sizePresetId: null });
 
-      const res = await app.request(
-        `/api/size-presets/${preset.id}`,
-        { method: "DELETE" },
-        testEnv,
-      );
-      expect(res.status).toBe(200);
-    });
+    const res = await app.request(`/api/size-presets/${preset.id}`, { method: "DELETE" }, testEnv);
+    expect(res.status).toBe(200);
   });
 });
