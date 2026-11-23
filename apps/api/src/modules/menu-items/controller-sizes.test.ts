@@ -9,8 +9,8 @@ import {
   truncateAll,
 } from "db/testing";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import app from "../index";
-import { testEnv, unreachableEnv } from "../test/env";
+import app from "../../index";
+import { testEnv, unreachableEnv } from "../../test/env";
 
 type Item = typeof menuItems.$inferSelect & { sizeOptionIds: number[] };
 

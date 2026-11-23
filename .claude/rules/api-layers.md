@@ -5,7 +5,7 @@ paths:
 
 # API layers
 
-Each feature module splits into three layers. Shared pieces: `lib/controller.ts` (`withDb`, `respond`), `lib/db-types.ts` (`Db`, `Tx`, `DbOrTx`), `lib/result.ts` (`Result`).
+Each feature module splits into three layers. Shared pieces: `lib/controller.ts` (`withDb`, `respond` — controller only), `lib/utils.ts` (layer-neutral helpers like `parseId`, `trimmed`), `lib/db-types.ts` (`Db`, `Tx`, `DbOrTx`), `lib/result.ts` (`Result`).
 
 - **Controller** (Hono routes): routing, parsing/validation of the request, the DB lifecycle (`withDb`) and `Result` -> response mapping (`respond`). The only layer that touches `c`.
 - **Service**: business rules and transactions. Never takes `c`. Returns `Result`.

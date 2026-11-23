@@ -7,8 +7,31 @@ import {
   sizeOptions,
   submissions,
 } from "db";
-import { and, eq, inArray, isNotNull, ne, notInArray, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNotNull, ne, notInArray, sql } from "drizzle-orm";
 import type { DbOrTx, Tx } from "../../lib/db-types";
+
+export async function listSizesForItems(
+  db: DbOrTx,
+  itemIds: number[],
+): Promise<{ menuItemId: number; sizeOptionId: number }[]> {
+  if (itemIds.length === 0) {
+    return [];
+  }
+  return db
+    .select({
+      menuItemId: menuItemSizes.menuItemId,
+      sizeOptionId: menuItemSizes.sizeOptionId,
+    })
+    .from(menuItemSizes)
+    .innerJoin(sizeOptions, eq(sizeOptions.id, menuItemSizes.sizeOptionId))
+    .where(inArray(menuItemSizes.menuItemId, itemIds))
+    .orderBy(asc(sizeOptions.sortOrder), asc(sizeOptions.id));
+}
+
+export async function listItemSizeIds(db: DbOrTx, itemId: number): Promise<number[]> {
+  const rows = await listSizesForItems(db, [itemId]);
+  return rows.map((r) => r.sizeOptionId);
+}
 
 // Ticks every option of a preset for each of the given items.
 // Inserts are guarded because Drizzle throws on an empty `.values([])`.
@@ -120,4 +143,13 @@ export async function clearRemovedItemSizes(
         ? and(where, notInArray(submissions.drinkSizeOptionId, keptOptionIds))
         : where,
     );
+}
+
+export async function replaceItemSizes(tx: Tx, itemId: number, sizeOptionIds: number[]) {
+  await tx.delete(menuItemSizes).where(eq(menuItemSizes.menuItemId, itemId));
+  if (sizeOptionIds.length > 0) {
+    await tx
+      .insert(menuItemSizes)
+      .values(sizeOptionIds.map((sizeOptionId) => ({ menuItemId: itemId, sizeOptionId })));
+  }
 }

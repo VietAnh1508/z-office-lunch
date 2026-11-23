@@ -115,3 +115,11 @@ export async function remove(db: Db, id: number): Promise<number | undefined> {
     .returning({ id: sizePresets.id });
   return row?.id;
 }
+
+export async function listPresetOptionIds(db: DbOrTx, presetId: number): Promise<number[]> {
+  const rows = await db
+    .select({ id: sizeOptions.id })
+    .from(sizeOptions)
+    .where(eq(sizeOptions.presetId, presetId));
+  return rows.map((r) => r.id);
+}
