@@ -9,24 +9,24 @@ import {
   truncateAll,
 } from "db/testing";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import app from "../index";
-import { testEnv, unreachableEnv } from "../test/env";
+import app from "../../index";
+import { testEnv } from "../../test/env";
 
 type Restaurant = typeof restaurants.$inferSelect;
 
 const db = createDb(TEST_DATABASE_URL);
 
-function send(method: "POST" | "PATCH", path: string, body: unknown, env = testEnv) {
+function patch(id: number, body: unknown, env = testEnv) {
   return app.request(
-    path,
-    { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) },
+    `/api/restaurants/${id}`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    },
     env,
   );
 }
-
-const post = (body: unknown, env = testEnv) => send("POST", "/api/restaurants", body, env);
-const patch = (id: number, body: unknown, env = testEnv) =>
-  send("PATCH", `/api/restaurants/${id}`, body, env);
 
 async function sizeRows(restaurantId: number) {
   const rows = await db
@@ -37,67 +37,149 @@ async function sizeRows(restaurantId: number) {
   return rows.sort((a, b) => a.menuItemId - b.menuItemId || a.sizeOptionId - b.sizeOptionId);
 }
 
-describe("restaurant size preset", () => {
-  beforeEach(async () => {
-    await truncateAll(db);
+beforeEach(async () => {
+  await truncateAll(db);
+});
+
+afterAll(async () => {
+  await db.$client.end();
+});
+
+describe("PATCH /api/restaurants/:id", () => {
+  async function createRestaurant(overrides: Record<string, unknown> = {}) {
+    const res = await app.request(
+      "/api/restaurants",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: "Pho 24",
+          type: "food",
+          contactInfo: "090-123-4567",
+          note: "Cash only",
+          menuUrl: "https://pho24.example.com/menu",
+          ...overrides,
+        }),
+      },
+      testEnv,
+    );
+    return (await res.json()) as Restaurant;
+  }
+
+  it("updates name, contactInfo, note, menuUrl together and returns the updated row", async () => {
+    const restaurant = await createRestaurant();
+
+    const res = await app.request(
+      `/api/restaurants/${restaurant.id}`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: "Pho 25",
+          contactInfo: "090-999-9999",
+          note: "Card accepted now",
+          menuUrl: "https://pho25.example.com/menu",
+        }),
+      },
+      testEnv,
+    );
+
+    expect(res.status).toBe(200);
+    const updated = (await res.json()) as Restaurant;
+    expect(updated.name).toBe("Pho 25");
+    expect(updated.contactInfo).toBe("090-999-9999");
+    expect(updated.note).toBe("Card accepted now");
+    expect(updated.menuUrl).toBe("https://pho25.example.com/menu");
   });
 
-  afterAll(async () => {
-    await db.$client.end();
+  it("clearing contactInfo/note/menuUrl (blank or omitted) sets them to null", async () => {
+    const restaurant = await createRestaurant();
+
+    const res = await app.request(
+      `/api/restaurants/${restaurant.id}`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: "Pho 24", contactInfo: "   ", note: "" }),
+      },
+      testEnv,
+    );
+
+    expect(res.status).toBe(200);
+    const updated = (await res.json()) as Restaurant;
+    expect(updated.contactInfo).toBeNull();
+    expect(updated.note).toBeNull();
+    expect(updated.menuUrl).toBeNull();
   });
 
-  describe("POST /api/restaurants", () => {
-    it("stores sizePresetId on a drink restaurant and exposes it via GET", async () => {
-      const { preset } = await seedSizePreset(db);
-      const res = await post({ name: "Tea", type: "drink", sizePresetId: preset.id });
-      expect(res.status).toBe(201);
-      expect(((await res.json()) as Restaurant).sizePresetId).toBe(preset.id);
+  it("blank/whitespace-only/missing name returns 400 nameRequired, row left unchanged", async () => {
+    const restaurant = await createRestaurant();
 
-      const list = (await (
-        await app.request("/api/restaurants", {}, testEnv)
-      ).json()) as Restaurant[];
-      expect(list[0]?.sizePresetId).toBe(preset.id);
-    });
-
-    it("defaults sizePresetId to null when omitted or null", async () => {
-      for (const body of [
-        { name: "A", type: "drink" },
-        { name: "B", type: "drink", sizePresetId: null },
-      ]) {
-        const res = await post(body);
-        expect(res.status).toBe(201);
-        expect(((await res.json()) as Restaurant).sizePresetId).toBeNull();
-      }
-    });
-
-    it("400 sizePresetIdInvalid when not an integer or null", async () => {
-      for (const sizePresetId of ["1", 1.5, true, {}]) {
-        const res = await post({ name: "Tea", type: "drink", sizePresetId });
-        expect(res.status).toBe(400);
-        expect(await res.json()).toEqual({ error: "sizePresetId must be a valid size preset id" });
-      }
-    });
-
-    it("400 sizePresetFoodRestaurant for a food restaurant with a preset", async () => {
-      const { preset } = await seedSizePreset(db);
-      const res = await post({ name: "Pho", type: "food", sizePresetId: preset.id });
+    for (const body of [{ name: "   " }, {}]) {
+      const res = await app.request(
+        `/api/restaurants/${restaurant.id}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        },
+        testEnv,
+      );
       expect(res.status).toBe(400);
-      expect(await res.json()).toEqual({ error: "only a drink restaurant can have a size preset" });
-    });
+    }
 
-    it("allows a food restaurant with an explicit null preset", async () => {
-      const res = await post({ name: "Pho", type: "food", sizePresetId: null });
-      expect(res.status).toBe(201);
-    });
-
-    it("404 sizePresetNotFound for a missing preset", async () => {
-      const res = await post({ name: "Tea", type: "drink", sizePresetId: 999999 });
-      expect(res.status).toBe(404);
-      expect(await res.json()).toEqual({ error: "size preset not found" });
-    });
+    const getRes = await app.request("/api/restaurants", {}, testEnv);
+    const rows = (await getRes.json()) as Restaurant[];
+    expect(rows.find((r) => r.id === restaurant.id)?.name).toBe("Pho 24");
   });
 
-  describe("PATCH /api/restaurants/:id", () => {
+  it("never modifies type, even if included in the request body", async () => {
+    const restaurant = await createRestaurant({ type: "food" });
+
+    const res = await app.request(
+      `/api/restaurants/${restaurant.id}`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: "Pho 24", type: "drink" }),
+      },
+      testEnv,
+    );
+
+    expect(res.status).toBe(200);
+    const updated = (await res.json()) as Restaurant;
+    expect(updated.type).toBe("food");
+  });
+
+  it("nonexistent id returns 404 restaurantNotFound", async () => {
+    const res = await app.request(
+      "/api/restaurants/999999",
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: "Pho 24" }),
+      },
+      testEnv,
+    );
+
+    expect(res.status).toBe(404);
+  });
+
+  it("non-integer id returns 404 restaurantNotFound", async () => {
+    const res = await app.request(
+      "/api/restaurants/abc",
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: "Pho 24" }),
+      },
+      testEnv,
+    );
+
+    expect(res.status).toBe(404);
+  });
+
+  describe("size preset", () => {
     it("omitted sizePresetId leaves it unchanged and does not touch item sizes", async () => {
       const { preset, options } = await seedSizePreset(db);
       const r = await seedRestaurant(db, { type: "drink", sizePresetId: preset.id });
@@ -203,39 +285,25 @@ describe("restaurant size preset", () => {
       expect(res.status).toBe(404);
       expect(await res.json()).toEqual({ error: "size preset not found" });
     });
+  });
+});
 
-    it("returns a structured 500 when the database is unreachable", async () => {
-      const res = await patch(1, { name: "Tea", sizePresetId: 1 }, unreachableEnv);
-      expect(res.status).toBe(500);
-      expect(((await res.json()) as { error?: string }).error).toBeTruthy();
-    });
+describe("DELETE /api/size-presets/:id", () => {
+  it("409 sizePresetInUse while a restaurant references it", async () => {
+    const { preset } = await seedSizePreset(db);
+    await seedRestaurant(db, { type: "drink", sizePresetId: preset.id });
+
+    const res = await app.request(`/api/size-presets/${preset.id}`, { method: "DELETE" }, testEnv);
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({ error: "size preset is in use by a restaurant" });
   });
 
-  describe("DELETE /api/size-presets/:id", () => {
-    it("409 sizePresetInUse while a restaurant references it", async () => {
-      const { preset } = await seedSizePreset(db);
-      await seedRestaurant(db, { type: "drink", sizePresetId: preset.id });
+  it("deletes once no restaurant references it", async () => {
+    const { preset } = await seedSizePreset(db);
+    const r = await seedRestaurant(db, { type: "drink", sizePresetId: preset.id });
+    await patch(r!.id, { name: "Tea", sizePresetId: null });
 
-      const res = await app.request(
-        `/api/size-presets/${preset.id}`,
-        { method: "DELETE" },
-        testEnv,
-      );
-      expect(res.status).toBe(409);
-      expect(await res.json()).toEqual({ error: "size preset is in use by a restaurant" });
-    });
-
-    it("deletes once no restaurant references it", async () => {
-      const { preset } = await seedSizePreset(db);
-      const r = await seedRestaurant(db, { type: "drink", sizePresetId: preset.id });
-      await patch(r!.id, { name: "Tea", sizePresetId: null });
-
-      const res = await app.request(
-        `/api/size-presets/${preset.id}`,
-        { method: "DELETE" },
-        testEnv,
-      );
-      expect(res.status).toBe(200);
-    });
+    const res = await app.request(`/api/size-presets/${preset.id}`, { method: "DELETE" }, testEnv);
+    expect(res.status).toBe(200);
   });
 });

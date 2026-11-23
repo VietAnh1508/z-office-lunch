@@ -123,3 +123,11 @@ export async function listPresetOptionIds(db: DbOrTx, presetId: number): Promise
     .where(eq(sizeOptions.presetId, presetId));
   return rows.map((r) => r.id);
 }
+
+export async function exists(db: DbOrTx, id: number): Promise<boolean> {
+  const [row] = await db
+    .select({ id: sizePresets.id })
+    .from(sizePresets)
+    .where(eq(sizePresets.id, id));
+  return row !== undefined;
+}

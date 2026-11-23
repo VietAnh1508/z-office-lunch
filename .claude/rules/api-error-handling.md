@@ -5,7 +5,7 @@ paths:
 
 # API route error handling
 
-Every route handler that touches the database wraps its query in `try`/`catch`/`finally`:
+Every route handler that touches the database wraps its query in `try`/`catch`/`finally`. Layered modules (`apps/api/src/modules/*/controller.ts`) get this from `withDb` in `apps/api/src/lib/controller.ts` — use it rather than hand-writing the block. Routes not yet moved into a module (`apps/api/src/routes/rounds.ts`) still write it inline:
 
 ```ts
 import { ERROR_MESSAGES } from "../lib/errors";
@@ -26,4 +26,4 @@ try {
 - `finally` always calls `await db.$client.end()` directly — never `c.executionCtx.waitUntil(...)`. (`/api/health` is the one exception: it uses a raw `pg` `Client`, not `getDb`.) Tests exercise routes via `app.request()` outside a real Worker's lifecycle, so cleanup must be awaited synchronously or the connection leaks/hangs in tests.
 - Error message strings — the internal-error message and any validation message reused across routes (e.g. a missing required field) — live in `apps/api/src/lib/errors.ts`'s `ERROR_MESSAGES`, not inlined per route. Add a new entry there rather than re-typing a string a second route also needs.
 
-Established in `apps/api/src/index.ts`'s `/api/health` handler (the logging shape) and `apps/api/src/routes/restaurants.ts` (the first route to reuse the full pattern) — see `tasks/003-restaurants-crud.md`.
+Established in `apps/api/src/index.ts`'s `/api/health` handler (the logging shape) and the original restaurants route (the first to reuse the full pattern) — see `tasks/003-restaurants-crud.md`. Now centralized in `withDb` (`apps/api/src/lib/controller.ts`).

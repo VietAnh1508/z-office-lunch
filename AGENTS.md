@@ -68,7 +68,7 @@ See `docs/architecture.md` for the stack and data model, and root `package.json`
 
 Gotchas the scripts don't tell you:
 
-- Tests: run `pnpm db:up` first (Postgres must be up). To run a subset, use `pnpm test -- <path>`, not `pnpm --filter <pkg> test` (it silently no-ops).
+- Tests: run `pnpm db:up` first (Postgres must be up). To run a subset, use `pnpm test <path>` (no `--`: pnpm 11 passes it through to Vitest, which then finds no test files), not `pnpm --filter <pkg> test` (it silently no-ops).
 - `pnpm test:e2e` can run alongside `pnpm dev`/`dev:hot` (e2e uses `:8788` and its own database).
 - Ignore the `REPLACE_ME` placeholders in `apps/api/wrangler.jsonc`. Local dev doesn't need them.
 - Formatting is automatic (husky + lint-staged runs Prettier on staged files). Don't run Prettier by hand. `tasks/` is excluded.

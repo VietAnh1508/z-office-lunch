@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import { useTestDb } from "../../test/db";
 import {
   deleteOptions,
+  exists,
   findIdByName,
   findWithOptions,
   insertOption,
@@ -127,5 +128,12 @@ describe("size-presets repository", () => {
     const ids = await listPresetOptionIds(db, preset.id);
     expect(ids.sort((a, b) => a - b)).toEqual(options.map((o) => o.id).sort((a, b) => a - b));
     expect(otherOptions.every((o) => !ids.includes(o.id))).toBe(true);
+  });
+
+  it("exists returns true for an existing preset and false otherwise", async () => {
+    const { preset } = await seedSizePreset(db);
+
+    expect(await exists(db, preset.id)).toBe(true);
+    expect(await exists(db, 999999)).toBe(false);
   });
 });
