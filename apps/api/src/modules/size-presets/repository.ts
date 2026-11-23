@@ -123,3 +123,7 @@ export async function listPresetOptionIds(db: DbOrTx, presetId: number): Promise
     .where(eq(sizeOptions.presetId, presetId));
   return rows.map((r) => r.id);
 }
+
+export async function exists(_db: DbOrTx, _id: number): Promise<boolean> {
+  throw new Error("not implemented");
+}
