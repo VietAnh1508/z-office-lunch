@@ -6,7 +6,7 @@ depends_on: [071]
 parallelizable_with: []
 epic: layered-api-refactor
 tdd: required
-test_command: "pnpm test -- apps/api/src/modules/rounds"
+test_command: "pnpm test apps/api/src/modules/rounds"
 created: 2026-11-06
 ---
 

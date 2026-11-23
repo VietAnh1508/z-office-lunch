@@ -6,7 +6,7 @@ depends_on: [072]
 parallelizable_with: []
 epic: layered-api-refactor
 tdd: required
-test_command: "pnpm test -- apps/api/src/modules/round-menu-items"
+test_command: "pnpm test apps/api/src/modules/round-menu-items"
 created: 2026-11-06
 ---
 
