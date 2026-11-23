@@ -2,6 +2,7 @@ import type { Db } from "../../lib/db-types";
 import { ERROR_MESSAGES } from "../../lib/errors";
 import { fail, ok, type Result } from "../../lib/result";
 import { clearRemovedItemSizes, fillSizesForItems } from "../menu-item-sizes/repository";
+import { listPresetOptionIds } from "../size-presets/repository";
 import * as repo from "./repository";
 import type { MenuItemRow } from "./repository";
 
@@ -80,7 +81,7 @@ export async function updateMenuItemSizes(
     return itemNotFound();
   }
 
-  const allowed = item.presetId === null ? [] : await repo.listPresetOptionIds(db, item.presetId);
+  const allowed = item.presetId === null ? [] : await listPresetOptionIds(db, item.presetId);
   if (requested.some((id) => !allowed.includes(id))) {
     return fail(ERROR_MESSAGES.sizeOptionInvalid, 400);
   }

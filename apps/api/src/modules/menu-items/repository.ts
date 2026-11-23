@@ -72,14 +72,6 @@ export async function listItemSizeIds(db: DbOrTx, itemId: number): Promise<numbe
   return rows.map((r) => r.sizeOptionId);
 }
 
-export async function listPresetOptionIds(db: DbOrTx, presetId: number): Promise<number[]> {
-  const rows = await db
-    .select({ id: sizeOptions.id })
-    .from(sizeOptions)
-    .where(eq(sizeOptions.presetId, presetId));
-  return rows.map((r) => r.id);
-}
-
 export async function insertOne(
   tx: Tx,
   restaurantId: number,

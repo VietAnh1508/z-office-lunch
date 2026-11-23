@@ -12,7 +12,6 @@ import {
   insertOne,
   listByRestaurant,
   listItemSizeIds,
-  listPresetOptionIds,
   listSizesForItems,
   replaceItemSizes,
   setActive,
@@ -84,15 +83,6 @@ describe("menu-items repository", () => {
       { menuItemId: item!.id, sizeOptionId: options[2]!.id },
     ]);
     expect(await listItemSizeIds(db, item!.id)).toEqual([options[0]!.id, options[2]!.id]);
-  });
-
-  it("listPresetOptionIds returns all option ids for a preset", async () => {
-    const { preset, options } = await seedSizePreset(db);
-    const { options: otherOptions } = await seedSizePreset(db, { name: "Other" });
-
-    const ids = await listPresetOptionIds(db, preset.id);
-    expect(ids.sort((a, b) => a - b)).toEqual(options.map((o) => o.id).sort((a, b) => a - b));
-    expect(otherOptions.every((o) => !ids.includes(o.id))).toBe(true);
   });
 
   it("insertOne and insertMany create active rows", async () => {

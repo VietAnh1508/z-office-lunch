@@ -10,6 +10,7 @@ import {
   insertOption,
   insertWithOptions,
   isUsedByRestaurant,
+  listPresetOptionIds,
   listWithOptions,
   parkOptionLabel,
   remove,
@@ -117,5 +118,14 @@ describe("size-presets repository", () => {
     expect(await db.select().from(sizePresets)).toHaveLength(0);
     expect(await optionRows(preset.id)).toHaveLength(0);
     expect(await remove(db, preset.id)).toBeUndefined();
+  });
+
+  it("listPresetOptionIds returns all option ids for a preset", async () => {
+    const { preset, options } = await seedSizePreset(db);
+    const { options: otherOptions } = await seedSizePreset(db, { name: "Other" });
+
+    const ids = await listPresetOptionIds(db, preset.id);
+    expect(ids.sort((a, b) => a - b)).toEqual(options.map((o) => o.id).sort((a, b) => a - b));
+    expect(otherOptions.every((o) => !ids.includes(o.id))).toBe(true);
   });
 });
